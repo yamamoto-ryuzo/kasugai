@@ -15,9 +15,9 @@
     npm install
     ```
 
-4.  **アプリケーションをビルドします。**
+4.  **アプリケーションをPythonスクリプトでビルドします。**
     ```bash
-    npm run tauri build
+    python kasugai/build.py
     ```
 
 5.  **ビルド成果物を確認します。**
