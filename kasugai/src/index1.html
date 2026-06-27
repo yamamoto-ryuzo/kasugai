@@ -90,36 +90,40 @@
         <h1>ポータルリンク</h1>
         
         <div class="link-list">
-            <!-- Box へのリンク -->
-            <a class="portal-btn" href="#" onclick="openLink(event, 'https://account.box.com/login')">
+            <!-- Box へのリンク (常に画面3で開くようにターゲットを変更) -->
+            <a class="portal-btn" href="#" onclick="openLink(event, 'https://account.box.com/login', 'pane3')">
                 <span>📦 BOX</span>
                 <span class="icon">→</span>
             </a>
             
-            <!-- Google Map へのリンク -->
-            <a class="portal-btn" href="#" onclick="openLink(event, 'https://www.google.com/maps')">
+            <!-- Google Map へのリンク (従来どおり画面2で開く) -->
+            <a class="portal-btn" href="#" onclick="openLink(event, 'https://www.google.com/maps', 'pane2')">
                 <span>🗺️ Google Map</span>
                 <span class="icon">→</span>
             </a>
             
-            <!-- Re:Earth へのリンク -->
-            <a class="portal-btn" href="#" onclick="openLink(event, 'https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/')">
+            <!-- Re:Earth へのリンク (従来どおり画面2で開く) -->
+            <a class="portal-btn" href="#" onclick="openLink(event, 'https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/', 'pane2')">
                 <span>🌐 Re:Earth</span>
                 <span class="icon">→</span>
             </a>
         </div>
         
         <div class="footer">
-            ※リンクをクリックすると中央の画面2に表示されます。
+            ※BOXは右側の画面3、Google Map/Re:Earthは中央の画面2に表示されます。
         </div>
     </div>
 
     <script>
-        // ポータルリンクをクリックした際、Tauri経由で画面2(pane2)に読み込ませる
-        function openLink(event, url) {
+        // ポータルリンクをクリックした際、指定ターゲットのWebviewで開く
+        function openLink(event, url, target) {
             event.preventDefault();
             if (window.__TAURI__ && window.__TAURI__.core) {
-                window.__TAURI__.core.invoke('open_in_pane2', { url: url });
+                if (target === 'pane3') {
+                    window.__TAURI__.core.invoke('open_in_pane3', { url: url });
+                } else {
+                    window.__TAURI__.core.invoke('open_in_pane2', { url: url });
+                }
             } else {
                 console.warn("Tauri環境が検出されません。URLをブラウザで開きます:", url);
                 window.open(url, '_blank');

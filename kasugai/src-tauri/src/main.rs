@@ -41,6 +41,18 @@ fn open_in_pane2(
     }
 }
 
+// 画面1(左)または割り込みナビゲーションから送信されたURLを画面3(右)のWebviewで開く
+#[tauri::command]
+fn open_in_pane3(app_handle: tauri::AppHandle, url: String) {
+    if let Some(window) = app_handle.get_window("main") {
+        if let Some(wv3) = window.get_webview("pane3") {
+            if let Ok(target_url) = tauri::Url::parse(&url) {
+                let _ = wv3.navigate(target_url);
+            }
+        }
+    }
+}
+
 // ドラッグ中にスプリッター比率を更新し、各Webviewの境界（サイズ）を再計算して配置する
 #[tauri::command]
 fn update_splitter(
@@ -117,7 +129,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_system_info,
             update_splitter,
-            open_in_pane2
+            open_in_pane2,
+            open_in_pane3
         ])
         .setup(|app| {
             // メインウィンドウを作成
