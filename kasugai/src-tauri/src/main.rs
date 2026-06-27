@@ -41,18 +41,6 @@ fn open_in_pane2(
     }
 }
 
-// 画面2でクリックされた外部リンクを画面3(右)で開く
-#[tauri::command]
-fn open_in_pane3(app_handle: tauri::AppHandle, url: String) {
-    if let Some(window) = app_handle.get_window("main") {
-        if let Some(wv3) = window.get_webview("pane3") {
-            if let Ok(target_url) = tauri::Url::parse(&url) {
-                let _ = wv3.navigate(target_url);
-            }
-        }
-    }
-}
-
 // ドラッグ中にスプリッター比率を更新し、各Webviewの境界（サイズ）を再計算して配置する
 #[tauri::command]
 fn update_splitter(
@@ -129,8 +117,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_system_info,
             update_splitter,
-            open_in_pane2,
-            open_in_pane3
+            open_in_pane2
         ])
         .setup(|app| {
             // メインウィンドウを作成
@@ -153,46 +140,47 @@ fn main() {
             )?;
 
             // 3つの子Webviewをマウント
-            // Webview2(中央)には、ページロードのたびに動作する「外部リンククリック監視用JavaScript」を注入
+            // 画面2(中央)のWebviewBuilderに、Rustネイティブのナビゲーション監視(on_navigation)を設定。
+            // 外部ドメインでのJSセキュリティ制約を完全にバイパスし、Rust側で100%確実にインターセプトします。
             let webview1_builder = WebviewBuilder::new("pane1", WebviewUrl::App("index1.html".into()));
+            
+            let app_handle_for_nav = app.handle().clone();
             let webview2_builder = WebviewBuilder::new("pane2", WebviewUrl::App("index2.html".into()))
-                .initialization_script(r#"
-                    (function() {
-                        // 1. window.open の挙動を傍受
-                        const originalOpen = window.open;
-                        window.open = function(url, target, features) {
-                            if (url && !url.startsWith('tauri://') && !url.includes('localhost') && !url.includes('index2.html')) {
-                                if (window.__TAURI__ && window.__TAURI__.core) {
-                                    window.__TAURI__.core.invoke('open_in_pane3', { url: url.toString() });
-                                    return null; // 新しいウインドウの発生をストップ
-                                }
-                            }
-                            return originalOpen(url, target, features);
-                        };
+                .on_navigation(move |url| {
+                    let url_str = url.as_str();
 
-                        // 2. ページ全体の aタグ クリックイベントをキャプチャして傍受
-                        document.addEventListener('click', function(e) {
-                            let target = e.target;
-                            while (target && target.tagName !== 'A') {
-                                target = target.parentNode;
+                    // ローカルの読み込みは常に許可
+                    if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("index2.html") {
+                        return true;
+                    }
+
+                    // 画面1(左)からリクエストされた初期URLホスト、または現在のアクティブホストへの遷移は許可する
+                    let state = app_handle_for_nav.state::<SplitterState>();
+                    let allowed_host_opt = state.pane2_current_host.lock().unwrap().clone();
+
+                    if let Some(target_host) = url.host_str() {
+                        if let Some(allowed_host) = allowed_host_opt {
+                            // 同一ホストまたはサブドメインへの遷移は画面2内で許可する
+                            if target_host == allowed_host || target_host.ends_with(&format!(".{}", allowed_host)) {
+                                return true;
                             }
-                            if (target && target.href) {
-                                const url = target.href;
-                                // 外部のURLリンク（自身や初期ページ以外のリンク）を検知した場合
-                                if (!url.startsWith('tauri://') && !url.includes('localhost') && !url.includes('index2.html') && !url.startsWith('#') && !url.startsWith('javascript:')) {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    if (window.__TAURI__ && window.__TAURI__.core) {
-                                        window.__TAURI__.core.invoke('open_in_pane3', { url: url });
-                                    } else {
-                                        // デバッグ用
-                                        console.log("外部への遷移を検知: " + url);
-                                    }
-                                }
+                        }
+                    }
+
+                    // 完全に外部のドメイン、または別サイトのリンクがクリックされた場合は、
+                    // 画面2での遷移をキャンセル(false)し、画面3(右)でそのURLを開く！
+                    if let Some(window) = app_handle_for_nav.get_window("main") {
+                        if let Some(wv3) = window.get_webview("pane3") {
+                            if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                let _ = wv3.navigate(target_url);
+                                return false; // 画面2側の遷移をブロック
                             }
-                        }, true); // キャプチャリングフェーズで優先的にフック
-                    })();
-                "#);
+                        }
+                    }
+
+                    true
+                });
+
             let webview3_builder = WebviewBuilder::new("pane3", WebviewUrl::App("index3.html".into()));
 
             // pane1, pane2, pane3 をベースウィンドウの子Webviewとして追加
