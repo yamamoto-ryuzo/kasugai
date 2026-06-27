@@ -122,6 +122,43 @@
                 status.textContent = "";
             }, 3000);
         }
+
+        // --- スプリッターのドラッグ・リサイズ用中継処理 ---
+        (function() {
+            let isDragging = false;
+            let activeSplitter = null;
+
+            if (window.__TAURI__ && window.__TAURI__.event) {
+                // 親がドラッグを開始したことを検知
+                window.__TAURI__.event.listen('splitter_drag_start', (event) => {
+                    isDragging = true;
+                    activeSplitter = event.payload.activeSplitter;
+                });
+
+                // 親がドラッグを終了したことを検知
+                window.__TAURI__.event.listen('splitter_drag_end', () => {
+                    isDragging = false;
+                    activeSplitter = null;
+                });
+
+                // ドラッグ中、マウスのグローバル座標を親に伝える
+                window.addEventListener('mousemove', (e) => {
+                    if (isDragging && activeSplitter) {
+                        window.__TAURI__.event.emit('global_mousemove', {
+                            screenX: e.screenX,
+                            screenY: e.screenY
+                        });
+                    }
+                });
+
+                // ドラッグ中にこのペイン上でマウスを離した場合
+                window.addEventListener('mouseup', () => {
+                    if (isDragging) {
+                        window.__TAURI__.event.emit('global_mouseup');
+                    }
+                });
+            }
+        })();
     </script>
 </body>
 </html>

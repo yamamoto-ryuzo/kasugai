@@ -3,48 +3,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kasugai Portal</title>
+    <title>Kasugai Splitter Base</title>
     <style>
         body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background-color: #f8fafc;
-            color: #0f172a;
-            padding: 40px;
-            text-align: center;
+            margin: 0;
+            padding: 0;
+            background-color: #0f172a; /* スプリッターの背景（隙間の色） */
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
         }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        /* スプリッターバーのデザイン */
+        .splitter {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 8px;
+            background-color: #334155;
+            cursor: col-resize;
+            z-index: 9999;
+            transition: background-color 0.15s;
         }
-        h1 { margin-bottom: 10px; color: #1e293b; }
-        p { color: #64748b; margin-bottom: 30px; }
-        .links { display: flex; flex-direction: column; gap: 10px; }
-        .link-btn {
-            display: block;
-            padding: 12px;
-            background: #f1f5f9;
-            color: #334155;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 500;
-            transition: all 0.2s;
+        .splitter:hover, .splitter.dragging {
+            background-color: #3b82f6; /* ホバー・ドラッグ時に青く光らせる */
         }
-        .link-btn:hover { background: #e2e8f0; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Kasugai Split Viewer</h1>
-        <p>このシステムはRust側で3つの独立したWebView2を生成し、3画面分割で表示します。</p>
-        <div class="links">
-            <a class="link-btn" href="index1.html">画面 1 (左ビュー)</a>
-            <a class="link-btn" href="index2.html">画面 2 (中央ビュー)</a>
-            <a class="link-btn" href="index3.html">画面 3 (右ビュー)</a>
-        </div>
-    </div>
+    <div id="splitter1" class="splitter"></div>
+    <div id="splitter2" class="splitter"></div>
+
+    <script>
+        const splitter1 = document.getElementById('splitter1');
+        const splitter2 = document.getElementById('splitter2');
+
+        let ratio1 = 0.3333;
+        let ratio2 = 0.6667;
+        const splitterWidth = 8;
+        const sh = splitterWidth / 2;
+
+        // 初期配置をセット
+        function updateSplitterElements() {
+            const w = window.innerWidth;
+            splitter1.style.left = (w * ratio1 - sh) + 'px';
+            splitter2.style.left = (w * ratio2 - sh) + 'px';
+        }
+
+        updateSplitterElements();
+        window.addEventListener('resize', updateSplitterElements);
+
+        let activeSplitter = null;
+
+        // ドラッグ状態を子Webview全体に通知
+        function notifyDragStart() {
+            if (window.__TAURI__ && window.__TAURI__.event) {
+                window.__TAURI__.event.emit('splitter_drag_start', {
+                    activeSplitter: activeSplitter,
+                    ratio1: ratio1,
+                    ratio2: ratio2
+                });
+            }
+        }
+
+        function notifyDragEnd() {
+            if (window.__TAURI__ && window.__TAURI__.event) {
+                window.__TAURI__.event.emit('splitter_drag_end');
+            }
+        }
+
+        function onMouseDown(e, splitterNum) {
+            e.preventDefault();
+            activeSplitter = splitterNum;
+            document.body.style.cursor = 'col-resize';
+            if (splitterNum === 1) splitter1.classList.add('dragging');
+            if (splitterNum === 2) splitter2.classList.add('dragging');
+
+            notifyDragStart();
+        }
+
+        splitter1.addEventListener('mousedown', (e) => onMouseDown(e, 1));
+        splitter2.addEventListener('mousedown', (e) => onMouseDown(e, 2));
+
+        // マウス位置に基づくスプリッター比率の更新ロジック
+        function handleMove(clientX) {
+            if (!activeSplitter) return;
+
+            const w = window.innerWidth;
+            let newRatio = clientX / w;
+
+            // 各ペインが最小5%をキープするように制限
+            const minRatio = 0.05;
+            if (activeSplitter === 1) {
+                if (newRatio < minRatio) newRatio = minRatio;
+                if (newRatio > ratio2 - minRatio) newRatio = ratio2 - minRatio;
+                ratio1 = newRatio;
+            } else if (activeSplitter === 2) {
+                if (newRatio < ratio1 + minRatio) newRatio = ratio1 + minRatio;
+                if (newRatio > 1 - minRatio) newRatio = 1 - minRatio;
+                ratio2 = newRatio;
+            }
+
+            updateSplitterElements();
+
+            // Rustバックエンドを呼び出してWebviewをリサイズ
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                window.__TAURI__.core.invoke('update_splitter', { ratio1, ratio2 });
+            }
+        }
+
+        // 自身のWebview上での動き
+        window.addEventListener('mousemove', (e) => {
+            if (!activeSplitter) return;
+            handleMove(e.clientX);
+        });
+
+        // ドラッグ終了処理
+        function endDrag() {
+            if (!activeSplitter) return;
+
+            splitter1.classList.remove('dragging');
+            splitter2.classList.remove('dragging');
+            activeSplitter = null;
+            document.body.style.cursor = 'default';
+
+            notifyDragEnd();
+        }
+
+        window.addEventListener('mouseup', endDrag);
+
+        // --- Tauri イベントシステムによる他Webviewからのマウスクリップの中継 ---
+        if (window.__TAURI__ && window.__TAURI__.event) {
+            // 他のWebviewで検知されたmousemoveを受け取る（絶対座標 screenX を クライアント座標に変換）
+            window.__TAURI__.event.listen('global_mousemove', (event) => {
+                if (!activeSplitter) return;
+                
+                // screenXからウィンドウ自体のデスクトップ上の左端位置を引くことで、このWebview内のクライアント座標を割り出す
+                const clientX = event.payload.screenX - window.screenX;
+                handleMove(clientX);
+            });
+
+            // 他のWebviewでマウスボタンが離された場合
+            window.__TAURI__.event.listen('global_mouseup', () => {
+                endDrag();
+            });
+
+            // 子Webview側での比率変更の同期（もしあれば）
+            window.__TAURI__.event.listen('request_ratios', () => {
+                window.__TAURI__.event.emit('sync_ratios', { ratio1, ratio2 });
+            });
+        }
+    </script>
 </body>
 </html>
