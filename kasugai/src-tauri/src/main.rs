@@ -11,6 +11,7 @@ use tauri::{
 struct SplitterState {
     ratio1: Mutex<f64>,
     ratio2: Mutex<f64>,
+    pane2_current_host: Mutex<Option<String>>,
 }
 
 // フロントエンドから呼び出されるRustコマンド
@@ -21,11 +22,32 @@ fn get_system_info() -> String {
 
 // 画面1(左)から送信されたURLを画面2(中央)のWebviewで開く
 #[tauri::command]
-fn open_in_pane2(app_handle: tauri::AppHandle, url: String) {
-    if let Some(window) = app_handle.get_window("main") {
-        if let Some(wv2) = window.get_webview("pane2") {
-            if let Ok(target_url) = tauri::Url::parse(&url) {
+fn open_in_pane2(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
+    url: String,
+) {
+    if let Ok(target_url) = tauri::Url::parse(&url) {
+        // 画面1から指示されたURLのホスト名を保存
+        if let Some(host) = target_url.host_str() {
+            *state.pane2_current_host.lock().unwrap() = Some(host.to_string());
+        }
+
+        if let Some(window) = app_handle.get_window("main") {
+            if let Some(wv2) = window.get_webview("pane2") {
                 let _ = wv2.navigate(target_url);
+            }
+        }
+    }
+}
+
+// 画面2でクリックされた外部リンクを画面3(右)で開く
+#[tauri::command]
+fn open_in_pane3(app_handle: tauri::AppHandle, url: String) {
+    if let Some(window) = app_handle.get_window("main") {
+        if let Some(wv3) = window.get_webview("pane3") {
+            if let Ok(target_url) = tauri::Url::parse(&url) {
+                let _ = wv3.navigate(target_url);
             }
         }
     }
@@ -102,11 +124,13 @@ fn main() {
         .manage(SplitterState {
             ratio1: Mutex::new(0.3333),
             ratio2: Mutex::new(0.6667),
+            pane2_current_host: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
             get_system_info,
             update_splitter,
-            open_in_pane2
+            open_in_pane2,
+            open_in_pane3
         ])
         .setup(|app| {
             // メインウィンドウを作成
@@ -129,8 +153,46 @@ fn main() {
             )?;
 
             // 3つの子Webviewをマウント
+            // Webview2(中央)には、ページロードのたびに動作する「外部リンククリック監視用JavaScript」を注入
             let webview1_builder = WebviewBuilder::new("pane1", WebviewUrl::App("index1.html".into()));
-            let webview2_builder = WebviewBuilder::new("pane2", WebviewUrl::App("index2.html".into()));
+            let webview2_builder = WebviewBuilder::new("pane2", WebviewUrl::App("index2.html".into()))
+                .initialization_script(r#"
+                    (function() {
+                        // 1. window.open の挙動を傍受
+                        const originalOpen = window.open;
+                        window.open = function(url, target, features) {
+                            if (url && !url.startsWith('tauri://') && !url.includes('localhost') && !url.includes('index2.html')) {
+                                if (window.__TAURI__ && window.__TAURI__.core) {
+                                    window.__TAURI__.core.invoke('open_in_pane3', { url: url.toString() });
+                                    return null; // 新しいウインドウの発生をストップ
+                                }
+                            }
+                            return originalOpen(url, target, features);
+                        };
+
+                        // 2. ページ全体の aタグ クリックイベントをキャプチャして傍受
+                        document.addEventListener('click', function(e) {
+                            let target = e.target;
+                            while (target && target.tagName !== 'A') {
+                                target = target.parentNode;
+                            }
+                            if (target && target.href) {
+                                const url = target.href;
+                                // 外部のURLリンク（自身や初期ページ以外のリンク）を検知した場合
+                                if (!url.startsWith('tauri://') && !url.includes('localhost') && !url.includes('index2.html') && !url.startsWith('#') && !url.startsWith('javascript:')) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (window.__TAURI__ && window.__TAURI__.core) {
+                                        window.__TAURI__.core.invoke('open_in_pane3', { url: url });
+                                    } else {
+                                        // デバッグ用
+                                        console.log("外部への遷移を検知: " + url);
+                                    }
+                                }
+                            }
+                        }, true); // キャプチャリングフェーズで優先的にフック
+                    })();
+                "#);
             let webview3_builder = WebviewBuilder::new("pane3", WebviewUrl::App("index3.html".into()));
 
             // pane1, pane2, pane3 をベースウィンドウの子Webviewとして追加
