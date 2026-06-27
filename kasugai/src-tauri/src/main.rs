@@ -122,8 +122,8 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
 fn main() {
     tauri::Builder::default()
         .manage(SplitterState {
-            ratio1: Mutex::new(0.3333),
-            ratio2: Mutex::new(0.6667),
+            ratio1: Mutex::new(0.1),
+            ratio2: Mutex::new(0.8),
             pane2_current_host: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
@@ -138,6 +138,7 @@ fn main() {
                 .title("Kasugai 3-Split Viewer")
                 .inner_size(1200.0, 800.0)
                 .resizable(true)
+                .maximized(true)
                 .build()?;
 
             let size = window.inner_size()?;
@@ -245,8 +246,8 @@ fn main() {
                 PhysicalSize::new(0, 0),
             )?;
 
-            // 初期のスプリッター比率(1/3, 2/3)をベースに各Webviewのサイズ・位置をセット
-            recalculate_webview_bounds(&window, width, height, 0.3333, 0.6667);
+            // 初期のスプリッター比率(1:7:2)をベースに各Webviewのサイズ・位置をセット
+            recalculate_webview_bounds(&window, width, height, 0.1, 0.8);
 
             // ウィンドウのリサイズイベントを監視し、3つのWebviewの境界（bounds）を最新 of 比率で再計算
             let window_clone = window.clone();

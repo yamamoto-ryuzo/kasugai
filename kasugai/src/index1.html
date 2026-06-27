@@ -86,32 +86,25 @@
 </head>
 <body>
     <div class="container">
-        <span class="badge">画面 1 / Portal</span>
-        <h1>ポータルリンク</h1>
+        <h1>ポータル</h1>
         
         <div class="link-list">
             <!-- Box へのリンク (常に画面3で開くようにターゲットを変更) -->
             <a class="portal-btn" href="https://account.box.com/login" onclick="openLink(event, this.href, 'pane3')">
                 <span>📦 BOX</span>
-                <span class="icon">→</span>
             </a>
             
             <!-- Google Map へのリンク (従来どおり画面2で開く) -->
             <a class="portal-btn" href="https://www.google.com/maps" onclick="openLink(event, this.href, 'pane2')">
                 <span>🗺️ Google Map</span>
-                <span class="icon">→</span>
             </a>
             
             <!-- Re:Earth へのリンク (従来どおり画面2で開く) -->
             <a class="portal-btn" href="https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/" onclick="openLink(event, this.href, 'pane2')">
                 <span>🌐 Re:Earth</span>
-                <span class="icon">→</span>
             </a>
         </div>
         
-        <div class="footer">
-            ※BOXは右側の画面3、Google Map/Re:Earthは中央の画面2に表示されます。
-        </div>
     </div>
 
     <script>
