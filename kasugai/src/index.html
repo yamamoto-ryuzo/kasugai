@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kasugai Portal</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            padding: 40px;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        h1 { margin-bottom: 10px; color: #1e293b; }
+        p { color: #64748b; margin-bottom: 30px; }
+        .links { display: flex; flex-direction: column; gap: 10px; }
+        .link-btn {
+            display: block;
+            padding: 12px;
+            background: #f1f5f9;
+            color: #334155;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .link-btn:hover { background: #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Kasugai Split Viewer</h1>
+        <p>このシステムはRust側で3つの独立したWebView2を生成し、3画面分割で表示します。</p>
+        <div class="links">
+            <a class="link-btn" href="index1.html">画面 1 (左ビュー)</a>
+            <a class="link-btn" href="index2.html">画面 2 (中央ビュー)</a>
+            <a class="link-btn" href="index3.html">画面 3 (右ビュー)</a>
+        </div>
+    </div>
+</body>
+</html>

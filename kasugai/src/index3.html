@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pane 3 - Right View</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #fff1f2;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        h1 {
+            color: #be123c;
+            font-size: 20px;
+            margin-top: 0;
+            border-bottom: 2px solid #f43f5e;
+            padding-bottom: 10px;
+        }
+        .badge {
+            display: inline-block;
+            background-color: #f43f5e;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            align-self: flex-start;
+        }
+        p {
+            line-height: 1.6;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        .btn {
+            background-color: #f43f5e;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            text-align: center;
+        }
+        .btn:hover {
+            background-color: #e11d48;
+        }
+        .output-box {
+            background-color: #1e293b;
+            color: #38bdf8;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            flex-grow: 1;
+            margin-top: 15px;
+            box-sizing: border-box;
+            border: 1px solid #334155;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <span class="badge">画面 3 / Right View</span>
+        <h1>Rust バックエンド連携</h1>
+        <p>この画面では、Tauri IPC（Inter-Process Communication）を利用して、Rustのネイティブコードを直接呼び出します。</p>
+        
+        <button class="btn" onclick="callRust()">Rustコマンドを呼び出す</button>
+        
+        <div id="output" class="output-box">ここにRustからの応答が表示されます...</div>
+    </div>
+
+    <script>
+        async function callRust() {
+            const output = document.getElementById("output");
+            output.textContent = "呼び出し中...";
+            try {
+                // Tauri v2 の invoke API を使ってRustの get_system_info コマンドを呼び出す
+                if (window.__TAURI__ && window.__TAURI__.core) {
+                    const result = await window.__TAURI__.core.invoke("get_system_info");
+                    output.textContent = result + "\n\n取得時刻: " + new Date().toLocaleTimeString();
+                } else {
+                    output.textContent = "エラー: Tauri環境が検出されませんでした。\nTauriアプリとして実行してください。";
+                }
+            } catch (err) {
+                output.textContent = "エラーが発生しました:\n" + err;
+            }
+        }
+    </script>
+</body>
+</html>

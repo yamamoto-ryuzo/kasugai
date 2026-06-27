@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pane 1 - Left View</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        h1 {
+            color: #1e3a8a;
+            font-size: 20px;
+            margin-top: 0;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 10px;
+        }
+        .badge {
+            display: inline-block;
+            background-color: #3b82f6;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            align-self: flex-start;
+        }
+        p {
+            line-height: 1.6;
+            font-size: 14px;
+        }
+        .card {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .card-title {
+            font-weight: bold;
+            color: #0f172a;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+        ul {
+            padding-left: 20px;
+            margin: 0;
+            font-size: 13px;
+            color: #475569;
+        }
+        li {
+            margin-bottom: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <span class="badge">画面 1 / Left View</span>
+        <h1>Kasugai コントロール</h1>
+        <p>Tauri v2 × Rust によるマルチWebview分割ビューシステムへようこそ。</p>
+        
+        <div class="card">
+            <div class="card-title">システムの特徴</div>
+            <ul>
+                <li><strong>ネイティブ3画面分割:</strong> 1つのウィンドウ内で3つの独立したWebView2インスタンスを並行動作させています。</li>
+                <li><strong>自動リサイズ:</strong> メインウィンドウのサイズ変更に合わせて、Rust側が各Webviewの表示サイズを自動で3等分に再計算します。</li>
+                <li><strong>独立したコンテキスト:</strong> 各画面は完全に独立したWebviewとして動作し、独自のURLやフロントエンドロジックを持ちます。</li>
+            </ul>
+        </div>
+        
+        <div class="card" style="margin-top: auto;">
+            <div class="card-title">操作ヘルプ</div>
+            <p style="font-size: 12px; color: #64748b; margin: 0;">
+                ・中央の画面でURLを切り替えることができます。<br>
+                ・右の画面でRustのシステム情報を取得できます。
+            </p>
+        </div>
+    </div>
+</body>
+</html>
