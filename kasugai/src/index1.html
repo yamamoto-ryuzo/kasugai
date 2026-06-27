@@ -91,19 +91,19 @@
         
         <div class="link-list">
             <!-- Box へのリンク (常に画面3で開くようにターゲットを変更) -->
-            <a class="portal-btn" href="#" onclick="openLink(event, 'https://account.box.com/login', 'pane3')">
+            <a class="portal-btn" href="https://account.box.com/login" onclick="openLink(event, this.href, 'pane3')">
                 <span>📦 BOX</span>
                 <span class="icon">→</span>
             </a>
             
             <!-- Google Map へのリンク (従来どおり画面2で開く) -->
-            <a class="portal-btn" href="#" onclick="openLink(event, 'https://www.google.com/maps', 'pane2')">
+            <a class="portal-btn" href="https://www.google.com/maps" onclick="openLink(event, this.href, 'pane2')">
                 <span>🗺️ Google Map</span>
                 <span class="icon">→</span>
             </a>
             
             <!-- Re:Earth へのリンク (従来どおり画面2で開く) -->
-            <a class="portal-btn" href="#" onclick="openLink(event, 'https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/', 'pane2')">
+            <a class="portal-btn" href="https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/" onclick="openLink(event, this.href, 'pane2')">
                 <span>🌐 Re:Earth</span>
                 <span class="icon">→</span>
             </a>
@@ -115,7 +115,7 @@
     </div>
 
     <script>
-        // ポータルリンクをクリックした際、指定ターゲットのWebviewで開く
+        // ポータルリンクをクリックした際、指定ターゲット of Webviewで開く
         function openLink(event, url, target) {
             event.preventDefault();
             if (window.__TAURI__ && window.__TAURI__.core) {
