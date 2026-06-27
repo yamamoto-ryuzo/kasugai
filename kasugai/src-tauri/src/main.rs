@@ -19,6 +19,18 @@ fn get_system_info() -> String {
     "ステータス: 正常稼働中\nエンジン: Tauri v2 (Rust)\nWebview: Microsoft WebView2\n応答時間: リアルタイム".to_string()
 }
 
+// 画面1(左)から送信されたURLを画面2(中央)のWebviewで開く
+#[tauri::command]
+fn open_in_pane2(app_handle: tauri::AppHandle, url: String) {
+    if let Some(window) = app_handle.get_window("main") {
+        if let Some(wv2) = window.get_webview("pane2") {
+            if let Ok(target_url) = tauri::Url::parse(&url) {
+                let _ = wv2.navigate(target_url);
+            }
+        }
+    }
+}
+
 // ドラッグ中にスプリッター比率を更新し、各Webviewの境界（サイズ）を再計算して配置する
 #[tauri::command]
 fn update_splitter(
@@ -93,7 +105,8 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             get_system_info,
-            update_splitter
+            update_splitter,
+            open_in_pane2
         ])
         .setup(|app| {
             // メインウィンドウを作成

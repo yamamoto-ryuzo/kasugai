@@ -91,30 +91,41 @@
         
         <div class="link-list">
             <!-- Box へのリンク -->
-            <a class="portal-btn" href="https://account.box.com/login" target="_blank">
+            <a class="portal-btn" href="#" onclick="openLink(event, 'https://account.box.com/login')">
                 <span>📦 BOX</span>
-                <span class="icon">↗</span>
+                <span class="icon">→</span>
             </a>
             
             <!-- Google へのリンク -->
-            <a class="portal-btn" href="https://www.google.com" target="_blank">
+            <a class="portal-btn" href="#" onclick="openLink(event, 'https://www.google.com')">
                 <span>🔍 Google</span>
-                <span class="icon">↗</span>
+                <span class="icon">→</span>
             </a>
             
             <!-- Re:Earth へのリンク -->
-            <a class="portal-btn" href="https://reearth.io/" target="_blank">
+            <a class="portal-btn" href="#" onclick="openLink(event, 'https://reearth.io/')">
                 <span>🌐 Re:Earth</span>
-                <span class="icon">↗</span>
+                <span class="icon">→</span>
             </a>
         </div>
         
         <div class="footer">
-            ※リンクをクリックすると外部ブラウザまたは新規タブで安全に開きます。
+            ※リンクをクリックすると中央の画面2に表示されます。
         </div>
     </div>
 
     <script>
+        // ポータルリンクをクリックした際、Tauri経由で画面2(pane2)に読み込ませる
+        function openLink(event, url) {
+            event.preventDefault();
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                window.__TAURI__.core.invoke('open_in_pane2', { url: url });
+            } else {
+                console.warn("Tauri環境が検出されません。URLをブラウザで開きます:", url);
+                window.open(url, '_blank');
+            }
+        }
+
         // --- スプリッターのドラッグ・リサイズ用中継処理 ---
         (function() {
             let isDragging = false;
