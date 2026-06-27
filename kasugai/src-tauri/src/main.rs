@@ -155,7 +155,21 @@ fn main() {
             // 3つの子Webviewをマウント
             // 画面2(中央)のWebviewBuilderに、Rustネイティブのナビゲーション監視(on_navigation)を設定。
             // 外部ドメインでのJSセキュリティ制約を完全にバイパスし、Rust側で100%確実にインターセプトします。
-            let webview1_builder = WebviewBuilder::new("pane1", WebviewUrl::App("index1.html".into()));
+            let app_handle_for_pane1 = app.handle().clone();
+            let webview1_builder = WebviewBuilder::new("pane1", WebviewUrl::App("index1.html".into()))
+                .on_new_window(move |url, _new_window| {
+                    let url_str = url.as_str();
+                    
+                    if let Some(window) = app_handle_for_pane1.get_window("main") {
+                        if let Some(wv3) = window.get_webview("pane3") {
+                            if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                let _ = wv3.navigate(target_url);
+                            }
+                        }
+                    }
+                    
+                    tauri::webview::NewWindowResponse::Deny
+                });
             
             let app_handle_for_nav = app.handle().clone();
             let app_handle_for_new_window = app.handle().clone();
