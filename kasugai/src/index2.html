@@ -89,29 +89,129 @@
             color: #64748b;
             margin-top: 5px;
         }
+        /* タブ用のスタイル */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 8px;
+        }
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #64748b;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover {
+            background-color: #f1f5f9;
+            color: #1e293b;
+        }
+        .tab-btn.active {
+            background-color: #22c55e;
+            color: white;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <span class="badge">画面 2 / Center View</span>
-        <h1>インタラクティブ・エディタ</h1>
-        <p>この画面は完全に独立したエディタ（メモ帳）です。ここに入力されたテキストは、メモリやローカルストレージに保持できます。</p>
-        
-        <div class="interactive-section">
-            <textarea id="memo" placeholder="ここに自由にメモを入力してください..."></textarea>
-            <button class="btn" onclick="saveMemo()">ローカルに保存</button>
-            <div id="status" class="status-msg"></div>
+        <h1 id="view-title">メモ帳</h1>
+       
+        <!-- タブボタンの追加 -->
+        <div class="tabs">
+            <button class="tab-btn active" id="tab-editor" onclick="switchTab('editor')">📝 メモ帳</button>
+            <button class="tab-btn" id="tab-settings" onclick="switchTab('settings')">⚙️ システム設定</button>
+        </div>
+
+        <div id="content-editor" class="tab-content">
+            <p>この画面は完全に独立したメモ帳です。ここに入力されたテキストは、メモリやローカルストレージに保持できます。</p>
+            <div class="interactive-section">
+                <textarea id="memo" placeholder="ここに自由にメモを入力してください..."></textarea>
+                <button class="btn" onclick="saveMemo()">ローカルに保存</button>
+                <div id="status" class="status-msg"></div>
+            </div>
+        </div>
+
+        <div id="content-settings" class="tab-content" style="display: none;">
+            <p>システムの動作に関する設定を行います。変更は即座に反映されます。</p>
+            <div class="interactive-section" style="gap: 15px;">
+                <div>
+                    <label for="reearth-url-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">Re:Earth 接続URL</label>
+                    <input type="text" id="reearth-url-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="https://example.visualizer.reearth.io/">
+                </div>
+                <button class="btn" onclick="saveReearthUrl()">URLを保存</button>
+                <div id="settings-status" class="status-msg"></div>
+            </div>
         </div>
     </div>
 
     <script>
+        // タブ切り替え処理
+        function switchTab(tabName) {
+            document.getElementById('tab-editor').classList.toggle('active', tabName === 'editor');
+            document.getElementById('tab-settings').classList.toggle('active', tabName === 'settings');
+
+            document.getElementById('content-editor').style.display = tabName === 'editor' ? 'block' : 'none';
+            document.getElementById('content-settings').style.display = tabName === 'settings' ? 'block' : 'none';
+
+            const title = document.getElementById('view-title');
+            if (tabName === 'editor') {
+                title.textContent = 'メモ帳';
+            } else {
+                title.textContent = 'システム設定';
+            }
+        }
+
         // ロード時にメモを復元
         window.onload = function() {
             const saved = localStorage.getItem("kasugai_memo");
             if (saved) {
                 document.getElementById("memo").value = saved;
             }
+
+            // Re:Earth URLの復元
+            const savedReearth = localStorage.getItem("reearth_url") || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
+            document.getElementById("reearth-url-input").value = savedReearth;
+
+            // クエリパラメータ settings=true がある場合はシステム設定を表示
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('settings') === 'true') {
+                switchTab('settings');
+            }
         };
+
+        function saveReearthUrl() {
+            const url = document.getElementById("reearth-url-input").value.trim();
+            if (!url) {
+                alert("URLを入力してください。");
+                return;
+            }
+
+            try {
+                new URL(url);
+            } catch (_) {
+                alert("有効なURLを入力してください。（例: https://example.com）");
+                return;
+            }
+
+            localStorage.setItem("reearth_url", url);
+
+            if (window.__TAURI__ && window.__TAURI__.event) {
+                window.__TAURI__.event.emit('reearth_url_changed', { url: url });
+            }
+
+            const status = document.getElementById("settings-status");
+            status.textContent = "設定を保存しました！ (" + new Date().toLocaleTimeString() + ")";
+            setTimeout(() => {
+                status.textContent = "";
+            }, 3000);
+        }
 
         function saveMemo() {
             const text = document.getElementById("memo").value;

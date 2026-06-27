@@ -99,15 +99,34 @@
                 <span>🗺️ Google Map</span>
             </a>
             
-            <!-- Re:Earth へのリンク (従来どおり画面2で開く) -->
-            <a class="portal-btn" href="https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/" onclick="openLink(event, this.href, 'pane2')">
+            <!-- Re:Earth へのリンク (動的URL) -->
+            <a class="portal-btn" href="#" onclick="openReearth(event)">
                 <span>🌐 Re:Earth</span>
             </a>
         </div>
         
+        <div class="footer">
+            <a href="#" id="system-settings-btn" style="color: #3b82f6; text-decoration: none; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;" onclick="openSystemSettings(event)">
+                <span>⚙️ システム設定</span>
+            </a>
+        </div>
     </div>
 
     <script>
+        // Re:Earth URLを開く
+        function openReearth(event) {
+            event.preventDefault();
+            const url = localStorage.getItem("reearth_url") || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
+            openLink(event, url, 'pane2');
+        }
+
+        // システム設定を開く
+        function openSystemSettings(event) {
+            event.preventDefault();
+            const url = window.location.origin + '/index2.html?settings=true';
+            openLink(event, url, 'pane2');
+        }
+
         // ポータルリンクをクリックした際、指定ターゲット of Webviewで開く
         function openLink(event, url, target) {
             event.preventDefault();
@@ -121,6 +140,13 @@
                 console.warn("Tauri環境が検出されません。URLをブラウザで開きます:", url);
                 window.open(url, '_blank');
             }
+        }
+
+        // 他のWebviewからURL変更通知を受け取った場合の処理
+        if (window.__TAURI__ && window.__TAURI__.event) {
+            window.__TAURI__.event.listen('reearth_url_changed', (event) => {
+                localStorage.setItem("reearth_url", event.payload.url);
+            });
         }
 
         // --- スプリッターのドラッグ・リサイズ用中継処理 ---
