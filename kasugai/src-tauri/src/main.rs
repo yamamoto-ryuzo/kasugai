@@ -158,6 +158,7 @@ fn main() {
             let webview1_builder = WebviewBuilder::new("pane1", WebviewUrl::App("index1.html".into()));
             
             let app_handle_for_nav = app.handle().clone();
+            let app_handle_for_new_window = app.handle().clone();
             let webview2_builder = WebviewBuilder::new("pane2", WebviewUrl::App("index2.html".into()))
                 .on_navigation(move |url| {
                     let url_str = url.as_str();
@@ -192,6 +193,21 @@ fn main() {
                     }
 
                     true
+                })
+                // 画面2(中央)の新しいウィンドウ(target="_blank"等)の作成要求をインターセプトして画面3(右)で開く！
+                .on_new_window(move |url, _new_window| {
+                    let url_str = url.as_str();
+                    
+                    if let Some(window) = app_handle_for_new_window.get_window("main") {
+                        if let Some(wv3) = window.get_webview("pane3") {
+                            if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                let _ = wv3.navigate(target_url);
+                            }
+                        }
+                    }
+                    
+                    // 新しい別ネイティブウィンドウの生成要求自体は却下(Deny)する
+                    tauri::webview::NewWindowResponse::Deny
                 });
 
             let webview3_builder = WebviewBuilder::new("pane3", WebviewUrl::App("index3.html".into()));
