@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pane 1 - Left View</title>
+    <title>Pane 1 - Portal Links</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -31,6 +31,7 @@
             margin-top: 0;
             border-bottom: 2px solid #3b82f6;
             padding-bottom: 10px;
+            margin-bottom: 20px;
         }
         .badge {
             display: inline-block;
@@ -43,55 +44,73 @@
             margin-bottom: 15px;
             align-self: flex-start;
         }
-        p {
-            line-height: 1.6;
-            font-size: 14px;
+        .link-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex-grow: 1;
         }
-        .card {
+        .portal-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             background-color: #f8fafc;
             border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 15px;
-            margin-top: 15px;
-        }
-        .card-title {
-            font-weight: bold;
-            color: #0f172a;
-            margin-bottom: 8px;
+            border-radius: 8px;
+            padding: 16px 20px;
+            text-decoration: none;
+            color: #1e293b;
+            font-weight: 600;
             font-size: 15px;
+            transition: all 0.2s ease;
         }
-        ul {
-            padding-left: 20px;
-            margin: 0;
-            font-size: 13px;
-            color: #475569;
+        .portal-btn:hover {
+            background-color: #eff6ff;
+            border-color: #3b82f6;
+            color: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
         }
-        li {
-            margin-bottom: 6px;
+        .portal-btn .icon {
+            font-size: 18px;
+        }
+        .footer {
+            margin-top: auto;
+            font-size: 11px;
+            color: #64748b;
+            text-align: center;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 15px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <span class="badge">画面 1 / Left View</span>
-        <h1>Kasugai コントロール</h1>
-        <p>Tauri v2 × Rust によるマルチWebview分割ビューシステムへようこそ。</p>
+        <span class="badge">画面 1 / Portal</span>
+        <h1>ポータルリンク</h1>
         
-        <div class="card">
-            <div class="card-title">システムの特徴</div>
-            <ul>
-                <li><strong>ネイティブ3画面分割:</strong> 1つのウィンドウ内で3つの独立したWebView2インスタンスを並行動作させています。</li>
-                <li><strong>自動リサイズ:</strong> メインウィンドウのサイズ変更に合わせて、Rust側が各Webviewの表示サイズを自動で3等分に再計算します。</li>
-                <li><strong>独立したコンテキスト:</strong> 各画面は完全に独立したWebviewとして動作し、独自のURLやフロントエンドロジックを持ちます。</li>
-            </ul>
+        <div class="link-list">
+            <!-- Box へのリンク -->
+            <a class="portal-btn" href="https://account.box.com/login" target="_blank">
+                <span>📦 BOX</span>
+                <span class="icon">↗</span>
+            </a>
+            
+            <!-- Google へのリンク -->
+            <a class="portal-btn" href="https://www.google.com" target="_blank">
+                <span>🔍 Google</span>
+                <span class="icon">↗</span>
+            </a>
+            
+            <!-- Re:Earth へのリンク -->
+            <a class="portal-btn" href="https://reearth.io/" target="_blank">
+                <span>🌐 Re:Earth</span>
+                <span class="icon">↗</span>
+            </a>
         </div>
         
-        <div class="card" style="margin-top: auto;">
-            <div class="card-title">操作ヘルプ</div>
-            <p style="font-size: 12px; color: #64748b; margin: 0;">
-                ・中央の画面でURLを切り替えることができます。<br>
-                ・右の画面でRustのシステム情報を取得できます。
-            </p>
+        <div class="footer">
+            ※リンクをクリックすると外部ブラウザまたは新規タブで安全に開きます。
         </div>
     </div>
 
