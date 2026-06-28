@@ -1,2 +1,9 @@
+# 1. リモートテーマに「Just the Docs」を指定
+remote_theme: just-the-docs/just-the-docs
+
+# 2. サイトのタイトル（任意）
+title: Kasugai：自己進化型・空間統合DXプラットフォーム
+
+# 3. Mermaid の有効化設定
 mermaid:
   version: '11.16.0'
