@@ -12,6 +12,8 @@ struct SplitterState {
     ratio1: Mutex<f64>,
     ratio2: Mutex<f64>,
     pane2_current_host: Mutex<Option<String>>,
+    // false: pane2=center, pane3=right  |  true: pane3=center, pane2=right
+    pane_swapped: Mutex<bool>,
 }
 
 // フロントエンドから呼び出されるRustコマンド
@@ -68,13 +70,14 @@ fn update_splitter(
         if let Ok(size) = window.inner_size() {
             let w = size.width as f64;
             let h = size.height as f64;
-            recalculate_webview_bounds(&window, w, h, ratio1, ratio2);
+            let swapped = *state.pane_swapped.lock().unwrap();
+            recalculate_webview_bounds(&window, w, h, ratio1, ratio2, swapped);
         }
     }
 }
 
 // ウィンドウのサイズ、比率に基づいてWebviewの境界を再設定するヘルパー
-fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f64, ratio2: f64) {
+fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f64, ratio2: f64, swapped: bool) {
     let splitter_width = 8.0;
     let sh = splitter_width / 2.0;
 
@@ -98,24 +101,70 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
         });
     }
 
-    // pane2 (中央) の配置設定
-    if let Some(wv2) = window.get_webview("pane2") {
-        let start_x = (x1 + sh) as i32;
-        let width = ((x2 - sh) - (x1 + sh)).max(0.0) as u32;
-        let _ = wv2.set_bounds(Rect {
-            position: Position::Physical(PhysicalPosition::new(start_x, 0)),
-            size: Size::Physical(PhysicalSize::new(width, h as u32)),
-        });
-    }
+    // pane2/pane3 の配置設定（swapped により中央/右を入れ替え）
+    if !swapped {
+        // 通常: pane2 = 中央, pane3 = 右
+        if let Some(wv2) = window.get_webview("pane2") {
+            let start_x = (x1 + sh) as i32;
+            let width = ((x2 - sh) - (x1 + sh)).max(0.0) as u32;
+            let _ = wv2.set_bounds(Rect {
+                position: Position::Physical(PhysicalPosition::new(start_x, 0)),
+                size: Size::Physical(PhysicalSize::new(width, h as u32)),
+            });
+        }
 
-    // pane3 (右) の配置設定
-    if let Some(wv3) = window.get_webview("pane3") {
-        let start_x = (x2 + sh) as i32;
-        let width = (w - (x2 + sh)).max(0.0) as u32;
-        let _ = wv3.set_bounds(Rect {
-            position: Position::Physical(PhysicalPosition::new(start_x, 0)),
-            size: Size::Physical(PhysicalSize::new(width, h as u32)),
-        });
+        if let Some(wv3) = window.get_webview("pane3") {
+            let start_x = (x2 + sh) as i32;
+            let width = (w - (x2 + sh)).max(0.0) as u32;
+            let _ = wv3.set_bounds(Rect {
+                position: Position::Physical(PhysicalPosition::new(start_x, 0)),
+                size: Size::Physical(PhysicalSize::new(width, h as u32)),
+            });
+        }
+    } else {
+        // 反転: pane3 = 中央, pane2 = 右
+        if let Some(wv3) = window.get_webview("pane3") {
+            let start_x = (x1 + sh) as i32;
+            let width = ((x2 - sh) - (x1 + sh)).max(0.0) as u32;
+            let _ = wv3.set_bounds(Rect {
+                position: Position::Physical(PhysicalPosition::new(start_x, 0)),
+                size: Size::Physical(PhysicalSize::new(width, h as u32)),
+            });
+        }
+
+        if let Some(wv2) = window.get_webview("pane2") {
+            let start_x = (x2 + sh) as i32;
+            let width = (w - (x2 + sh)).max(0.0) as u32;
+            let _ = wv2.set_bounds(Rect {
+                position: Position::Physical(PhysicalPosition::new(start_x, 0)),
+                size: Size::Physical(PhysicalSize::new(width, h as u32)),
+            });
+        }
+    }
+}
+
+// 中央ペインを pane2 にする / pane3 にする切替コマンド
+#[tauri::command]
+fn set_center(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
+    center: String,
+) {
+    let mut swapped = state.pane_swapped.lock().unwrap();
+    *swapped = match center.as_str() {
+        "pane2" => false,
+        "pane3" => true,
+        _ => *swapped,
+    };
+
+    if let Some(window) = app_handle.get_window("main") {
+        if let Ok(size) = window.inner_size() {
+            let w = size.width as f64;
+            let h = size.height as f64;
+            let r1 = *state.ratio1.lock().unwrap();
+            let r2 = *state.ratio2.lock().unwrap();
+            recalculate_webview_bounds(&window, w, h, r1, r2, *swapped);
+        }
     }
 }
 
@@ -125,12 +174,14 @@ fn main() {
             ratio1: Mutex::new(0.1),
             ratio2: Mutex::new(0.8),
             pane2_current_host: Mutex::new(None),
+            pane_swapped: Mutex::new(false),
         })
         .invoke_handler(tauri::generate_handler![
             get_system_info,
             update_splitter,
             open_in_pane2,
-            open_in_pane3
+            open_in_pane3,
+            set_center
         ])
         .setup(|app| {
             // メインウィンドウを作成
@@ -247,7 +298,8 @@ fn main() {
             )?;
 
             // 初期のスプリッター比率(1:7:2)をベースに各Webviewのサイズ・位置をセット
-            recalculate_webview_bounds(&window, width, height, 0.1, 0.8);
+            let swapped_init = *app.state::<SplitterState>().pane_swapped.lock().unwrap();
+            recalculate_webview_bounds(&window, width, height, 0.1, 0.8, swapped_init);
 
             // ウィンドウのリサイズイベントを監視し、3つのWebviewの境界（bounds）を最新 of 比率で再計算
             let window_clone = window.clone();
@@ -262,7 +314,8 @@ fn main() {
                     let r1 = *state.ratio1.lock().unwrap();
                     let r2 = *state.ratio2.lock().unwrap();
 
-                    recalculate_webview_bounds(&window_clone, w, h, r1, r2);
+                    let swapped_now = *state.pane_swapped.lock().unwrap();
+                    recalculate_webview_bounds(&window_clone, w, h, r1, r2, swapped_now);
                 }
             });
 
