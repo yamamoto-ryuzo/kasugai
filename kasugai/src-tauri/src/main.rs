@@ -12,6 +12,7 @@ struct SplitterState {
     ratio1: Mutex<f64>,
     ratio2: Mutex<f64>,
     pane2_current_host: Mutex<Option<String>>,
+    pane3_current_host: Mutex<Option<String>>,
     // false: pane2=center, pane3=right  |  true: pane3=center, pane2=right
     pane_swapped: Mutex<bool>,
 }
@@ -22,34 +23,61 @@ fn get_system_info() -> String {
     "ステータス: 正常稼働中\nエンジン: Tauri v2 (Rust)\nWebview: Microsoft WebView2\n応答時間: リアルタイム".to_string()
 }
 
-// 画面1(左)から送信されたURLを画面2(中央)のWebviewで開く
+// 画面1(左)から送信されたURLを中央のWebviewで開く（物理的位置に追従）
 #[tauri::command]
 fn open_in_pane2(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, SplitterState>,
     url: String,
 ) {
+    let swapped = *state.pane_swapped.lock().unwrap();
     if let Ok(target_url) = tauri::Url::parse(&url) {
-        // 画面1から指示されたURLのホスト名を保存
-        if let Some(host) = target_url.host_str() {
-            *state.pane2_current_host.lock().unwrap() = Some(host.to_string());
-        }
+        let host = target_url.host_str().map(|h| h.to_string());
 
         if let Some(window) = app_handle.get_window("main") {
-            if let Some(wv2) = window.get_webview("pane2") {
-                let _ = wv2.navigate(target_url);
+            if !swapped {
+                // 通常時：pane2が中央
+                if let Some(h) = host {
+                    *state.pane2_current_host.lock().unwrap() = Some(h);
+                }
+                if let Some(wv2) = window.get_webview("pane2") {
+                    let _ = wv2.navigate(target_url);
+                }
+            } else {
+                // スワップ時：pane3が中央
+                if let Some(h) = host {
+                    *state.pane3_current_host.lock().unwrap() = Some(h);
+                }
+                if let Some(wv3) = window.get_webview("pane3") {
+                    let _ = wv3.navigate(target_url);
+                }
             }
         }
     }
 }
 
-// 画面1(左)または割り込みナビゲーションから送信されたURLを画面3(右)のWebviewで開く
+// 画面1(左)または割り込みナビゲーションから送信されたURLを右のWebviewで開く（物理的位置に追従）
 #[tauri::command]
-fn open_in_pane3(app_handle: tauri::AppHandle, url: String) {
+fn open_in_pane3(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
+    url: String,
+) {
+    let swapped = *state.pane_swapped.lock().unwrap();
     if let Some(window) = app_handle.get_window("main") {
-        if let Some(wv3) = window.get_webview("pane3") {
-            if let Ok(target_url) = tauri::Url::parse(&url) {
-                let _ = wv3.navigate(target_url);
+        if !swapped {
+            // 通常時：pane3が右
+            if let Some(wv3) = window.get_webview("pane3") {
+                if let Ok(target_url) = tauri::Url::parse(&url) {
+                    let _ = wv3.navigate(target_url);
+                }
+            }
+        } else {
+            // スワップ時：pane2が右
+            if let Some(wv2) = window.get_webview("pane2") {
+                if let Ok(target_url) = tauri::Url::parse(&url) {
+                    let _ = wv2.navigate(target_url);
+                }
             }
         }
     }
@@ -174,6 +202,7 @@ fn main() {
             ratio1: Mutex::new(0.1),
             ratio2: Mutex::new(0.8),
             pane2_current_host: Mutex::new(None),
+            pane3_current_host: Mutex::new(None),
             pane_swapped: Mutex::new(false),
         })
         .invoke_handler(tauri::generate_handler![
@@ -223,8 +252,8 @@ fn main() {
                     tauri::webview::NewWindowResponse::Deny
                 });
             
-            let app_handle_for_nav = app.handle().clone();
-            let app_handle_for_new_window = app.handle().clone();
+            let app_handle_for_nav2 = app.handle().clone();
+            let app_handle_for_new_window2 = app.handle().clone();
             let webview2_builder = WebviewBuilder::new("pane2", WebviewUrl::App("index2.html".into()))
                 .on_navigation(move |url| {
                     let url_str = url.as_str();
@@ -234,49 +263,112 @@ fn main() {
                         return true;
                     }
 
-                    // 画面1(左)からリクエストされた初期URLホスト、または現在のアクティブホストへの遷移は許可する
-                    let state = app_handle_for_nav.state::<SplitterState>();
-                    let allowed_host_opt = state.pane2_current_host.lock().unwrap().clone();
+                    let state = app_handle_for_nav2.state::<SplitterState>();
+                    let swapped = *state.pane_swapped.lock().unwrap();
 
-                    if let Some(target_host) = url.host_str() {
-                        if let Some(allowed_host) = allowed_host_opt {
-                            // 同一ホストまたはサブドメインへの遷移は画面2内で許可する
-                            if target_host == allowed_host || target_host.ends_with(&format!(".{}", allowed_host)) {
-                                return true;
+                    // 通常時はpane2が中央（ホワイトリストによる判定）
+                    // swapped時はpane2が右面となる（右面としての動作：基本的には自身の内側ナビゲーションは100%許可等）
+                    if !swapped {
+                        let allowed_host_opt = state.pane2_current_host.lock().unwrap().clone();
+                        if let Some(target_host) = url.host_str() {
+                            if let Some(allowed_host) = allowed_host_opt {
+                                if target_host == allowed_host || target_host.ends_with(&format!(".{}", allowed_host)) {
+                                    return true;
+                                }
                             }
                         }
-                    }
 
-                    // 完全に外部のドメイン、または別サイトのリンクがクリックされた場合は、
-                    // 画面2での遷移をキャンセル(false)し、画面3(右)でそのURLを開く！
-                    if let Some(window) = app_handle_for_nav.get_window("main") {
-                        if let Some(wv3) = window.get_webview("pane3") {
-                            if let Ok(target_url) = tauri::Url::parse(url_str) {
-                                let _ = wv3.navigate(target_url);
-                                return false; // 画面2側の遷移をブロック
+                        // 外部ドメインの場合は、右側のWebview (pane3) でひらく
+                        if let Some(window) = app_handle_for_nav2.get_window("main") {
+                            if let Some(wv3) = window.get_webview("pane3") {
+                                if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                    let _ = wv3.navigate(target_url);
+                                    return false; // 画面2側の遷移をブロック
+                                }
                             }
                         }
                     }
 
                     true
                 })
-                // 画面2(中央)の新しいウィンドウ(target="_blank"等)の作成要求をインターセプトして画面3(右)で開く！
                 .on_new_window(move |url, _new_window| {
                     let url_str = url.as_str();
+                    let state = app_handle_for_new_window2.state::<SplitterState>();
+                    let swapped = *state.pane_swapped.lock().unwrap();
                     
-                    if let Some(window) = app_handle_for_new_window.get_window("main") {
-                        if let Some(wv3) = window.get_webview("pane3") {
-                            if let Ok(target_url) = tauri::Url::parse(url_str) {
-                                let _ = wv3.navigate(target_url);
+                    if let Some(window) = app_handle_for_new_window2.get_window("main") {
+                        if !swapped {
+                            // 通常時：中央(pane2)から新しく開くURLは右(pane3)へルーティング
+                            if let Some(wv3) = window.get_webview("pane3") {
+                                if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                    let _ = wv3.navigate(target_url);
+                                }
+                            }
+                        } else {
+                            // swapped時：右に追いやられたpane2で新ウィンドウが発生した場合
+                            // 本来の右画面の役割に準じ、別のポップアップを制限するかそのまま何もしない
+                        }
+                    }
+                    
+                    tauri::webview::NewWindowResponse::Deny
+                });
+
+            // pane3 (通常時は右、swapped時は中央) の挙動も役割交代に対応
+            let app_handle_for_nav3 = app.handle().clone();
+            let app_handle_for_new_window3 = app.handle().clone();
+            let webview3_builder = WebviewBuilder::new("pane3", WebviewUrl::App("index3.html".into()))
+                .on_navigation(move |url| {
+                    let url_str = url.as_str();
+
+                    if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("index3.html") {
+                        return true;
+                    }
+
+                    let state = app_handle_for_nav3.state::<SplitterState>();
+                    let swapped = *state.pane_swapped.lock().unwrap();
+
+                    // swapped（画面3が中央にいる）場合、通常時に画面2（中央）が持っていた「ドメイン制限・他リンクをもう一方の別ペインに送る」役割を担当する
+                    if swapped {
+                        let allowed_host_opt = state.pane3_current_host.lock().unwrap().clone();
+                        if let Some(target_host) = url.host_str() {
+                            if let Some(allowed_host) = allowed_host_opt {
+                                if target_host == allowed_host || target_host.ends_with(&format!(".{}", allowed_host)) {
+                                    return true;
+                                }
+                            }
+                        }
+
+                        // 中央（この時はpane3）から見た外部ドメインへのリンクは、右側（この時はpane2）で開かせる
+                        if let Some(window) = app_handle_for_nav3.get_window("main") {
+                            if let Some(wv2) = window.get_webview("pane2") {
+                                if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                    let _ = wv2.navigate(target_url);
+                                    return false; // 中央(pane3)側の遷移をブロック
+                                }
+                            }
+                        }
+                    }
+
+                    true
+                })
+                .on_new_window(move |url, _new_window| {
+                    let url_str = url.as_str();
+                    let state = app_handle_for_new_window3.state::<SplitterState>();
+                    let swapped = *state.pane_swapped.lock().unwrap();
+                    
+                    if let Some(window) = app_handle_for_new_window3.get_window("main") {
+                        if swapped {
+                            // swapped（中央がpane3）の場合、新たなURLは右側（pane2）へルーティング
+                            if let Some(wv2) = window.get_webview("pane2") {
+                                if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                    let _ = wv2.navigate(target_url);
+                                }
                             }
                         }
                     }
                     
-                    // 新しい別ネイティブウィンドウの生成要求自体は却下(Deny)する
                     tauri::webview::NewWindowResponse::Deny
                 });
-
-            let webview3_builder = WebviewBuilder::new("pane3", WebviewUrl::App("index3.html".into()));
 
             // pane1, pane2, pane3 をベースウィンドウの子Webviewとして追加
             let _wv1 = window.add_child(
