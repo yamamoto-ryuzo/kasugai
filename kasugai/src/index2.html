@@ -155,8 +155,16 @@
             <p>OS標準のセキュアストア（資格情報マネージャー）にIDとパスワードを安全に保存・管理します。</p>
             <div class="interactive-section" style="gap: 12px;">
                 <div>
-                    <label for="cred-service" style="font-weight: bold; font-size: 13px; display: block; margin-bottom: 4px;">サービス名・サイト名（例：Box, ReEarth）</label>
-                    <input type="text" id="cred-service" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;" placeholder="Box">
+                    <label for="cred-service" style="font-weight: bold; font-size: 13px; display: block; margin-bottom: 4px;">サービス名・サイト名</label>
+                    <div style="display: flex; gap: 6px;">
+                        <select id="cred-service-select" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background-color: white; font-size: 14px; width: 140px;" onchange="onServiceSelectChange()">
+                            <option value="Box">Box</option>
+                            <option value="ReEarth">ReEarth</option>
+                            <option value="Google">Google</option>
+                            <option value="custom">直接入力...</option>
+                        </select>
+                        <input type="text" id="cred-service" style="flex: 1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; display: none;" placeholder="任意のサービス名" value="Box">
+                    </div>
                 </div>
                 <div>
                     <label for="cred-username" style="font-weight: bold; font-size: 13px; display: block; margin-bottom: 4px;">ログインID・メールアドレス</label>
@@ -251,6 +259,20 @@
             setTimeout(() => {
                 status.textContent = "";
             }, 3000);
+        }
+
+        // サービス名セレクトボックスの変更イベントハンドラ
+        function onServiceSelectChange() {
+            const selectEl = document.getElementById("cred-service-select");
+            const inputEl = document.getElementById("cred-service");
+            if (selectEl.value === "custom") {
+                inputEl.style.display = "block";
+                inputEl.value = "";
+                inputEl.focus();
+            } else {
+                inputEl.style.display = "none";
+                inputEl.value = selectEl.value;
+            }
         }
 
         // --- OS資格情報マネージャー保護システムの実装 ---
