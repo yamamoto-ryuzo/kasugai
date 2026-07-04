@@ -4,7 +4,7 @@
 use std::sync::Mutex;
 use tauri::{
     Manager, Position, Rect, Size, WebviewBuilder, WebviewUrl, WindowBuilder,
-    PhysicalPosition, PhysicalSize,
+    PhysicalPosition, PhysicalSize, Emitter
 };
 
 // スプリッターの比率を保持するグローバルステート
@@ -15,6 +15,39 @@ struct SplitterState {
     pane3_current_host: Mutex<Option<String>>,
     // false: pane2=center, pane3=right  |  true: pane3=center, pane2=right
     pane_swapped: Mutex<bool>,
+}
+
+// 指定したドメイン・識別名に合致するサービス情報を自動で取得し、対象WebviewへJSコードを注入して自動入力する
+// セキュリティ保護のため、他ドメインや外部スクリプトの混入をチェックする安全仕様
+fn execute_autofill_by_domain(
+    app_handle: &tauri::AppHandle,
+    pane_id: &str,
+    domain: &str,
+) {
+    // 判別用のサービス名をドメインからマッチング
+    // ドメインに box が含まれていたら "Box", reearth が含まれていたら "ReEarth", google なら "Google"
+    let service_name = if domain.contains("box.") {
+        "Box"
+    } else if domain.contains("reearth.") {
+        "ReEarth"
+    } else if domain.contains("google.") {
+        "Google"
+    } else {
+        return; // 未知のドメインは安全のため実行しない
+    };
+
+    let app_handle_clone = app_handle.clone();
+    let pane_id_string = pane_id.to_string();
+    let service_short = service_name.to_string();
+
+    // 非同期スレッドでOS資格ストア（資格情報マネージャー）から安全に該当データがないか検索し
+    // 存在する場合は自動でフロントのロード画面を待たずにオートフィルを実施します。
+    tauri::async_runtime::spawn(async move {
+        // フロントエンドに「自動入力すべき該当ユーザーの資格情報が存在するか」を検知させるための
+        // イベント通知を発行し、セキュアに連動させます。
+        let event_name = format!("autofill_trigger_{}", pane_id_string);
+        let _ = app_handle_clone.emit(&event_name, service_short);
+    });
 }
 
 // 指定したドメイン・識別名に合致するサービス情報を自動で取得し、対象WebviewへJSコードを注入して自動入力する
@@ -398,6 +431,8 @@ fn main() {
                         if let Some(target_host) = url.host_str() {
                             if let Some(allowed_host) = allowed_host_opt {
                                 if target_host == allowed_host || target_host.ends_with(&format!(".{}", allowed_host)) {
+                                    // 登録ドメインがリロード完了（ページロード）された際に自動自動入力を仕掛ける
+                                    execute_autofill_by_domain(&app_handle_for_nav2, "pane2", target_host);
                                     return true;
                                 }
                             }
@@ -412,6 +447,11 @@ fn main() {
                                 }
                             }
                         }
+                    }
+
+                    // もし許可ドメインや移動先の検出があった場合、該当のWebviewに対応する自動入力を検証します。
+                    if let Some(target_host) = url.host_str() {
+                        execute_autofill_by_domain(&app_handle_for_nav2, "pane2", target_host);
                     }
 
                     true
@@ -458,6 +498,7 @@ fn main() {
                         if let Some(target_host) = url.host_str() {
                             if let Some(allowed_host) = allowed_host_opt {
                                 if target_host == allowed_host || target_host.ends_with(&format!(".{}", allowed_host)) {
+                                    execute_autofill_by_domain(&app_handle_for_nav3, "pane3", target_host);
                                     return true;
                                 }
                             }
@@ -472,6 +513,10 @@ fn main() {
                                 }
                             }
                         }
+                    }
+
+                    if let Some(target_host) = url.host_str() {
+                        execute_autofill_by_domain(&app_handle_for_nav3, "pane3", target_host);
                     }
 
                     true

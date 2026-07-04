@@ -230,6 +230,44 @@
                 document.getElementById("cred-username").value = lastUsedUser;
                 loadCredentialsAuto(defaultService, lastUsedUser);
             }
+
+            // --- 全自動ドメイン遷移検知オートフィルのイベント登録 ---
+            if (window.__TAURI__ && window.__TAURI__.event) {
+                // pane2の自動入力
+                window.__TAURI__.event.listen('autofill_trigger_pane2', async (event) => {
+                    const matchedService = event.payload; // "Box" 等
+                    const matchedUser = localStorage.getItem("last_user_" + matchedService);
+                    if (matchedUser) {
+                        try {
+                            // バックエンドから安全にドメインに合致する情報を注入
+                            await window.__TAURI__.core.invoke("autofill_credentials", {
+                                targetPanes: ["pane2"],
+                                service: matchedService,
+                                username: matchedUser
+                            });
+                        } catch (e) {
+                            console.warn("Auto-autofill on pane2 skipped or failed", e);
+                        }
+                    }
+                });
+
+                // pane3の自動入力
+                window.__TAURI__.event.listen('autofill_trigger_pane3', async (event) => {
+                    const matchedService = event.payload; // "Box" 等
+                    const matchedUser = localStorage.getItem("last_user_" + matchedService);
+                    if (matchedUser) {
+                        try {
+                            await window.__TAURI__.core.invoke("autofill_credentials", {
+                                targetPanes: ["pane3"],
+                                service: matchedService,
+                                username: matchedUser
+                            });
+                        } catch (e) {
+                            console.warn("Auto-autofill on pane3 skipped or failed", e);
+                        }
+                    }
+                });
+            }
         };
 
         function saveReearthUrl() {
