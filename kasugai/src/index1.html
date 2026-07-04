@@ -90,19 +90,33 @@
         
         <div class="link-list">
             <!-- Box へのリンク (中央ペインで開くようにターゲットを pane2 面に変更) -->
-            <a class="portal-btn" href="https://account.box.com/login" onclick="openLink(event, this.href, 'pane2')">
-                <span>📦 BOX</span>
-            </a>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <a class="portal-btn" href="https://account.box.com/login" onclick="openLink(event, this.href, 'pane2')">
+                    <span>📦 BOX</span>
+                </a>
+                <div style="display: flex; gap: 4px;">
+                    <button class="portal-btn" style="flex: 1; padding: 6px 8px; font-size: 11px; background-color: #3b82f6; color: white;" onclick="quickAutofill('Box')">
+                        🔑 ID/PW自動入力
+                    </button>
+                </div>
+            </div>
             
-            <!-- Google Map へのリンク (従来どおり画面2で開く) -->
+            <!-- Google Map へのリンク -->
             <a class="portal-btn" href="https://www.google.com/maps" onclick="openLink(event, this.href, 'pane2')">
                 <span>🗺️ Google Map</span>
             </a>
             
             <!-- Re:Earth へのリンク (動的URL) -->
-            <a class="portal-btn" href="#" onclick="openReearth(event)">
-                <span>🌐 Re:Earth</span>
-            </a>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <a class="portal-btn" href="#" onclick="openReearth(event)">
+                    <span>🌐 Re:Earth</span>
+                </a>
+                <div style="display: flex; gap: 4px;">
+                    <button class="portal-btn" style="flex: 1; padding: 6px 8px; font-size: 11px; background-color: #3b82f6; color: white;" onclick="quickAutofill('ReEarth')">
+                        🔑 ID/PW自動入力
+                    </button>
+                </div>
+            </div>
         </div>
         
         <div class="footer">
@@ -160,6 +174,31 @@
             } else {
                 console.warn("Tauri環境が検出されません。URLをブラウザで開きます:", url);
                 window.open(url, '_blank');
+            }
+        }
+
+        // 画面1(ポータル)から各Webviewペインに向けて直接自動入力を行うクイックオートフィル
+        async function quickAutofill(service) {
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                // セレクトされたサービスで直近登録・保存されているユーザー情報を特定
+                const matchedUser = localStorage.getItem("last_user_" + service);
+                if (!matchedUser) {
+                    alert(service + " のログインアカウント情報が「アカウント保存」からまだ一度も登録されていません。");
+                    return;
+                }
+                
+                try {
+                    // pane2, 3 の双方のドメインを自動解析してその場で自動解決させます
+                    await window.__TAURI__.core.invoke("autofill_credentials", {
+                        targetPanes: ["pane2", "pane3"],
+                        service: service,
+                        username: matchedUser
+                    });
+                } catch (e) {
+                    alert("自動入力情報のロードに失敗しました。詳細: " + e);
+                }
+            } else {
+                console.warn("Tauri環境外です。");
             }
         }
 
