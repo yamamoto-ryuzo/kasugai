@@ -8,8 +8,6 @@
 
 [最新版ダウンロード](https://yamamoto-ryuzo.github.io/kasugai/download/kasugai.zip)
 
-![Kasugai](https://yamamoto-ryuzo.github.io/kasugai/images/kasugai.png)
-
 ## 1. 背景と課題 (Background & Problem Statement)
 
 現代の多くの組織において、システムとデータの分断は深刻なレベルに達しています。
