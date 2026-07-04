@@ -177,7 +177,6 @@
                 <div style="display: flex; gap: 8px;">
                     <button class="btn" style="flex: 1;" onclick="saveCredentials()">安全に保存</button>
                     <button class="btn" style="flex: 1; background-color: #64748b;" onclick="loadCredentials()">呼び出し</button>
-                    <button class="btn" style="flex: 1; background-color: #3b82f6;" onclick="autofillWebview()">自動入力</button>
                     <button class="btn" style="flex: 1; background-color: #ef4444;" onclick="deleteCredentials()">削除</button>
                 </div>
                 <div id="cred-status" class="status-msg"></div>
@@ -229,44 +228,6 @@
             if (lastUsedUser) {
                 document.getElementById("cred-username").value = lastUsedUser;
                 loadCredentialsAuto(defaultService, lastUsedUser);
-            }
-
-            // --- 全自動ドメイン遷移検知オートフィルのイベント登録 ---
-            if (window.__TAURI__ && window.__TAURI__.event) {
-                // pane2の自動入力
-                window.__TAURI__.event.listen('autofill_trigger_pane2', async (event) => {
-                    const matchedService = event.payload; // "Box" 等
-                    const matchedUser = localStorage.getItem("last_user_" + matchedService);
-                    if (matchedUser) {
-                        try {
-                            // バックエンドから安全にドメインに合致する情報を注入
-                            await window.__TAURI__.core.invoke("autofill_credentials", {
-                                targetPanes: ["pane2"],
-                                service: matchedService,
-                                username: matchedUser
-                            });
-                        } catch (e) {
-                            console.warn("Auto-autofill on pane2 skipped or failed", e);
-                        }
-                    }
-                });
-
-                // pane3の自動入力
-                window.__TAURI__.event.listen('autofill_trigger_pane3', async (event) => {
-                    const matchedService = event.payload; // "Box" 等
-                    const matchedUser = localStorage.getItem("last_user_" + matchedService);
-                    if (matchedUser) {
-                        try {
-                            await window.__TAURI__.core.invoke("autofill_credentials", {
-                                targetPanes: ["pane3"],
-                                service: matchedService,
-                                username: matchedUser
-                            });
-                        } catch (e) {
-                            console.warn("Auto-autofill on pane3 skipped or failed", e);
-                        }
-                    }
-                });
             }
         };
 
@@ -433,33 +394,6 @@
             }
         }
 
-        async function autofillWebview() {
-            const service = document.getElementById("cred-service").value.trim();
-            const username = document.getElementById("cred-username").value.trim();
-            const status = document.getElementById("cred-status");
-
-            if (!service || !username) {
-                alert("サービス名とIDを入力してください。");
-                return;
-            }
-
-            status.textContent = "セキュアストアから読み出して自動入力中...";
-            try {
-                if (window.__TAURI__ && window.__TAURI__.core) {
-                    // pane2（中央）および pane3（右）のWebviewに自動入力スクリプトを注入します
-                    await window.__TAURI__.core.invoke("autofill_credentials", {
-                        targetPanes: ["pane2", "pane3"],
-                        service: service,
-                        username: username
-                    });
-                    status.textContent = "自動入力を送信しました。対象ペインを確認してください！";
-                } else {
-                    status.textContent = "Tauri環境が検出されません。";
-                }
-            } catch (err) {
-                status.textContent = "自動入力失敗: " + err;
-            }
-        }
 
         // --- スプリッターのドラッグ・リサイズ用中継処理 ---
         (function() {

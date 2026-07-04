@@ -4,7 +4,7 @@
 use std::sync::Mutex;
 use tauri::{
     Manager, Position, Rect, Size, WebviewBuilder, WebviewUrl, WindowBuilder,
-    PhysicalPosition, PhysicalSize, Emitter
+    PhysicalPosition, PhysicalSize
 };
 
 // スプリッターの比率を保持するグローバルステート
@@ -15,135 +15,6 @@ struct SplitterState {
     pane3_current_host: Mutex<Option<String>>,
     // false: pane2=center, pane3=right  |  true: pane3=center, pane2=right
     pane_swapped: Mutex<bool>,
-}
-
-// 指定したドメイン・識別名に合致するサービス情報を自動で取得し、対象WebviewへJSコードを注入して自動入力する
-// セキュリティ保護のため、他ドメインや外部スクリプトの混入をチェックする安全仕様
-fn execute_autofill_by_domain(
-    app_handle: &tauri::AppHandle,
-    pane_id: &str,
-    domain: &str,
-) {
-    // 判別用のサービス名をドメインからマッチング
-    // ドメインに box が含まれていたら "Box", reearth が含まれていたら "ReEarth", google なら "Google"
-    let service_name = if domain.contains("box.") {
-        "Box"
-    } else if domain.contains("reearth.") {
-        "ReEarth"
-    } else if domain.contains("google.") {
-        "Google"
-    } else {
-        return; // 未知のドメインは安全のため実行しない
-    };
-
-    let app_handle_clone = app_handle.clone();
-    let pane_id_string = pane_id.to_string();
-    let service_short = service_name.to_string();
-
-    // 非同期スレッドでOS資格ストア（資格情報マネージャー）から安全に該当データがないか検索し
-    // 存在する場合は自動でフロントのロード画面を待たずにオートフィルを実施します。
-    tauri::async_runtime::spawn(async move {
-        // フロントエンドに「自動入力すべき該当ユーザーの資格情報が存在するか」を検知させるための
-        // イベント通知を発行し、セキュアに連動させます。
-        let event_name = format!("autofill_trigger_{}", pane_id_string);
-        let _ = app_handle_clone.emit(&event_name, service_short);
-    });
-}
-
-// 指定したドメイン・識別名に合致するサービス情報を自動で取得し、対象WebviewへJSコードを注入して自動入力する
-#[tauri::command]
-fn autofill_credentials(
-    app_handle: tauri::AppHandle,
-    target_panes: Vec<String>, // ["pane2", "pane3"] などの注入したいWebview名
-    service: String,
-    username: String,
-) -> Result<(), String> {
-    let entry = keyring::Entry::new(&service, &username)
-        .map_err(|e| e.to_string())?;
-    
-    let password = entry.get_password().map_err(|e| e.to_string())?;
-
-    if let Some(window) = app_handle.get_window("main") {
-        for pane in target_panes {
-            if let Some(wv) = window.get_webview(&pane) {
-                // BOXなどのログイン画面にある一般的な input[type="email"], input[type="password"] や name="login", name="password" 等をターゲットにします
-                let exec_js = format!(
-                    r#"
-                    (function() {{
-                        // サービスとドメインのミスマッチを防ぐ（別ペインへの誤注入を防止）
-                        var host = window.location.hostname;
-                        var svc = {service_js};
-                        if (svc === "Box" && host.indexOf("box.") === -1) return;
-                        if (svc === "ReEarth" && host.indexOf("reearth.") === -1) return;
-
-                        function fill() {{
-                            // BOXや一般サイトで「検索窓」「その他の入力欄」に誤ってユーザー名(メールアドレス等)を入れてしまわないよう、ターゲットを厳格化
-                            var emailInputs = document.querySelectorAll(
-                                'input[type="email"], ' +
-                                'input[name="login"]:not([type="hidden"]), ' +
-                                'input[name="username"]:not([type="hidden"]), ' +
-                                'input[id*="username"]:not([type="hidden"]), ' +
-                                'input[id*="login"]:not([type="hidden"]), ' +
-                                'input#login-email, ' +
-                                '.login-field input[type="text"]'
-                            );
-                            var passInputs = document.querySelectorAll(
-                                'input[type="password"], ' +
-                                'input[name*="pass"]:not([type="hidden"]), ' +
-                                'input[id*="password"]:not([type="hidden"])'
-                            );
-                            
-                            var filled = false;
-                            
-                            // IDの自動入力（空であるか、プレースホルダー状態、もしくはクリア状態のみ挿入）
-                            for (var i = 0; i < emailInputs.length; i++) {{
-                                var el = emailInputs[i];
-                                // 検索窓（search等）ではないことを追加検証
-                                if (el && (el.placeholder || "").toLowerCase().indexOf("search") === -1 && el.getAttribute("role") !== "searchbox") {{
-                                    el.value = {username_js};
-                                    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                                    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                                    filled = true;
-                                }}
-                            }}
-                            
-                            // パスワードの自動入力
-                            for (var j = 0; j < passInputs.length; j++) {{
-                                var el = passInputs[j];
-                                if (el) {{
-                                    el.value = {password_js};
-                                    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                                    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                                    filled = true;
-                                }}
-                            }}
-                            return filled;
-                        }}
-                        
-                        // 念のため即座に実行するが、SPAなどで遅れてフォームが表示される場合を想定して監視も行う
-                        if (!fill()) {{
-                            var attempts = 0;
-                            var interval = setInterval(function() {{
-                                attempts++;
-                                if (fill() || attempts > 10) {{
-                                    clearInterval(interval);
-                                }}
-                            }}, 500);
-                        }}
-                    }})();
-                    "#,
-                    service_js = serde_json::to_string(&service).unwrap(),
-                    username_js = serde_json::to_string(&username).unwrap(),
-                    password_js = serde_json::to_string(&password).unwrap()
-                );
-                
-                // WebView2 にJavaScriptを注入して自動入力
-                let _ = wv.eval(&exec_js);
-            }
-        }
-    }
-    
-    Ok(())
 }
 
 // OS資格情報マネージャー（keyringクレート）を使ったセキュリティの高いID/PW保存コマンド
@@ -374,8 +245,7 @@ fn main() {
             set_center,
             save_credentials,
             get_credentials,
-            delete_credentials,
-            autofill_credentials
+            delete_credentials
         ])
         .setup(|app| {
             // メインウィンドウを作成
@@ -399,8 +269,6 @@ fn main() {
             )?;
 
             // 3つの子Webviewをマウント
-            // 画面2(中央)のWebviewBuilderに、Rustネイティブのナビゲーション監視(on_navigation)を設定。
-            // 外部ドメインでのJSセキュリティ制約を完全にバイパスし、Rust側で100%確実にインターセプトします。
             let app_handle_for_pane1 = app.handle().clone();
             let webview1_builder = WebviewBuilder::new("pane1", WebviewUrl::App("index1.html".into()))
                 .on_new_window(move |url, _new_window| {
@@ -438,8 +306,6 @@ fn main() {
                         if let Some(target_host) = url.host_str() {
                             if let Some(allowed_host) = allowed_host_opt {
                                 if target_host == allowed_host || target_host.ends_with(&format!(".{}", allowed_host)) {
-                                    // 登録ドメインがリロード完了（ページロード）された際に自動自動入力を仕掛ける
-                                    execute_autofill_by_domain(&app_handle_for_nav2, "pane2", target_host);
                                     return true;
                                 }
                             }
@@ -454,11 +320,6 @@ fn main() {
                                 }
                             }
                         }
-                    }
-
-                    // もし許可ドメインや移動先の検出があった場合、該当のWebviewに対応する自動入力を検証します。
-                    if let Some(target_host) = url.host_str() {
-                        execute_autofill_by_domain(&app_handle_for_nav2, "pane2", target_host);
                     }
 
                     true
@@ -476,9 +337,6 @@ fn main() {
                                     let _ = wv3.navigate(target_url);
                                 }
                             }
-                        } else {
-                            // swapped時：右に追いやられたpane2で新ウィンドウが発生した場合
-                            // 本来の右画面の役割に準じ、別のポップアップを制限するかそのまま何もしない
                         }
                     }
                     
@@ -505,7 +363,6 @@ fn main() {
                         if let Some(target_host) = url.host_str() {
                             if let Some(allowed_host) = allowed_host_opt {
                                 if target_host == allowed_host || target_host.ends_with(&format!(".{}", allowed_host)) {
-                                    execute_autofill_by_domain(&app_handle_for_nav3, "pane3", target_host);
                                     return true;
                                 }
                             }
@@ -520,10 +377,6 @@ fn main() {
                                 }
                             }
                         }
-                    }
-
-                    if let Some(target_host) = url.host_str() {
-                        execute_autofill_by_domain(&app_handle_for_nav3, "pane3", target_host);
                     }
 
                     true

@@ -106,13 +106,10 @@
         </div>
         
         <div class="footer">
-            <!-- 左右切替ボタンおよび共通ID/PASSボタン -->
+            <!-- 左右切替ボタン -->
             <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
                 <button id="toggle-pane-btn" class="portal-btn" style="padding: 8px 12px; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="togglePane()">
                     <span>🔄 表示切替</span>
-                </button>
-                <button id="quick-autofill-btn" class="portal-btn" style="padding: 8px 12px; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; background-color: #3b82f6; color: white; border-color: #2563eb;" onclick="autofillCurrentActiveSite()">
-                    <span>🔑 ID/PASS</span>
                 </button>
             </div>
             <a href="#" id="system-settings-btn" style="color: #3b82f6; text-decoration: none; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;" onclick="openSystemSettings(event)">
@@ -166,44 +163,6 @@
             }
         }
 
-        // 画面1(ポータル)の最下部にある共通の「ID/PASS」ボタンをクリックした時、
-        // 中央(pane2)や右(pane3)で現在開かれているWebサイトのドメイン（host）を自動判別し、
-        // 保存されている適切な認証データ（Box または ReEarth）を自動入力（オートフィル）します。
-        async function autofillCurrentActiveSite() {
-            if (window.__TAURI__ && window.__TAURI__.core) {
-                const hasBoxValue = localStorage.getItem("last_user_Box");
-                const hasReearthValue = localStorage.getItem("last_user_ReEarth");
-
-                try {
-                    let statusTriggered = false;
-                    
-                    if (hasBoxValue) {
-                        await window.__TAURI__.core.invoke("autofill_credentials", {
-                            targetPanes: ["pane2", "pane3"],
-                            service: "Box",
-                            username: hasBoxValue
-                        });
-                        statusTriggered = true;
-                    }
-                    if (hasReearthValue) {
-                        await window.__TAURI__.core.invoke("autofill_credentials", {
-                            targetPanes: ["pane2", "pane3"],
-                            service: "ReEarth",
-                            username: hasReearthValue
-                        });
-                        statusTriggered = true;
-                    }
-
-                    if (!statusTriggered) {
-                        alert("アカウント保存画面（画面2）からアカウント情報がまだ一度も登録されていません。");
-                    }
-                } catch (e) {
-                    console.warn(e);
-                }
-            } else {
-                console.warn("Tauri環境外です。");
-            }
-        }
 
         // 他のWebviewからURL変更通知を受け取った場合の処理
         if (window.__TAURI__ && window.__TAURI__.event) {
