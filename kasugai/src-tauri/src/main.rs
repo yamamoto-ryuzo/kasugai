@@ -70,6 +70,12 @@ fn autofill_credentials(
                 let exec_js = format!(
                     r#"
                     (function() {{
+                        // サービスとドメインのミスマッチを防ぐ（別ペインへの誤注入を防止）
+                        var host = window.location.hostname;
+                        var svc = {service_js};
+                        if (svc === "Box" && host.indexOf("box.") === -1) return;
+                        if (svc === "ReEarth" && host.indexOf("reearth.") === -1) return;
+
                         function fill() {{
                             // BOXや一般サイトで「検索窓」「その他の入力欄」に誤ってユーザー名(メールアドレス等)を入れてしまわないよう、ターゲットを厳格化
                             var emailInputs = document.querySelectorAll(
@@ -126,6 +132,7 @@ fn autofill_credentials(
                         }}
                     }})();
                     "#,
+                    service_js = serde_json::to_string(&service).unwrap(),
                     username_js = serde_json::to_string(&username).unwrap(),
                     password_js = serde_json::to_string(&password).unwrap()
                 );
