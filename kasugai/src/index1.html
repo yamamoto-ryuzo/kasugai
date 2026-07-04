@@ -90,16 +90,9 @@
         
         <div class="link-list">
             <!-- Box へのリンク (中央ペインで開くようにターゲットを pane2 面に変更) -->
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-                <a class="portal-btn" href="https://account.box.com/login" onclick="openLink(event, this.href, 'pane2')">
-                    <span>📦 BOX</span>
-                </a>
-                <div style="display: flex; gap: 4px;">
-                    <button class="portal-btn" style="flex: 1; padding: 6px 8px; font-size: 11px; background-color: #3b82f6; color: white;" onclick="quickAutofill('Box')">
-                        🔑 ID/PW自動入力
-                    </button>
-                </div>
-            </div>
+            <a class="portal-btn" href="https://account.box.com/login" onclick="openLink(event, this.href, 'pane2')">
+                <span>📦 BOX</span>
+            </a>
             
             <!-- Google Map へのリンク -->
             <a class="portal-btn" href="https://www.google.com/maps" onclick="openLink(event, this.href, 'pane2')">
@@ -107,23 +100,19 @@
             </a>
             
             <!-- Re:Earth へのリンク (動的URL) -->
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-                <a class="portal-btn" href="#" onclick="openReearth(event)">
-                    <span>🌐 Re:Earth</span>
-                </a>
-                <div style="display: flex; gap: 4px;">
-                    <button class="portal-btn" style="flex: 1; padding: 6px 8px; font-size: 11px; background-color: #3b82f6; color: white;" onclick="quickAutofill('ReEarth')">
-                        🔑 ID/PW自動入力
-                    </button>
-                </div>
-            </div>
+            <a class="portal-btn" href="#" onclick="openReearth(event)">
+                <span>🌐 Re:Earth</span>
+            </a>
         </div>
         
         <div class="footer">
-            <!-- 左右切替ボタン -->
-            <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
-                <button id="toggle-pane-btn" class="portal-btn" style="padding: 8px 12px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px;" onclick="togglePane()">
+            <!-- 左右切替ボタンおよび共通ID/PASSボタン -->
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
+                <button id="toggle-pane-btn" class="portal-btn" style="padding: 8px 12px; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="togglePane()">
                     <span>🔄 表示切替</span>
+                </button>
+                <button id="quick-autofill-btn" class="portal-btn" style="padding: 8px 12px; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; background-color: #3b82f6; color: white; border-color: #2563eb;" onclick="autofillCurrentActiveSite()">
+                    <span>🔑 ID/PASS</span>
                 </button>
             </div>
             <a href="#" id="system-settings-btn" style="color: #3b82f6; text-decoration: none; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;" onclick="openSystemSettings(event)">
@@ -177,25 +166,39 @@
             }
         }
 
-        // 画面1(ポータル)から各Webviewペインに向けて直接自動入力を行うクイックオートフィル
-        async function quickAutofill(service) {
+        // 画面1(ポータル)の最下部にある共通の「ID/PASS」ボタンをクリックした時、
+        // 中央(pane2)や右(pane3)で現在開かれているWebサイトのドメイン（host）を自動判別し、
+        // 保存されている適切な認証データ（Box または ReEarth）を自動入力（オートフィル）します。
+        async function autofillCurrentActiveSite() {
             if (window.__TAURI__ && window.__TAURI__.core) {
-                // セレクトされたサービスで直近登録・保存されているユーザー情報を特定
-                const matchedUser = localStorage.getItem("last_user_" + service);
-                if (!matchedUser) {
-                    alert(service + " のログインアカウント情報が「アカウント保存」からまだ一度も登録されていません。");
-                    return;
-                }
-                
+                const hasBoxValue = localStorage.getItem("last_user_Box");
+                const hasReearthValue = localStorage.getItem("last_user_ReEarth");
+
                 try {
-                    // pane2, 3 の双方のドメインを自動解析してその場で自動解決させます
-                    await window.__TAURI__.core.invoke("autofill_credentials", {
-                        targetPanes: ["pane2", "pane3"],
-                        service: service,
-                        username: matchedUser
-                    });
+                    let statusTriggered = false;
+                    
+                    if (hasBoxValue) {
+                        await window.__TAURI__.core.invoke("autofill_credentials", {
+                            targetPanes: ["pane2", "pane3"],
+                            service: "Box",
+                            username: hasBoxValue
+                        });
+                        statusTriggered = true;
+                    }
+                    if (hasReearthValue) {
+                        await window.__TAURI__.core.invoke("autofill_credentials", {
+                            targetPanes: ["pane2", "pane3"],
+                            service: "ReEarth",
+                            username: hasReearthValue
+                        });
+                        statusTriggered = true;
+                    }
+
+                    if (!statusTriggered) {
+                        alert("アカウント保存画面（画面2）からアカウント情報がまだ一度も登録されていません。");
+                    }
                 } catch (e) {
-                    alert("自動入力情報のロードに失敗しました。詳細: " + e);
+                    console.warn(e);
                 }
             } else {
                 console.warn("Tauri環境外です。");
