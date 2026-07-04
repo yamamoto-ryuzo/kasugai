@@ -17,42 +17,80 @@ struct SplitterState {
     pane_swapped: Mutex<bool>,
 }
 
-// OS資格情報マネージャー（keyringクレート）を使ったセキュリティの高いID/PW保存コマンド
-#[tauri::command]
-fn save_credentials(service: String, username: String, password: Option<String>) -> Result<(), String> {
-    let entry = keyring::Entry::new(&service, &username)
-        .map_err(|e| e.to_string())?;
-    
-    if let Some(pw) = password {
-        entry.set_password(&pw).map_err(|e| e.to_string())?;
-    } else {
-        // パスワードが渡されなければIDのみ記憶（空パスワードもしくはプレースホルダ）
-        entry.set_password("").map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}
-
-#[tauri::command]
-fn get_credentials(service: String, username: String) -> Result<String, String> {
-    let entry = keyring::Entry::new(&service, &username)
-        .map_err(|e| e.to_string())?;
-    
-    entry.get_password().map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-fn delete_credentials(service: String, username: String) -> Result<(), String> {
-    let entry = keyring::Entry::new(&service, &username)
-        .map_err(|e| e.to_string())?;
-    
-    entry.delete_password().map_err(|e| e.to_string())?;
-    Ok(())
-}
-
 // フロントエンドから呼び出されるRustコマンド
 #[tauri::command]
 fn get_system_info() -> String {
     "ステータス: 正常稼働中\nエンジン: Tauri v2 (Rust)\nWebview: Microsoft WebView2\n応答時間: リアルタイム".to_string()
+}
+
+#[derive(serde::Deserialize, Clone)]
+struct AutologinCreds {
+    email: String,
+    password: String,
+}
+
+// javascriptをインジェクトするヘルパー
+fn inject_autologin(wv: &tauri::Webview<tauri::Wry>, creds: AutologinCreds) {
+    let script = format!(
+        r#"
+        (function() {{
+            console.log("[Kasugai Autologin] 自動ログインスクリプトが起動しました。");
+            const email = "{}";
+            const password = "{}";
+
+            function attemptLogin() {{
+                // 1. メールアドレス入力画面
+                let emailInput = document.querySelector('input[type="email"]') || document.querySelector('input[name="login"]');
+                if (emailInput && emailInput.value !== email) {{
+                    emailInput.value = email;
+                    emailInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    emailInput.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    console.log("[Kasugai Autologin] メールアドレスを入力しました。");
+                    
+                    setTimeout(() => {{
+                        let nextBtn = document.querySelector('button[type="submit"]') || document.querySelector('#login-submit') || document.querySelector('.login-submit');
+                        if (nextBtn) {{
+                            nextBtn.click();
+                            console.log("[Kasugai Autologin] 次へボタンをクリックしました。");
+                        }}
+                    }}, 500);
+                    return;
+                }}
+
+                // 2. パスワード入力画面
+                let passInput = document.querySelector('input[type="password"]') || document.querySelector('input[name="password"]');
+                if (passInput && passInput.value !== password) {{
+                    passInput.value = password;
+                    passInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    passInput.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    console.log("[Kasugai Autologin] パスワードを入力しました。");
+
+                    setTimeout(() => {{
+                        let loginBtn = document.querySelector('button[type="submit"]') || document.querySelector('#login-submit-password');
+                        if (loginBtn) {{
+                            loginBtn.click();
+                            console.log("[Kasugai Autologin] ログインボタンをクリックしました。");
+                        }}
+                    }}, 500);
+                    return;
+                }}
+            }}
+
+            const timer = setInterval(() => {{
+                attemptLogin();
+            }}, 1000);
+
+            // 15秒経ったら監視を終了
+            setTimeout(() => {{
+                clearInterval(timer);
+                console.log("[Kasugai Autologin] 監視を終了しました。");
+            }}, 15000);
+        }})();
+        "#,
+        creds.email.replace('"', "\\\""),
+        creds.password.replace('"', "\\\"")
+    );
+    let _ = wv.eval(&script);
 }
 
 // 画面1(左)から送信されたURLを中央のWebviewで開く（物理的位置に追従）
@@ -61,6 +99,7 @@ fn open_in_pane2(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, SplitterState>,
     url: String,
+    autologin: Option<AutologinCreds>,
 ) {
     let swapped = *state.pane_swapped.lock().unwrap();
     if let Ok(target_url) = tauri::Url::parse(&url) {
@@ -74,6 +113,28 @@ fn open_in_pane2(
                 }
                 if let Some(wv2) = window.get_webview("pane2") {
                     let _ = wv2.navigate(target_url);
+                    let _ = wv2.set_focus();
+                    if let Some(creds) = autologin {
+                        let wv2_clone = wv2.clone();
+                        let creds_clone = creds.clone();
+                        inject_autologin(&wv2, creds);
+                        
+                        // 別スレッドでスリープし、メインスレッドに安全に再注入
+                        let app_handle_clone = app_handle.clone();
+                        std::thread::spawn(move || {
+                            std::thread::sleep(std::time::Duration::from_millis(1800));
+                            let creds_inner = creds_clone.clone();
+                            let wv2_inner = wv2_clone.clone();
+                            let _ = app_handle_clone.run_on_main_thread(move || {
+                                inject_autologin(&wv2_inner, creds_inner);
+                            });
+
+                            std::thread::sleep(std::time::Duration::from_millis(1700));
+                            let _ = app_handle_clone.run_on_main_thread(move || {
+                                inject_autologin(&wv2_clone, creds_clone);
+                            });
+                        });
+                    }
                 }
             } else {
                 // スワップ時：pane3が中央
@@ -82,6 +143,27 @@ fn open_in_pane2(
                 }
                 if let Some(wv3) = window.get_webview("pane3") {
                     let _ = wv3.navigate(target_url);
+                    let _ = wv3.set_focus();
+                    if let Some(creds) = autologin {
+                        let wv3_clone = wv3.clone();
+                        let creds_clone = creds.clone();
+                        inject_autologin(&wv3, creds);
+                        
+                        let app_handle_clone = app_handle.clone();
+                        std::thread::spawn(move || {
+                            std::thread::sleep(std::time::Duration::from_millis(1800));
+                            let creds_inner = creds_clone.clone();
+                            let wv3_inner = wv3_clone.clone();
+                            let _ = app_handle_clone.run_on_main_thread(move || {
+                                inject_autologin(&wv3_inner, creds_inner);
+                            });
+
+                            std::thread::sleep(std::time::Duration::from_millis(1700));
+                            let _ = app_handle_clone.run_on_main_thread(move || {
+                                inject_autologin(&wv3_clone, creds_clone);
+                            });
+                        });
+                    }
                 }
             }
         }
@@ -94,6 +176,7 @@ fn open_in_pane3(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, SplitterState>,
     url: String,
+    autologin: Option<AutologinCreds>,
 ) {
     let swapped = *state.pane_swapped.lock().unwrap();
     if let Some(window) = app_handle.get_window("main") {
@@ -102,6 +185,27 @@ fn open_in_pane3(
             if let Some(wv3) = window.get_webview("pane3") {
                 if let Ok(target_url) = tauri::Url::parse(&url) {
                     let _ = wv3.navigate(target_url);
+                    let _ = wv3.set_focus();
+                    if let Some(creds) = autologin {
+                        let wv3_clone = wv3.clone();
+                        let creds_clone = creds.clone();
+                        inject_autologin(&wv3, creds);
+                        
+                        let app_handle_clone = app_handle.clone();
+                        std::thread::spawn(move || {
+                            std::thread::sleep(std::time::Duration::from_millis(1800));
+                            let creds_inner = creds_clone.clone();
+                            let wv3_inner = wv3_clone.clone();
+                            let _ = app_handle_clone.run_on_main_thread(move || {
+                                inject_autologin(&wv3_inner, creds_inner);
+                            });
+
+                            std::thread::sleep(std::time::Duration::from_millis(1700));
+                            let _ = app_handle_clone.run_on_main_thread(move || {
+                                inject_autologin(&wv3_clone, creds_clone);
+                            });
+                        });
+                    }
                 }
             }
         } else {
@@ -109,6 +213,27 @@ fn open_in_pane3(
             if let Some(wv2) = window.get_webview("pane2") {
                 if let Ok(target_url) = tauri::Url::parse(&url) {
                     let _ = wv2.navigate(target_url);
+                    let _ = wv2.set_focus();
+                    if let Some(creds) = autologin {
+                        let wv2_clone = wv2.clone();
+                        let creds_clone = creds.clone();
+                        inject_autologin(&wv2, creds);
+                        
+                        let app_handle_clone = app_handle.clone();
+                        std::thread::spawn(move || {
+                            std::thread::sleep(std::time::Duration::from_millis(1800));
+                            let creds_inner = creds_clone.clone();
+                            let wv2_inner = wv2_clone.clone();
+                            let _ = app_handle_clone.run_on_main_thread(move || {
+                                inject_autologin(&wv2_inner, creds_inner);
+                            });
+
+                            std::thread::sleep(std::time::Duration::from_millis(1700));
+                            let _ = app_handle_clone.run_on_main_thread(move || {
+                                inject_autologin(&wv2_clone, creds_clone);
+                            });
+                        });
+                    }
                 }
             }
         }
@@ -136,7 +261,7 @@ fn update_splitter(
     }
 }
 
-// ウィンドウのサイズ、比率に基づいてWebviewの境界を再設定するヘルパー
+// ウィンドウのサイズ、比率に基づいてWebview의 境界を再設定するヘルパー
 fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f64, ratio2: f64, swapped: bool) {
     let splitter_width = 8.0;
     let sh = splitter_width / 2.0;
@@ -242,10 +367,7 @@ fn main() {
             update_splitter,
             open_in_pane2,
             open_in_pane3,
-            set_center,
-            save_credentials,
-            get_credentials,
-            delete_credentials
+            set_center
         ])
         .setup(|app| {
             // メインウィンドウを作成
@@ -343,7 +465,7 @@ fn main() {
                     tauri::webview::NewWindowResponse::Deny
                 });
 
-            // pane3 (通常時は右、swapped時は中央) の挙動も役割交代に対応
+            // pane3 (通常時は右、swapped時は接続時に同期) の挙動も役割交代に対応
             let app_handle_for_nav3 = app.handle().clone();
             let app_handle_for_new_window3 = app.handle().clone();
             let webview3_builder = WebviewBuilder::new("pane3", WebviewUrl::App("index3.html".into()))
@@ -427,17 +549,20 @@ fn main() {
             let window_clone = window.clone();
             let app_handle = app.handle().clone();
             window.on_window_event(move |event| {
-                if let tauri::WindowEvent::Resized(new_size) = event {
-                    let w = new_size.width as f64;
-                    let h = new_size.height as f64;
+                match event {
+                    tauri::WindowEvent::Resized(new_size) => {
+                        let w = new_size.width as f64;
+                        let h = new_size.height as f64;
 
-                    // Stateから最新の比率を取得して再配置
-                    let state = app_handle.state::<SplitterState>();
-                    let r1 = *state.ratio1.lock().unwrap();
-                    let r2 = *state.ratio2.lock().unwrap();
+                        // Stateから最新 of 比率を取得して再配置
+                        let state = app_handle.state::<SplitterState>();
+                        let r1 = *state.ratio1.lock().unwrap();
+                        let r2 = *state.ratio2.lock().unwrap();
 
-                    let swapped_now = *state.pane_swapped.lock().unwrap();
-                    recalculate_webview_bounds(&window_clone, w, h, r1, r2, swapped_now);
+                        let swapped_now = *state.pane_swapped.lock().unwrap();
+                        recalculate_webview_bounds(&window_clone, w, h, r1, r2, swapped_now);
+                    }
+                    _ => {}
                 }
             });
 

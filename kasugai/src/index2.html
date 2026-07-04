@@ -127,7 +127,6 @@
         <div class="tabs">
             <button class="tab-btn active" id="tab-editor" onclick="switchTab('editor')">📝 メモ帳</button>
             <button class="tab-btn" id="tab-settings" onclick="switchTab('settings')">⚙️ システム設定</button>
-            <button class="tab-btn" id="tab-credentials" onclick="switchTab('credentials')">🔑 アカウント保存</button>
         </div>
 
         <div id="content-editor" class="tab-content">
@@ -146,40 +145,23 @@
                     <label for="reearth-url-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">Re:Earth 接続URL</label>
                     <input type="text" id="reearth-url-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="https://example.visualizer.reearth.io/">
                 </div>
-                <button class="btn" onclick="saveReearthUrl()">URLを保存</button>
-                <div id="settings-status" class="status-msg"></div>
-            </div>
-        </div>
 
-        <div id="content-credentials" class="tab-content" style="display: none;">
-            <p>OS標準のセキュアストア（資格情報マネージャー）にIDとパスワードを安全に保存・管理します。</p>
-            <div class="interactive-section" style="gap: 12px;">
-                <div>
-                    <label for="cred-service" style="font-weight: bold; font-size: 13px; display: block; margin-bottom: 4px;">サービス名・サイト名</label>
-                    <div style="display: flex; gap: 6px;">
-                        <select id="cred-service-select" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background-color: white; font-size: 14px; width: 140px;" onchange="onServiceSelectChange()">
-                            <option value="Box">Box</option>
-                            <option value="ReEarth">ReEarth</option>
-                            <option value="Google">Google</option>
-                            <option value="custom">直接入力...</option>
-                        </select>
-                        <input type="text" id="cred-service" style="flex: 1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; display: none;" placeholder="任意のサービス名" value="Box">
+                <div style="border-top: 1px solid #cbd5e1; padding-top: 15px; margin-top: 5px;">
+                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">📦 BOX 代理オートログイン設定</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div>
+                            <label for="box-email-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">メールアドレス (ログインID)</label>
+                            <input type="email" id="box-email-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="user@example.com">
+                        </div>
+                        <div>
+                            <label for="box-password-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">パスワード</label>
+                            <input type="password" id="box-password-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="パスワードを入力">
+                        </div>
                     </div>
                 </div>
-                <div>
-                    <label for="cred-username" style="font-weight: bold; font-size: 13px; display: block; margin-bottom: 4px;">ログインID・メールアドレス</label>
-                    <input type="text" id="cred-username" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;" placeholder="user@example.com">
-                </div>
-                <div>
-                    <label for="cred-password" style="font-weight: bold; font-size: 13px; display: block; margin-bottom: 4px;">パスワード</label>
-                    <input type="password" id="cred-password" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;" placeholder="••••••••">
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <button class="btn" style="flex: 1;" onclick="saveCredentials()">安全に保存</button>
-                    <button class="btn" style="flex: 1; background-color: #64748b;" onclick="loadCredentials()">呼び出し</button>
-                    <button class="btn" style="flex: 1; background-color: #ef4444;" onclick="deleteCredentials()">削除</button>
-                </div>
-                <div id="cred-status" class="status-msg"></div>
+
+                <button class="btn" onclick="saveAllSettings()">設定をすべて保存</button>
+                <div id="settings-status" class="status-msg"></div>
             </div>
         </div>
     </div>
@@ -189,19 +171,15 @@
         function switchTab(tabName) {
             document.getElementById('tab-editor').classList.toggle('active', tabName === 'editor');
             document.getElementById('tab-settings').classList.toggle('active', tabName === 'settings');
-            document.getElementById('tab-credentials').classList.toggle('active', tabName === 'credentials');
 
             document.getElementById('content-editor').style.display = tabName === 'editor' ? 'block' : 'none';
             document.getElementById('content-settings').style.display = tabName === 'settings' ? 'block' : 'none';
-            document.getElementById('content-credentials').style.display = tabName === 'credentials' ? 'block' : 'none';
 
             const title = document.getElementById('view-title');
             if (tabName === 'editor') {
                 title.textContent = 'メモ帳';
             } else if (tabName === 'settings') {
                 title.textContent = 'システム設定';
-            } else {
-                title.textContent = 'アカウント保存';
             }
         }
 
@@ -216,22 +194,19 @@
             const savedReearth = localStorage.getItem("reearth_url") || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
             document.getElementById("reearth-url-input").value = savedReearth;
 
+            // BOX資格情報の復元
+            document.getElementById("box-email-input").value = localStorage.getItem("box_email") || "";
+            document.getElementById("box-password-input").value = localStorage.getItem("box_password") || "";
+
             // クエリパラメータ settings=true がある場合はシステム設定を表示
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('settings') === 'true') {
                 switchTab('settings');
             }
-
-            // 初期表示時に入力されているデフォルトサービス(Box)のアカウントを自動呼び出しする
-            const defaultService = "Box";
-            const lastUsedUser = localStorage.getItem("last_user_" + defaultService);
-            if (lastUsedUser) {
-                document.getElementById("cred-username").value = lastUsedUser;
-                loadCredentialsAuto(defaultService, lastUsedUser);
-            }
         };
 
-        function saveReearthUrl() {
+        function saveAllSettings() {
+            // 1. Re:Earth URLの保存
             const url = document.getElementById("reearth-url-input").value.trim();
             if (!url) {
                 alert("URLを入力してください。");
@@ -247,12 +222,19 @@
 
             localStorage.setItem("reearth_url", url);
 
+            // 2. BOX資格情報の保存
+            const email = document.getElementById("box-email-input").value.trim();
+            const password = document.getElementById("box-password-input").value;
+            localStorage.setItem("box_email", email);
+            localStorage.setItem("box_password", password);
+
             if (window.__TAURI__ && window.__TAURI__.event) {
                 window.__TAURI__.event.emit('reearth_url_changed', { url: url });
+                window.__TAURI__.event.emit('box_credentials_changed', { email: email, password: password });
             }
 
             const status = document.getElementById("settings-status");
-            status.textContent = "設定を保存しました！ (" + new Date().toLocaleTimeString() + ")";
+            status.textContent = "設定をすべて保存しました！ (" + new Date().toLocaleTimeString() + ")";
             setTimeout(() => {
                 status.textContent = "";
             }, 3000);
@@ -266,132 +248,6 @@
             setTimeout(() => {
                 status.textContent = "";
             }, 3000);
-        }
-
-        // サービス名セレクトボックスの変更イベントハンドラ
-        function onServiceSelectChange() {
-            const selectEl = document.getElementById("cred-service-select");
-            const inputEl = document.getElementById("cred-service");
-            const status = document.getElementById("cred-status");
-
-            if (selectEl.value === "custom") {
-                inputEl.style.display = "block";
-                inputEl.value = "";
-                inputEl.focus();
-            } else {
-                inputEl.style.display = "none";
-                inputEl.value = selectEl.value;
-
-                // サービス切り替え時に、このWebviewに保存されている登録済みの「最新のID」情報をローカルから自動補完する
-                const lastUsedUser = localStorage.getItem("last_user_" + selectEl.value);
-                if (lastUsedUser) {
-                    document.getElementById("cred-username").value = lastUsedUser;
-                    // IDが取得できた場合はそのままバックエンドからパスワードも自動的に極秘取得して復元
-                    loadCredentialsAuto(selectEl.value, lastUsedUser);
-                } else {
-                    document.getElementById("cred-username").value = "";
-                    document.getElementById("cred-password").value = "";
-                    status.textContent = selectEl.value + " のログインIDが未登録です。";
-                }
-            }
-        }
-
-        // バックエンドからユーザーを待たせずに非同期で資格情報を呼び出して自動注入する内部メソッド
-        async function loadCredentialsAuto(service, username) {
-            const status = document.getElementById("cred-status");
-            try {
-                if (window.__TAURI__ && window.__TAURI__.core) {
-                    const password = await window.__TAURI__.core.invoke("get_credentials", { service, username });
-                    document.getElementById("cred-password").value = password;
-                    status.textContent = service + " の保存されているアカウントをロードしました。";
-                }
-            } catch (err) {
-                document.getElementById("cred-password").value = "";
-                status.textContent = service + " の自動ロード失敗（保存なし、または設定エラー）";
-            }
-        }
-
-        // --- OS資格情報マネージャー保護システムの実装 ---
-        async function saveCredentials() {
-            const service = document.getElementById("cred-service").value.trim();
-            const username = document.getElementById("cred-username").value.trim();
-            const password = document.getElementById("cred-password").value;
-            const status = document.getElementById("cred-status");
-
-            if (!service || !username) {
-                alert("サービス名とID/メールアドレスは必須入力です。");
-                return;
-            }
-
-            status.textContent = "OSのセキュア保管庫に保存中...";
-            try {
-                if (window.__TAURI__ && window.__TAURI__.core) {
-                    await window.__TAURI__.core.invoke("save_credentials", { service, username, password });
-                    
-                    // 次回復元を高速化するため、このサービスの最終ログインIDをローカルに安全紐づけ
-                    localStorage.setItem("last_user_" + service, username);
-                    
-                    status.textContent = "安全に資格情報を保存しました！ (" + new Date().toLocaleTimeString() + ")";
-                    // パスワード入力欄はセキュリティのためすぐクリア
-                    document.getElementById("cred-password").value = "";
-                } else {
-                    status.textContent = "Tauri環境が検出されません。デスクトップアプリから実行してください。";
-                }
-            } catch (err) {
-                status.textContent = "保存エラー: " + err;
-            }
-        }
-
-        async function loadCredentials() {
-            const service = document.getElementById("cred-service").value.trim();
-            const username = document.getElementById("cred-username").value.trim();
-            const status = document.getElementById("cred-status");
-
-            if (!service || !username) {
-                alert("サービス名とID/メールアドレスを入力してください。");
-                return;
-            }
-
-            status.textContent = "OSのセキュア保管庫から取得中...";
-            try {
-                if (window.__TAURI__ && window.__TAURI__.core) {
-                    const password = await window.__TAURI__.core.invoke("get_credentials", { service, username });
-                    document.getElementById("cred-password").value = password;
-                    status.textContent = "セキュアストアからパスワードを取得・自動復元しました！";
-                } else {
-                    status.textContent = "Tauri環境が検出されません。";
-                }
-            } catch (err) {
-                status.textContent = "取得に失敗しました。資格情報が存在しないか暗号化アクセスエラーです。";
-            }
-        }
-
-        async function deleteCredentials() {
-            const service = document.getElementById("cred-service").value.trim();
-            const username = document.getElementById("cred-username").value.trim();
-            const status = document.getElementById("cred-status");
-
-            if (!service || !username) {
-                alert("サービス名とID/メールアドレスを入力してください。");
-                return;
-            }
-
-            if (!confirm("OSからこのログイン資格情報を完全に削除してよろしいですか？")) {
-                return;
-            }
-
-            status.textContent = "OSセキュアストアから削除中...";
-            try {
-                if (window.__TAURI__ && window.__TAURI__.core) {
-                    await window.__TAURI__.core.invoke("delete_credentials", { service, username });
-                    document.getElementById("cred-password").value = "";
-                    status.textContent = "安全に削除されました。";
-                } else {
-                    status.textContent = "Tauri環境が検出されません。";
-                }
-            } catch (err) {
-                status.textContent = "削除エラー: " + err;
-            }
         }
 
 

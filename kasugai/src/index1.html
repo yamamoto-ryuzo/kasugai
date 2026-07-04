@@ -152,10 +152,20 @@
         function openLink(event, url, target) {
             event.preventDefault();
             if (window.__TAURI__ && window.__TAURI__.core) {
+                // BOXログインの場合は自動ログイン用の資格情報を送る
+                let autologin = null;
+                if (url.includes("box.com")) {
+                    const email = localStorage.getItem("box_email") || "";
+                    const password = localStorage.getItem("box_password") || "";
+                    if (email && password) {
+                        autologin = { email, password };
+                    }
+                }
+
                 if (target === 'pane3') {
-                    window.__TAURI__.core.invoke('open_in_pane3', { url: url });
+                    window.__TAURI__.core.invoke('open_in_pane3', { url: url, autologin: autologin });
                 } else {
-                    window.__TAURI__.core.invoke('open_in_pane2', { url: url });
+                    window.__TAURI__.core.invoke('open_in_pane2', { url: url, autologin: autologin });
                 }
             } else {
                 console.warn("Tauri環境が検出されません。URLをブラウザで開きます:", url);
@@ -168,6 +178,10 @@
         if (window.__TAURI__ && window.__TAURI__.event) {
             window.__TAURI__.event.listen('reearth_url_changed', (event) => {
                 localStorage.setItem("reearth_url", event.payload.url);
+            });
+            window.__TAURI__.event.listen('box_credentials_changed', (event) => {
+                localStorage.setItem("box_email", event.payload.email);
+                localStorage.setItem("box_password", event.payload.password);
             });
         }
 
