@@ -125,12 +125,22 @@ fn type_credentials(email: String, password: String) {
 #[tauri::command]
 fn open_box_in_pane(
     app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
     target: String, // "pane2" or "pane3"
     url: String,
     creds: AutologinCreds,
 ) {
+    let swapped = *state.pane_swapped.lock().unwrap();
+    let real_target = if target == "pane2" {
+        if !swapped { "pane2" } else { "pane3" }
+    } else if target == "pane3" {
+        if !swapped { "pane3" } else { "pane2" }
+    } else {
+        &target
+    };
+
     if let Some(window) = app_handle.get_window("main") {
-        if let Some(wv) = window.get_webview(&target) {
+        if let Some(wv) = window.get_webview(real_target) {
             let _ = wv.navigate(tauri::Url::parse(&url).unwrap());
             let _ = wv.set_focus();
             
@@ -165,12 +175,22 @@ fn open_box_in_pane(
 #[tauri::command]
 fn open_reearth_in_pane(
     app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
     target: String,
     url: String,
     creds: AutologinCreds,
 ) {
+    let swapped = *state.pane_swapped.lock().unwrap();
+    let real_target = if target == "pane2" {
+        if !swapped { "pane2" } else { "pane3" }
+    } else if target == "pane3" {
+        if !swapped { "pane3" } else { "pane2" }
+    } else {
+        &target
+    };
+
     if let Some(window) = app_handle.get_window("main") {
-        if let Some(wv) = window.get_webview(&target) {
+        if let Some(wv) = window.get_webview(real_target) {
             let _ = wv.navigate(tauri::Url::parse(&url).unwrap());
             let _ = wv.set_focus();
             
@@ -313,11 +333,16 @@ fn set_center(
     center: String,
 ) {
     let mut swapped = state.pane_swapped.lock().unwrap();
-    *swapped = match center.as_str() {
-        "pane2" => false,
-        "pane3" => true,
-        _ => *swapped,
-    };
+    if center == "toggle" {
+        *swapped = !*swapped;
+    } else {
+        *swapped = match center.as_str() {
+            "pane2" => false,
+            "pane3" => true,
+            _ => *swapped,
+        };
+    }
+    
     if let Some(window) = app_handle.get_window("main") {
         if let Ok(size) = window.inner_size() {
             let w = size.width as f64;
@@ -418,7 +443,8 @@ fn main() {
             let webview2_builder = WebviewBuilder::new("pane2", WebviewUrl::App("index2.html".into()))
                 .on_navigation(move |url| {
                     let url_str = url.as_str();
-                    if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("index2.html") 
+                    if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1") 
+                       || url_str.contains("index2.html") || url_str.contains("index3.html") 
                        || url_str.contains("account.box.com") || url_str.contains("app.box.com") || url_str.contains("reearth.io") {
                         return true;
                     }
@@ -465,7 +491,8 @@ fn main() {
             let webview3_builder = WebviewBuilder::new("pane3", WebviewUrl::App("index3.html".into()))
                 .on_navigation(move |url| {
                     let url_str = url.as_str();
-                    if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("index3.html") 
+                    if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1") 
+                       || url_str.contains("index2.html") || url_str.contains("index3.html") 
                        || url_str.contains("account.box.com") || url_str.contains("app.box.com") || url_str.contains("reearth.io") {
                         return true;
                     }
