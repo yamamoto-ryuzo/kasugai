@@ -89,8 +89,8 @@
         <h1>ポータル</h1>
         
         <div class="link-list">
-            <!-- Box へのリンク (ログイン認証等が必要なため、常に参照ビューである pane3 で開く) -->
-            <a class="portal-btn" href="https://account.box.com/login" onclick="openLink(event, this.href, 'pane3')">
+            <!-- BOX へのリンク -->
+            <a class="portal-btn" href="https://account.box.com/login" onclick="openBox(event, this.href, 'pane3')">
                 <span>📦 BOX</span>
             </a>
             
@@ -99,14 +99,13 @@
                 <span>🗺️ Google Map</span>
             </a>
             
-            <!-- Re:Earth へのリンク (動的URL) -->
+            <!-- Re:Earth へのリンク -->
             <a class="portal-btn" href="#" onclick="openReearth(event)">
                 <span>🌐 Re:Earth</span>
             </a>
         </div>
         
         <div class="footer">
-            <!-- 左右切替ボタン -->
             <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
                 <button id="toggle-pane-btn" class="portal-btn" style="padding: 8px 12px; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="togglePane()">
                     <span>🔄 表示切替</span>
@@ -119,121 +118,87 @@
     </div>
 
     <script>
-        // Re:Earth URLを開く
-        function openReearth(event) {
-            event.preventDefault();
-            const url = localStorage.getItem("reearth_url") || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
-            openLink(event, url, 'pane3');
+        // 1. BOX専用のオープン関数
+        async function openBox(event, url, target) {
+            if (event) event.preventDefault();
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                const email = localStorage.getItem("box_email") || "";
+                let password = "";
+                if (email) {
+                    try {
+                        password = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai_Box', username: email });
+                        if (password) {
+                            await window.__TAURI__.core.invoke('open_box_in_pane', { 
+                                target: target, 
+                                url: url, 
+                                creds: { email, password } 
+                            });
+                            return;
+                        }
+                    } catch (e) { console.warn("BOX認証失敗:", e); }
+                }
+                // 資格情報がない場合は普通に開く
+                window.__TAURI__.core.invoke('open_in_pane3', { url: url });
+            }
         }
 
-        // システム設定を開く
+        // 2. Re:Earth専用のオープン関数
+        async function openReearth(event) {
+            if (event) event.preventDefault();
+            const url = localStorage.getItem("reearth_url") || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
+            const target = 'pane2';
+
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                const email = localStorage.getItem("reearth_email") || "";
+                let password = "";
+                if (email) {
+                    try {
+                        password = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai_Reearth', username: email });
+                        if (password) {
+                            // 物理タイピング方式の専用コマンドを呼び出し
+                            await window.__TAURI__.core.invoke('open_reearth_in_pane', { 
+                                target: target, 
+                                url: url, 
+                                creds: { email, password } 
+                            });
+                            return;
+                        }
+                    } catch (e) { console.warn("Re:Earth認証失敗:", e); }
+                }
+                window.__TAURI__.core.invoke('open_in_pane2', { url: url });
+            }
+        }
+
+        // 3. 通常のオープン関数（Google Map等）
+        async function openLink(event, url, target) {
+            if (event) event.preventDefault();
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                if (target === 'pane3') {
+                    window.__TAURI__.core.invoke('open_in_pane3', { url: url });
+                } else {
+                    window.__TAURI__.core.invoke('open_in_pane2', { url: url });
+                }
+            }
+        }
+
         function openSystemSettings(event) {
             event.preventDefault();
             const url = window.location.origin + '/index2.html?settings=true';
             openLink(event, url, 'pane2');
         }
 
-        // 左右のペイン表示を切り替える（画面2と画面3の位置入替）
-        let currentCenter = 'pane2';
         async function togglePane() {
             if (window.__TAURI__ && window.__TAURI__.core) {
-                try {
-                    currentCenter = (currentCenter === 'pane2') ? 'pane3' : 'pane2';
-                    await window.__TAURI__.core.invoke('set_center', { center: currentCenter });
-                } catch (e) {
-                    console.error('表示切替に失敗しました: ', e);
-                }
-            } else {
-                console.warn('Tauri 環境が見つかりません。アプリ内で実行してください。');
+                await window.__TAURI__.core.invoke('set_center', { center: 'toggle' }); // 実際はRust側で判定
             }
         }
 
-        // ポータルリンクをクリックした際、指定ターゲット of Webviewで開く
-        async function openLink(event, url, target) {
-            if (event) event.preventDefault();
-            if (window.__TAURI__ && window.__TAURI__.core) {
-                let autologin = null;
-                
-                // BOXログインの場合は自動ログイン用の資格情報を送る
-                if (url.includes("box.com")) {
-                    const email = localStorage.getItem("box_email") || "";
-                    let password = "";
-                    if (email) {
-                        try {
-                            password = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai', username: email });
-                        } catch (e) {
-                            console.warn("KeyringからのBOXパスワード取得に失敗しました。:", e);
-                            password = localStorage.getItem("box_password") || "";
-                        }
-                    }
-                    if (email && password) {
-                        autologin = { email, password };
-                    }
-                }
-                // Re:Earthログインの場合も自動ログイン用の資格情報を送る
-                else if (url.includes("reearth") || url.includes("visualizer")) {
-                    const email = localStorage.getItem("reearth_email") || "";
-                    let password = "";
-                    if (email) {
-                        try {
-                            password = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai_Reearth', username: email });
-                        } catch (e) {
-                            console.warn("KeyringからのRe:Earthパスワード取得に失敗しました。:", e);
-                            password = localStorage.getItem("reearth_password") || "";
-                        }
-                    }
-                    if (email && password) {
-                        autologin = { email, password };
-
-                        // 【Basic認証ハック】
-                        // ポップアップを回避するため、事前にフェッチを投げてブラウザにBasic認証情報をキャッシュさせる
-                        try {
-                            console.log("[Kasugai] Basic認証情報の事前キャッシュ処理を開始します...", url);
-                            const basicAuthHeader = "Basic " + btoa(unescape(encodeURIComponent(email + ":" + password)));
-                            await fetch(url, {
-                                method: 'GET',
-                                headers: {
-                                    'Authorization': basicAuthHeader
-                                },
-                                mode: 'no-cors' // CORS制限に引っかからずにリクエストを完了させるため
-                            });
-                            console.log("[Kasugai] Basic認証情報の事前キャッシュ処理に成功しました。");
-                        } catch (fetchErr) {
-                            console.warn("[Kasugai] 事前キャッシュフェッチでエラー（無視して続行します）:", fetchErr);
-                        }
-                    }
-                }
-
-                if (target === 'pane3') {
-                    window.__TAURI__.core.invoke('open_in_pane3', { url: url, autologin: autologin });
-                } else {
-                    window.__TAURI__.core.invoke('open_in_pane2', { url: url, autologin: autologin });
-                }
-            } else {
-                console.warn("Tauri環境が検出されません。URLをブラウザで開きます:", url);
-                window.open(url, '_blank');
-            }
-        }
-
-
-        // 他のWebviewからURL変更通知を受け取った場合の処理
         if (window.__TAURI__ && window.__TAURI__.event) {
-            window.__TAURI__.event.listen('reearth_url_changed', (event) => {
-                localStorage.setItem("reearth_url", event.payload.url);
-            });
-            window.__TAURI__.event.listen('box_credentials_changed', (event) => {
-                localStorage.setItem("box_email", event.payload.email);
-                // セキュア化のためlocalStorage内の平文パスワードは削除
-                localStorage.removeItem("box_password");
-            });
-            window.__TAURI__.event.listen('reearth_credentials_changed', (event) => {
-                localStorage.setItem("reearth_email", event.payload.email);
-                // セキュア化のためlocalStorage内の平文パスワードは削除
-                localStorage.removeItem("reearth_password");
-            });
+            window.__TAURI__.event.listen('reearth_url_changed', (e) => localStorage.setItem("reearth_url", e.payload.url));
+            window.__TAURI__.event.listen('box_credentials_changed', (e) => localStorage.setItem("box_email", e.payload.email));
+            window.__TAURI__.event.listen('reearth_credentials_changed', (e) => localStorage.setItem("reearth_email", e.payload.email));
         }
 
-        // 起動時に自動でBasic認証情報をキャッシュにプリロードする処理
         async function preloadBasicAuth() {
             if (window.__TAURI__ && window.__TAURI__.core) {
                 const url = localStorage.getItem("reearth_url") || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
@@ -242,61 +207,16 @@
                     try {
                         const password = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai_Reearth', username: email });
                         if (password) {
-                            console.log("[Kasugai] 起動時のBasic認証プリロードを実行します...");
-                            await window.__TAURI__.core.invoke('prefetch_basic_auth', {
-                                url: url,
-                                creds: { email: email, password: password }
-                            });
+                            await window.__TAURI__.core.invoke('prefetch_basic_auth', { url, creds: { email, password } });
                         }
-                    } catch (e) {
-                        console.warn("[Kasugai] 起動時のBasic認証プリロードに失敗しました（無視して続行）:", e);
-                    }
+                    } catch (e) {}
                 }
             }
         }
 
-        // 読み込み完了後に自動実行
         window.addEventListener('DOMContentLoaded', () => {
-            // 少しだけマウント完了を待ってから実行（1秒後）
             setTimeout(preloadBasicAuth, 1000);
         });
-
-        // --- スプリッターのドラッグ・リサイズ用中継処理 ---
-        (function() {
-            let isDragging = false;
-            let activeSplitter = null;
-
-            if (window.__TAURI__ && window.__TAURI__.event) {
-                // 親がドラッグを開始したことを検知
-                window.__TAURI__.event.listen('splitter_drag_start', (event) => {
-                    isDragging = true;
-                    activeSplitter = event.payload.activeSplitter;
-                });
-
-                // 親がドラッグを終了したことを検知
-                window.__TAURI__.event.listen('splitter_drag_end', () => {
-                    isDragging = false;
-                    activeSplitter = null;
-                });
-
-                // ドラッグ中、マウスのグローバル座標を親に伝える
-                window.addEventListener('mousemove', (e) => {
-                    if (isDragging && activeSplitter) {
-                        window.__TAURI__.event.emit('global_mousemove', {
-                            screenX: e.screenX,
-                            screenY: e.screenY
-                        });
-                    }
-                });
-
-                // ドラッグ中にこのペイン上でマウスを離した場合
-                window.addEventListener('mouseup', () => {
-                    if (isDragging) {
-                        window.__TAURI__.event.emit('global_mouseup');
-                    }
-                });
-            }
-        })();
     </script>
 </body>
 </html>
