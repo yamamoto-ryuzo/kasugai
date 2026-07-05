@@ -90,7 +90,7 @@
         
         <div class="link-list">
             <!-- BOX へのリンク -->
-            <a class="portal-btn" href="https://account.box.com/login" onclick="openBox(event, this.href, 'pane3')">
+            <a class="portal-btn" href="https://account.box.com/login" onclick="openBox(event, this.href, 'pane2')">
                 <span>📦 BOX</span>
             </a>
             
@@ -137,8 +137,12 @@
                         }
                     } catch (e) { console.warn("BOX認証失敗:", e); }
                 }
-                // 資格情報がない場合は普通に開く
-                window.__TAURI__.core.invoke('open_in_pane3', { url: url });
+                // 資格情報がない場合は指定のターゲット（基本はpane2）で開く
+                if (target === 'pane3') {
+                    window.__TAURI__.core.invoke('open_in_pane3', { url: url });
+                } else {
+                    window.__TAURI__.core.invoke('open_in_pane2', { url: url });
+                }
             }
         }
 
