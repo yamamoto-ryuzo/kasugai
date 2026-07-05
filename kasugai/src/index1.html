@@ -152,8 +152,9 @@
         async function openLink(event, url, target) {
             if (event) event.preventDefault();
             if (window.__TAURI__ && window.__TAURI__.core) {
-                // BOXログインの場合は自動ログイン用の資格情報を送る
                 let autologin = null;
+                
+                // BOXログインの場合は自動ログイン用の資格情報を送る
                 if (url.includes("box.com")) {
                     const email = localStorage.getItem("box_email") || "";
                     let password = "";
@@ -161,8 +162,24 @@
                         try {
                             password = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai', username: email });
                         } catch (e) {
-                            console.warn("Keyringからのパスワード取得に失敗しました。一時的にlocalStorageフォールバックを実行します:", e);
+                            console.warn("KeyringからのBOXパスワード取得に失敗しました。:", e);
                             password = localStorage.getItem("box_password") || "";
+                        }
+                    }
+                    if (email && password) {
+                        autologin = { email, password };
+                    }
+                }
+                // Re:Earthログインの場合も自動ログイン用の資格情報を送る
+                else if (url.includes("reearth") || url.includes("visualizer")) {
+                    const email = localStorage.getItem("reearth_email") || "";
+                    let password = "";
+                    if (email) {
+                        try {
+                            password = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai_Reearth', username: email });
+                        } catch (e) {
+                            console.warn("KeyringからのRe:Earthパスワード取得に失敗しました。:", e);
+                            password = localStorage.getItem("reearth_password") || "";
                         }
                     }
                     if (email && password) {
@@ -191,6 +208,11 @@
                 localStorage.setItem("box_email", event.payload.email);
                 // セキュア化のためlocalStorage内の平文パスワードは削除
                 localStorage.removeItem("box_password");
+            });
+            window.__TAURI__.event.listen('reearth_credentials_changed', (event) => {
+                localStorage.setItem("reearth_email", event.payload.email);
+                // セキュア化のためlocalStorage内の平文パスワードは削除
+                localStorage.removeItem("reearth_password");
             });
         }
 

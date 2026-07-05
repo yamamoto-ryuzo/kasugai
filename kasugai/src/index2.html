@@ -160,6 +160,20 @@
                     </div>
                 </div>
 
+                <div style="border-top: 1px solid #cbd5e1; padding-top: 15px; margin-top: 5px;">
+                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🌐 Re:Earth 代理オートログイン設定</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div>
+                            <label for="reearth-email-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">メールアドレス (ログインID)</label>
+                            <input type="email" id="reearth-email-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="reearth-user@example.com">
+                        </div>
+                        <div>
+                            <label for="reearth-password-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">パスワード</label>
+                            <input type="password" id="reearth-password-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="パスワードを入力">
+                        </div>
+                    </div>
+                </div>
+
                 <button class="btn" onclick="saveAllSettings()">設定をすべて保存</button>
                 <div id="settings-status" class="status-msg"></div>
             </div>
@@ -203,7 +217,20 @@
                     const password = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai', username: email });
                     document.getElementById("box-password-input").value = password;
                 } catch (e) {
-                    console.warn("Keyringからのパスワード取得に失敗しました。:", e);
+                    console.warn("KeyringからのBOXパスワード取得に失敗しました。:", e);
+                }
+            }
+
+            // Re:Earth資格情報の復元 (EmailはlocalStorage、PasswordはKeyringからセキュアに取得)
+            const reearthEmail = localStorage.getItem("reearth_email") || "";
+            document.getElementById("reearth-email-input").value = reearthEmail;
+
+            if (reearthEmail && window.__TAURI__ && window.__TAURI__.core) {
+                try {
+                    const password = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai_Reearth', username: reearthEmail });
+                    document.getElementById("reearth-password-input").value = password;
+                } catch (e) {
+                    console.warn("KeyringからのRe:Earthパスワード取得に失敗しました。:", e);
                 }
             }
 
@@ -241,15 +268,31 @@
                 try {
                     // パスワードをOSのKeyring（セキュアな資格情報ストア）へ保存
                     await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai', username: email, password: password });
-                    console.log("パスワードをKeyringにセキュアに保存しました。");
+                    console.log("BOXパスワードをKeyringにセキュアに保存しました。");
                 } catch (e) {
                     console.error("Keyringへの保存に失敗しました。平文での一時保存を行います。:", e);
+                }
+            }
+
+            // 3. Re:Earth資格情報の保存 (Keyringを使用)
+            const rEmail = document.getElementById("reearth-email-input").value.trim();
+            const rPassword = document.getElementById("reearth-password-input").value;
+
+            localStorage.setItem("reearth_email", rEmail);
+
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                try {
+                    await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai_Reearth', username: rEmail, password: rPassword });
+                    console.log("Re:EarthパスワードをKeyringにセキュアに保存しました。");
+                } catch (e) {
+                    console.error("Re:EarthのKeyring保存に失敗しました:", e);
                 }
             }
 
             if (window.__TAURI__ && window.__TAURI__.event) {
                 window.__TAURI__.event.emit('reearth_url_changed', { url: url });
                 window.__TAURI__.event.emit('box_credentials_changed', { email: email, password: password });
+                window.__TAURI__.event.emit('reearth_credentials_changed', { email: rEmail, password: rPassword });
             }
 
             const status = document.getElementById("settings-status");
