@@ -123,7 +123,7 @@
         function openReearth(event) {
             event.preventDefault();
             const url = localStorage.getItem("reearth_url") || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
-            openLink(event, url, 'pane2');
+            openLink(event, url, 'pane3');
         }
 
         // システム設定を開く
@@ -184,6 +184,23 @@
                     }
                     if (email && password) {
                         autologin = { email, password };
+
+                        // 【Basic認証ハック】
+                        // ポップアップを回避するため、事前にフェッチを投げてブラウザにBasic認証情報をキャッシュさせる
+                        try {
+                            console.log("[Kasugai] Basic認証情報の事前キャッシュ処理を開始します...", url);
+                            const basicAuthHeader = "Basic " + btoa(unescape(encodeURIComponent(email + ":" + password)));
+                            await fetch(url, {
+                                method: 'GET',
+                                headers: {
+                                    'Authorization': basicAuthHeader
+                                },
+                                mode: 'no-cors' // CORS制限に引っかからずにリクエストを完了させるため
+                            });
+                            console.log("[Kasugai] Basic認証情報の事前キャッシュ処理に成功しました。");
+                        } catch (fetchErr) {
+                            console.warn("[Kasugai] 事前キャッシュフェッチでエラー（無視して続行します）:", fetchErr);
+                        }
                     }
                 }
 
@@ -215,6 +232,34 @@
                 localStorage.removeItem("reearth_password");
             });
         }
+
+        // 起動時に自動でBasic認証情報をキャッシュにプリロードする処理
+        async function preloadBasicAuth() {
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                const url = localStorage.getItem("reearth_url") || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
+                const email = localStorage.getItem("reearth_email") || "";
+                if (email) {
+                    try {
+                        const password = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai_Reearth', username: email });
+                        if (password) {
+                            console.log("[Kasugai] 起動時のBasic認証プリロードを実行します...");
+                            await window.__TAURI__.core.invoke('prefetch_basic_auth', {
+                                url: url,
+                                creds: { email: email, password: password }
+                            });
+                        }
+                    } catch (e) {
+                        console.warn("[Kasugai] 起動時のBasic認証プリロードに失敗しました（無視して続行）:", e);
+                    }
+                }
+            }
+        }
+
+        // 読み込み完了後に自動実行
+        window.addEventListener('DOMContentLoaded', () => {
+            // 少しだけマウント完了を待ってから実行（1秒後）
+            setTimeout(preloadBasicAuth, 1000);
+        });
 
         // --- スプリッターのドラッグ・リサイズ用中継処理 ---
         (function() {

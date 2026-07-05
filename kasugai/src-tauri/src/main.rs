@@ -7,14 +7,18 @@ use tauri::{
     PhysicalPosition, PhysicalSize
 };
 
+use enigo::{Enigo, KeyboardControllable, Key};
+use std::thread;
+use std::time::Duration;
+
 // スプリッターの比率を保持するグローバルステート
 struct SplitterState {
     ratio1: Mutex<f64>,
     ratio2: Mutex<f64>,
     pane2_current_host: Mutex<Option<String>>,
     pane3_current_host: Mutex<Option<String>>,
-    // false: pane2=center, pane3=right  |  true: pane3=center, pane2=right
     pane_swapped: Mutex<bool>,
+    reearth_email: Mutex<Option<String>>, // 現在設定されているRe:Earthメールアドレス
 }
 
 use keyring::Entry;
@@ -27,7 +31,15 @@ fn get_system_info() -> String {
 
 // Keyringを利用したセキュアな資格情報の保存・取得・削除
 #[tauri::command]
-fn save_credential(service: String, username: String, password: String) -> Result<(), String> {
+fn save_credential(
+    state: tauri::State<'_, SplitterState>,
+    service: String, 
+    username: String, 
+    password: String
+) -> Result<(), String> {
+    if service == "Kasugai_Reearth" {
+        *state.reearth_email.lock().unwrap() = Some(username.clone());
+    }
     let entry = Entry::new(&service, &username).map_err(|e| e.to_string())?;
     entry.set_password(&password).map_err(|e| e.to_string())?;
     Ok(())
@@ -45,72 +57,153 @@ fn delete_credential(service: String, username: String) -> Result<(), String> {
     entry.delete_password().map_err(|e| e.to_string())
 }
 
-#[derive(serde::Deserialize, Clone)]
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
 struct AutologinCreds {
     email: String,
     password: String,
 }
 
-// javascriptをインジェクトするヘルパー
-fn inject_autologin(wv: &tauri::Webview<tauri::Wry>, creds: AutologinCreds) {
+// 究極の「OSネイティブ・キーボードエミュレーション」用スクリプト
+const AUTOLOGIN_SCRIPT: &str = r#"
+(function() {
+    console.log("[Kasugai Init] Native Emulation Agent active.");
+    
+    let credsCache = null;
+    let hasFilled = false;
+
+    // 1秒ごとにパスワード欄を探し続ける（無限ループエージェント）
+    const masterTimer = setInterval(() => {
+        // 設定画面（ローカル環境）では絶対に暴走しないようにする安全装置
+        const url = window.location.href;
+        if (url.includes("localhost") || url.includes("tauri://") || url.includes("index")) return;
+
+        if (hasFilled) return; // 一度実行したら休止
+
+        let passInput = document.querySelector('input[type="password"]') ||
+                        document.querySelector('input[name*="pass"]') ||
+                        document.querySelector('input[id*="pass"]');
+                        
+        let emailInput = document.querySelector('input[type="email"]') ||
+                         document.querySelector('input[name*="user"]') ||
+                         document.querySelector('input[name*="email"]') ||
+                         document.querySelector('input[id*="username"]') ||
+                         document.querySelector('input[id*="email"]');
+                         
+        if (passInput && emailInput) {
+            // 枠を発見！Rustバックエンドからパスワードを要求する
+            if (!credsCache && window.__TAURI__ && window.__TAURI__.core) {
+                window.__TAURI__.core.invoke('get_reearth_creds_for_autologin').then((creds) => {
+                    if (creds && creds.email && creds.password) {
+                        credsCache = creds;
+                        triggerNativeEmulation(emailInput);
+                    } else {
+                        console.warn("[Kasugai Init] 資格情報が空で返されました。設定を確認してください。");
+                    }
+                }).catch(e => console.warn("[Kasugai Init] Failed to get creds:", e));
+            } else if (credsCache) {
+                triggerNativeEmulation(emailInput);
+            }
+        }
+    }, 1000);
+
+    function triggerNativeEmulation(emailInput) {
+        if (hasFilled || !credsCache) return;
+        
+        console.log("[Kasugai Init] Form found! Triggering native keyboard emulation...");
+        hasFilled = true;
+        
+        // メールアドレス欄を空にしてフォーカスを当てる（カーソルを置く）
+        emailInput.value = ""; 
+        emailInput.focus();
+        emailInput.click();
+
+        // 少しだけフォーカスが安定するのを待ってからRustに物理打鍵を命令する
+        setTimeout(() => {
+            window.__TAURI__.core.invoke('type_credentials', {
+                email: credsCache.email,
+                password: credsCache.password
+            });
+        }, 500);
+
+        // 別のログイン画面（多段認証など）に備えて10秒後に再度エージェントを再起動
+        setTimeout(() => { hasFilled = false; }, 10000);
+    }
+})();
+"#;
+
+// WebViewが自律的にログイン情報を取得するためのTauriコマンド
+#[tauri::command]
+fn get_reearth_creds_for_autologin(
+    state: tauri::State<'_, SplitterState>,
+) -> Result<Option<AutologinCreds>, String> {
+    let email_opt = state.reearth_email.lock().unwrap().clone();
+    if let Some(email) = email_opt {
+        if let Ok(entry) = Entry::new("Kasugai_Reearth", &email) {
+            if let Ok(password) = entry.get_password() {
+                return Ok(Some(AutologinCreds { email, password }));
+            }
+        }
+    }
+    Ok(None)
+}
+
+// OSネイティブ・物理キーボードタイピングエミュレーションコマンド
+#[tauri::command]
+fn type_credentials(email: String, password: String) {
+    // KASUGAIによる「物理キーボード打鍵エミュレーション」
+    thread::spawn(move || {
+        // Rust側でも念のため500ms待機し、確実にWebビューのフォーカスがアクティブになるのを待つ
+        thread::sleep(Duration::from_millis(500));
+        
+        let mut enigo = Enigo::new();
+        
+        // 1. メールアドレスを物理的にタイピング
+        enigo.key_sequence(&email);
+        thread::sleep(Duration::from_millis(200));
+        
+        // 2. Tabキーを押してパスワード欄へフォーカス移動
+        enigo.key_click(Key::Tab);
+        thread::sleep(Duration::from_millis(200));
+        
+        // 3. パスワードを物理的にタイピング
+        enigo.key_sequence(&password);
+        thread::sleep(Duration::from_millis(200));
+        
+        // 4. Enterキーを押してログインを実行
+        enigo.key_click(Key::Return);
+        
+        println!("[Kasugai Enigo] Native typing sequence completed.");
+    });
+}
+
+// 事前に同じWebviewインスタンスのコンテキストでBasic認証をfetchし、認証情報キャッシュを記憶させてから遷移するヘルパー
+fn navigate_with_basic_auth(wv: &tauri::Webview<tauri::Wry>, url: &str, creds: &AutologinCreds) {
     let script = format!(
         r#"
-        (function() {{
-            console.log("[Kasugai Autologin] 自動ログインスクリプトが起動しました。");
-            const email = "{}";
-            const password = "{}";
-
-            function attemptLogin() {{
-                // 1. メールアドレス入力画面
-                let emailInput = document.querySelector('input[type="email"]') || document.querySelector('input[name="login"]');
-                if (emailInput && emailInput.value !== email) {{
-                    emailInput.value = email;
-                    emailInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                    emailInput.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                    console.log("[Kasugai Autologin] メールアドレスを入力しました。");
-                    
-                    setTimeout(() => {{
-                        let nextBtn = document.querySelector('button[type="submit"]') || document.querySelector('#login-submit') || document.querySelector('.login-submit');
-                        if (nextBtn) {{
-                            nextBtn.click();
-                            console.log("[Kasugai Autologin] 次へボタンをクリックしました。");
-                        }}
-                    }}, 500);
-                    return;
-                }}
-
-                // 2. パスワード入力画面
-                let passInput = document.querySelector('input[type="password"]') || document.querySelector('input[name="password"]');
-                if (passInput && passInput.value !== password) {{
-                    passInput.value = password;
-                    passInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                    passInput.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                    console.log("[Kasugai Autologin] パスワードを入力しました。");
-
-                    setTimeout(() => {{
-                        let loginBtn = document.querySelector('button[type="submit"]') || document.querySelector('#login-submit-password');
-                        if (loginBtn) {{
-                            loginBtn.click();
-                            console.log("[Kasugai Autologin] ログインボタンをクリックしました。");
-                        }}
-                    }}, 500);
-                    return;
-                }}
+        (async function() {{
+            try {{
+                console.log("[Kasugai] Starting inline Basic Auth fetch for: {}");
+                const basicAuthHeader = "Basic " + btoa(unescape(encodeURIComponent("{}:{}")));
+                await fetch("{}", {{
+                    method: "GET",
+                    headers: {{
+                        "Authorization": basicAuthHeader
+                    }},
+                    mode: 'no-cors'
+                }});
+                console.log("[Kasugai] Basic認証情報の事前キャッシュフェッチに成功しました。");
+            }} catch (fetchErr) {{
+                console.warn("[Kasugai] 事前キャッシュフェッチでエラー:", fetchErr);
+            }} finally {{
+                window.location.href = "{}";
             }}
-
-            const timer = setInterval(() => {{
-                attemptLogin();
-            }}, 1000);
-
-            // 15秒経ったら監視を終了
-            setTimeout(() => {{
-                clearInterval(timer);
-                console.log("[Kasugai Autologin] 監視を終了しました。");
-            }}, 15000);
         }})();
         "#,
+        url.replace('"', "\\\""),
         creds.email.replace('"', "\\\""),
-        creds.password.replace('"', "\\\"")
+        creds.password.replace('"', "\\\""),
+        url.replace('"', "\\\""),
+        url.replace('"', "\\\"")
     );
     let _ = wv.eval(&script);
 }
@@ -134,29 +227,13 @@ fn open_in_pane2(
                     *state.pane2_current_host.lock().unwrap() = Some(h);
                 }
                 if let Some(wv2) = window.get_webview("pane2") {
-                    let _ = wv2.navigate(target_url);
-                    let _ = wv2.set_focus();
-                    if let Some(creds) = autologin {
-                        let wv2_clone = wv2.clone();
-                        let creds_clone = creds.clone();
-                        inject_autologin(&wv2, creds);
-                        
-                        // 別スレッドでスリープし、メインスレッドに安全に再注入
-                        let app_handle_clone = app_handle.clone();
-                        std::thread::spawn(move || {
-                            std::thread::sleep(std::time::Duration::from_millis(1800));
-                            let creds_inner = creds_clone.clone();
-                            let wv2_inner = wv2_clone.clone();
-                            let _ = app_handle_clone.run_on_main_thread(move || {
-                                inject_autologin(&wv2_inner, creds_inner);
-                            });
-
-                            std::thread::sleep(std::time::Duration::from_millis(1700));
-                            let _ = app_handle_clone.run_on_main_thread(move || {
-                                inject_autologin(&wv2_clone, creds_clone);
-                            });
-                        });
+                    let is_reearth = url.contains("reearth") || url.contains("visualizer");
+                    if is_reearth && autologin.is_some() {
+                        navigate_with_basic_auth(&wv2, &url, autologin.as_ref().unwrap());
+                    } else {
+                        let _ = wv2.navigate(target_url);
                     }
+                    let _ = wv2.set_focus();
                 }
             } else {
                 // スワップ時：pane3が中央
@@ -164,28 +241,13 @@ fn open_in_pane2(
                     *state.pane3_current_host.lock().unwrap() = Some(h);
                 }
                 if let Some(wv3) = window.get_webview("pane3") {
-                    let _ = wv3.navigate(target_url);
-                    let _ = wv3.set_focus();
-                    if let Some(creds) = autologin {
-                        let wv3_clone = wv3.clone();
-                        let creds_clone = creds.clone();
-                        inject_autologin(&wv3, creds);
-                        
-                        let app_handle_clone = app_handle.clone();
-                        std::thread::spawn(move || {
-                            std::thread::sleep(std::time::Duration::from_millis(1800));
-                            let creds_inner = creds_clone.clone();
-                            let wv3_inner = wv3_clone.clone();
-                            let _ = app_handle_clone.run_on_main_thread(move || {
-                                inject_autologin(&wv3_inner, creds_inner);
-                            });
-
-                            std::thread::sleep(std::time::Duration::from_millis(1700));
-                            let _ = app_handle_clone.run_on_main_thread(move || {
-                                inject_autologin(&wv3_clone, creds_clone);
-                            });
-                        });
+                    let is_reearth = url.contains("reearth") || url.contains("visualizer");
+                    if is_reearth && autologin.is_some() {
+                        navigate_with_basic_auth(&wv3, &url, autologin.as_ref().unwrap());
+                    } else {
+                        let _ = wv3.navigate(target_url);
                     }
+                    let _ = wv3.set_focus();
                 }
             }
         }
@@ -206,26 +268,30 @@ fn open_in_pane3(
             // 通常時：pane3が右
             if let Some(wv3) = window.get_webview("pane3") {
                 if let Ok(target_url) = tauri::Url::parse(&url) {
+                    let is_reearth = url.contains("reearth") || url.contains("visualizer");
                     let _ = wv3.navigate(target_url);
                     let _ = wv3.set_focus();
-                    if let Some(creds) = autologin {
-                        let wv3_clone = wv3.clone();
-                        let creds_clone = creds.clone();
-                        inject_autologin(&wv3, creds);
-                        
-                        let app_handle_clone = app_handle.clone();
-                        std::thread::spawn(move || {
-                            std::thread::sleep(std::time::Duration::from_millis(1800));
-                            let creds_inner = creds_clone.clone();
-                            let wv3_inner = wv3_clone.clone();
-                            let _ = app_handle_clone.run_on_main_thread(move || {
-                                inject_autologin(&wv3_inner, creds_inner);
-                            });
-
-                            std::thread::sleep(std::time::Duration::from_millis(1700));
-                            let _ = app_handle_clone.run_on_main_thread(move || {
-                                inject_autologin(&wv3_clone, creds_clone);
-                            });
+                    
+                    if is_reearth && autologin.is_some() {
+                        let creds = autologin.unwrap();
+                        // 1.5秒待機してBasic認証ダイアログが出現した直後に無条件で物理タイピングを実行
+                        thread::spawn(move || {
+                            thread::sleep(Duration::from_millis(1500));
+                            
+                            let mut enigo = Enigo::new();
+                            // IDをタイピング
+                            enigo.key_sequence(&creds.email);
+                            thread::sleep(Duration::from_millis(100));
+                            // Tabでパスワード欄へ
+                            enigo.key_click(Key::Tab);
+                            thread::sleep(Duration::from_millis(100));
+                            // パスワードをタイピング
+                            enigo.key_sequence(&creds.password);
+                            thread::sleep(Duration::from_millis(100));
+                            // Enterでログイン
+                            enigo.key_click(Key::Return);
+                            
+                            println!("[Kasugai Enigo] Basic Auth dialog typing completed.");
                         });
                     }
                 }
@@ -234,26 +300,26 @@ fn open_in_pane3(
             // スワップ時：pane2が右
             if let Some(wv2) = window.get_webview("pane2") {
                 if let Ok(target_url) = tauri::Url::parse(&url) {
+                    let is_reearth = url.contains("reearth") || url.contains("visualizer");
                     let _ = wv2.navigate(target_url);
                     let _ = wv2.set_focus();
-                    if let Some(creds) = autologin {
-                        let wv2_clone = wv2.clone();
-                        let creds_clone = creds.clone();
-                        inject_autologin(&wv2, creds);
-                        
-                        let app_handle_clone = app_handle.clone();
-                        std::thread::spawn(move || {
-                            std::thread::sleep(std::time::Duration::from_millis(1800));
-                            let creds_inner = creds_clone.clone();
-                            let wv2_inner = wv2_clone.clone();
-                            let _ = app_handle_clone.run_on_main_thread(move || {
-                                inject_autologin(&wv2_inner, creds_inner);
-                            });
-
-                            std::thread::sleep(std::time::Duration::from_millis(1700));
-                            let _ = app_handle_clone.run_on_main_thread(move || {
-                                inject_autologin(&wv2_clone, creds_clone);
-                            });
+                    
+                    if is_reearth && autologin.is_some() {
+                        let creds = autologin.unwrap();
+                        // 1.5秒待機してBasic認証ダイアログが出現した直後に無条件で物理タイピングを実行
+                        thread::spawn(move || {
+                            thread::sleep(Duration::from_millis(1500));
+                            
+                            let mut enigo = Enigo::new();
+                            enigo.key_sequence(&creds.email);
+                            thread::sleep(Duration::from_millis(100));
+                            enigo.key_click(Key::Tab);
+                            thread::sleep(Duration::from_millis(100));
+                            enigo.key_sequence(&creds.password);
+                            thread::sleep(Duration::from_millis(100));
+                            enigo.key_click(Key::Return);
+                            
+                            println!("[Kasugai Enigo] Basic Auth dialog typing completed.");
                         });
                     }
                 }
@@ -375,6 +441,75 @@ fn set_center(
     }
 }
 
+// 起動時に裏側(pane2/pane3)で事前にBasic認証のfetchを実行し、キャッシュを記憶させるコマンド
+#[tauri::command]
+fn prefetch_basic_auth(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
+    url: String,
+    creds: AutologinCreds,
+) {
+    // プリフェッチ時にメールアドレスをグローバルステートにキャッシュして初期化スクリプトが使えるようにする
+    *state.reearth_email.lock().unwrap() = Some(creds.email.clone());
+
+    if let Some(window) = app_handle.get_window("main") {
+        // pane2でプリフェッチ
+        if let Some(wv2) = window.get_webview("pane2") {
+            let script = format!(
+                r#"
+                (async function() {{
+                    try {{
+                        console.log("[Kasugai] Pre-fetching Basic Auth for pane2");
+                        const basicAuthHeader = "Basic " + btoa(unescape(encodeURIComponent("{}:{}")));
+                        await fetch("{}", {{
+                            method: "GET",
+                            headers: {{
+                                "Authorization": basicAuthHeader
+                            }},
+                            mode: 'no-cors'
+                        }});
+                        console.log("[Kasugai] pane2 Basic認証事前キャッシュ完了");
+                    }} catch (e) {{
+                        console.error("[Kasugai] pane2 Basic認証事前キャッシュエラー:", e);
+                    }}
+                }})();
+                "#,
+                creds.email.replace('"', "\\\""),
+                creds.password.replace('"', "\\\""),
+                url.replace('"', "\\\"")
+            );
+            let _ = wv2.eval(&script);
+        }
+        // pane3でプリフェッチ
+        if let Some(wv3) = window.get_webview("pane3") {
+            let script = format!(
+                r#"
+                (async function() {{
+                    try {{
+                        console.log("[Kasugai] Pre-fetching Basic Auth for pane3");
+                        const basicAuthHeader = "Basic " + btoa(unescape(encodeURIComponent("{}:{}")));
+                        await fetch("{}", {{
+                            method: "GET",
+                            headers: {{
+                                "Authorization": basicAuthHeader
+                            }},
+                            mode: 'no-cors'
+                        }});
+                        console.log("[Kasugai] pane3 Basic認証事前キャッシュ完了");
+                    }} catch (e) {{
+                        console.error("[Kasugai] pane3 Basic認証事前キャッシュエラー:", e);
+                    }}
+                }})();
+                "#,
+                creds.email.replace('"', "\\\""),
+                creds.password.replace('"', "\\\""),
+                url.replace('"', "\\\"")
+            );
+            let _ = wv3.eval(&script);
+        }
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(SplitterState {
@@ -383,6 +518,7 @@ fn main() {
             pane2_current_host: Mutex::new(None),
             pane3_current_host: Mutex::new(None),
             pane_swapped: Mutex::new(false),
+            reearth_email: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
             get_system_info,
@@ -392,7 +528,10 @@ fn main() {
             set_center,
             save_credential,
             get_credential,
-            delete_credential
+            delete_credential,
+            prefetch_basic_auth,
+            get_reearth_creds_for_autologin,
+            type_credentials // 追加
         ])
         .setup(|app| {
             // メインウィンドウを作成
@@ -435,6 +574,7 @@ fn main() {
             let app_handle_for_nav2 = app.handle().clone();
             let app_handle_for_new_window2 = app.handle().clone();
             let webview2_builder = WebviewBuilder::new("pane2", WebviewUrl::App("index2.html".into()))
+                .initialization_script(AUTOLOGIN_SCRIPT) // 最強の自動ログインスクリプトを登録
                 .on_navigation(move |url| {
                     let url_str = url.as_str();
 
@@ -494,6 +634,7 @@ fn main() {
             let app_handle_for_nav3 = app.handle().clone();
             let app_handle_for_new_window3 = app.handle().clone();
             let webview3_builder = WebviewBuilder::new("pane3", WebviewUrl::App("index3.html".into()))
+                .initialization_script(AUTOLOGIN_SCRIPT) // 最強の自動ログインスクリプトを登録
                 .on_navigation(move |url| {
                     let url_str = url.as_str();
 
