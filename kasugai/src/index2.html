@@ -120,7 +120,6 @@
 </head>
 <body>
     <div class="container">
-        <span class="badge">画面 2 / Center View</span>
         <h1 id="view-title">メモ帳</h1>
        
         <!-- タブボタンの追加 -->
@@ -141,12 +140,8 @@
         <div id="content-settings" class="tab-content" style="display: none;">
             <p>システムの動作に関する設定を行います。変更は即座に反映されます。</p>
             <div class="interactive-section" style="gap: 15px;">
+                <!-- BOX 設定セクション -->
                 <div>
-                    <label for="reearth-url-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">Re:Earth 接続URL</label>
-                    <input type="text" id="reearth-url-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="https://example.visualizer.reearth.io/">
-                </div>
-
-                <div style="border-top: 1px solid #cbd5e1; padding-top: 15px; margin-top: 5px;">
                     <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">📦 BOX 代理オートログイン設定</h3>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div>
@@ -160,16 +155,30 @@
                     </div>
                 </div>
 
-                <div style="border-top: 1px solid #cbd5e1; padding-top: 15px; margin-top: 5px;">
-                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🌐 Re:Earth 代理オートログイン設定</h3>
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- 区切り線 -->
+                <hr style="border: 0; border-top: 2px solid #22c55e; margin: 10px 0; opacity: 0.3;">
+
+                <!-- Re:Earth 設定セクション -->
+                <div>
+                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🌐 Re:Earth 設定</h3>
+                    <div style="display: flex; flex-direction: column; gap: 15px;">
                         <div>
-                            <label for="reearth-email-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">メールアドレス (ログインID)</label>
-                            <input type="email" id="reearth-email-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="reearth-user@example.com">
+                            <label for="reearth-url-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">Re:Earth 接続URL</label>
+                            <input type="text" id="reearth-url-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="https://example.visualizer.reearth.io/">
                         </div>
+
                         <div>
-                            <label for="reearth-password-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">パスワード</label>
-                            <input type="password" id="reearth-password-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="パスワードを入力">
+                            <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">Re:Earth 代理オートログイン設定</label>
+                            <div style="display: flex; flex-direction: column; gap: 10px; padding-left: 10px; border-left: 2px solid #f0fdf4;">
+                                <div>
+                                    <label for="reearth-email-input" style="font-weight: bold; font-size: 13px; color: #15803d; margin-bottom: 5px; display: block;">メールアドレス (ログインID)</label>
+                                    <input type="email" id="reearth-email-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="reearth-user@example.com">
+                                </div>
+                                <div>
+                                    <label for="reearth-password-input" style="font-weight: bold; font-size: 13px; color: #15803d; margin-bottom: 5px; display: block;">パスワード</label>
+                                    <input type="password" id="reearth-password-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="パスワードを入力">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
