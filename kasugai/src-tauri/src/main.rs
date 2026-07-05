@@ -398,9 +398,115 @@ fn main() {
             let height = size.height as f64;
             let base_webview_builder = WebviewBuilder::new("main_webview", WebviewUrl::App("index.html".into()));
             let _base_wv = window.add_child(base_webview_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(width as u32, height as u32))?;
-            let webview1_builder = WebviewBuilder::new("pane1", WebviewUrl::App("index1.html".into()));
-            let webview2_builder = WebviewBuilder::new("pane2", WebviewUrl::App("index2.html".into()));
-            let webview3_builder = WebviewBuilder::new("pane3", WebviewUrl::App("index3.html".into()));
+            
+            let app_handle_for_pane1 = app.handle().clone();
+            let webview1_builder = WebviewBuilder::new("pane1", WebviewUrl::App("index1.html".into()))
+                .on_new_window(move |url, _new_window| {
+                    let url_str = url.as_str();
+                    if let Some(window) = app_handle_for_pane1.get_window("main") {
+                        if let Some(wv3) = window.get_webview("pane3") {
+                            if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                let _ = wv3.navigate(target_url);
+                            }
+                        }
+                    }
+                    tauri::webview::NewWindowResponse::Deny
+                });
+
+            let app_handle_for_nav2 = app.handle().clone();
+            let app_handle_for_new_window2 = app.handle().clone();
+            let webview2_builder = WebviewBuilder::new("pane2", WebviewUrl::App("index2.html".into()))
+                .on_navigation(move |url| {
+                    let url_str = url.as_str();
+                    if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("index2.html") 
+                       || url_str.contains("account.box.com") || url_str.contains("app.box.com") || url_str.contains("reearth.io") {
+                        return true;
+                    }
+                    let state = app_handle_for_nav2.state::<SplitterState>();
+                    let swapped = *state.pane_swapped.lock().unwrap();
+                    if !swapped {
+                        let allowed_host_opt = state.pane2_current_host.lock().unwrap().clone();
+                        if let Some(target_host) = url.host_str() {
+                            if let Some(allowed_host) = allowed_host_opt {
+                                if target_host == allowed_host || target_host.ends_with(&format!(".{}", allowed_host)) {
+                                    return true;
+                                }
+                            }
+                        }
+                        if let Some(window) = app_handle_for_nav2.get_window("main") {
+                            if let Some(wv3) = window.get_webview("pane3") {
+                                if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                    let _ = wv3.navigate(target_url);
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                    true
+                })
+                .on_new_window(move |url, _new_window| {
+                    let url_str = url.as_str();
+                    let state = app_handle_for_new_window2.state::<SplitterState>();
+                    let swapped = *state.pane_swapped.lock().unwrap();
+                    if let Some(window) = app_handle_for_new_window2.get_window("main") {
+                        if !swapped {
+                            if let Some(wv3) = window.get_webview("pane3") {
+                                if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                    let _ = wv3.navigate(target_url);
+                                }
+                            }
+                        }
+                    }
+                    tauri::webview::NewWindowResponse::Deny
+                });
+
+            let app_handle_for_nav3 = app.handle().clone();
+            let app_handle_for_new_window3 = app.handle().clone();
+            let webview3_builder = WebviewBuilder::new("pane3", WebviewUrl::App("index3.html".into()))
+                .on_navigation(move |url| {
+                    let url_str = url.as_str();
+                    if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("index3.html") 
+                       || url_str.contains("account.box.com") || url_str.contains("app.box.com") || url_str.contains("reearth.io") {
+                        return true;
+                    }
+                    let state = app_handle_for_nav3.state::<SplitterState>();
+                    let swapped = *state.pane_swapped.lock().unwrap();
+                    if swapped {
+                        let allowed_host_opt = state.pane3_current_host.lock().unwrap().clone();
+                        if let Some(target_host) = url.host_str() {
+                            if let Some(allowed_host) = allowed_host_opt {
+                                if target_host == allowed_host || target_host.ends_with(&format!(".{}", allowed_host)) {
+                                    return true;
+                                }
+                            }
+                        }
+                        if let Some(window) = app_handle_for_nav3.get_window("main") {
+                            if let Some(wv2) = window.get_webview("pane2") {
+                                if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                    let _ = wv2.navigate(target_url);
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                    true
+                })
+                .on_new_window(move |url, _new_window| {
+                    let url_str = url.as_str();
+                    let state = app_handle_for_new_window3.state::<SplitterState>();
+                    let swapped = *state.pane_swapped.lock().unwrap();
+                    if let Some(window) = app_handle_for_new_window3.get_window("main") {
+                        if swapped {
+                            if let Some(wv2) = window.get_webview("pane2") {
+                                if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                    let _ = wv2.navigate(target_url);
+                                }
+                            }
+                        }
+                    }
+                    tauri::webview::NewWindowResponse::Deny
+                });
+
             let _wv1 = window.add_child(webview1_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv2 = window.add_child(webview2_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv3 = window.add_child(webview3_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
