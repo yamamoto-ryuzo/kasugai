@@ -229,7 +229,24 @@ fn open_in_pane2(
                 if let Some(wv2) = window.get_webview("pane2") {
                     let is_reearth = url.contains("reearth") || url.contains("visualizer");
                     if is_reearth && autologin.is_some() {
-                        navigate_with_basic_auth(&wv2, &url, autologin.as_ref().unwrap());
+                        let creds = autologin.clone().unwrap();
+                        navigate_with_basic_auth(&wv2, &url, &creds);
+
+                        // 1.5秒待機してBasic認証ダイアログが出現した直後に無条件で物理タイピングを実行
+                        thread::spawn(move || {
+                            thread::sleep(Duration::from_millis(1500));
+                            
+                            let mut enigo = Enigo::new();
+                            enigo.key_sequence(&creds.email);
+                            thread::sleep(Duration::from_millis(100));
+                            enigo.key_click(Key::Tab);
+                            thread::sleep(Duration::from_millis(100));
+                            enigo.key_sequence(&creds.password);
+                            thread::sleep(Duration::from_millis(100));
+                            enigo.key_click(Key::Return);
+                            
+                            println!("[Kasugai Enigo] Basic Auth dialog typing completed in pane2.");
+                        });
                     } else {
                         let _ = wv2.navigate(target_url);
                     }
