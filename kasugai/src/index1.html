@@ -149,14 +149,22 @@
         }
 
         // ポータルリンクをクリックした際、指定ターゲット of Webviewで開く
-        function openLink(event, url, target) {
-            event.preventDefault();
+        async function openLink(event, url, target) {
+            if (event) event.preventDefault();
             if (window.__TAURI__ && window.__TAURI__.core) {
                 // BOXログインの場合は自動ログイン用の資格情報を送る
                 let autologin = null;
                 if (url.includes("box.com")) {
                     const email = localStorage.getItem("box_email") || "";
-                    const password = localStorage.getItem("box_password") || "";
+                    let password = "";
+                    if (email) {
+                        try {
+                            password = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai', username: email });
+                        } catch (e) {
+                            console.warn("Keyringからのパスワード取得に失敗しました。一時的にlocalStorageフォールバックを実行します:", e);
+                            password = localStorage.getItem("box_password") || "";
+                        }
+                    }
                     if (email && password) {
                         autologin = { email, password };
                     }
@@ -181,7 +189,8 @@
             });
             window.__TAURI__.event.listen('box_credentials_changed', (event) => {
                 localStorage.setItem("box_email", event.payload.email);
-                localStorage.setItem("box_password", event.payload.password);
+                // セキュア化のためlocalStorage内の平文パスワードは削除
+                localStorage.removeItem("box_password");
             });
         }
 

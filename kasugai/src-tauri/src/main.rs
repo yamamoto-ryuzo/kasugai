@@ -17,10 +17,32 @@ struct SplitterState {
     pane_swapped: Mutex<bool>,
 }
 
+use keyring::Entry;
+
 // フロントエンドから呼び出されるRustコマンド
 #[tauri::command]
 fn get_system_info() -> String {
     "ステータス: 正常稼働中\nエンジン: Tauri v2 (Rust)\nWebview: Microsoft WebView2\n応答時間: リアルタイム".to_string()
+}
+
+// Keyringを利用したセキュアな資格情報の保存・取得・削除
+#[tauri::command]
+fn save_credential(service: String, username: String, password: String) -> Result<(), String> {
+    let entry = Entry::new(&service, &username).map_err(|e| e.to_string())?;
+    entry.set_password(&password).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn get_credential(service: String, username: String) -> Result<String, String> {
+    let entry = Entry::new(&service, &username).map_err(|e| e.to_string())?;
+    entry.get_password().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_credential(service: String, username: String) -> Result<(), String> {
+    let entry = Entry::new(&service, &username).map_err(|e| e.to_string())?;
+    entry.delete_password().map_err(|e| e.to_string())
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -367,7 +389,10 @@ fn main() {
             update_splitter,
             open_in_pane2,
             open_in_pane3,
-            set_center
+            set_center,
+            save_credential,
+            get_credential,
+            delete_credential
         ])
         .setup(|app| {
             // メインウィンドウを作成

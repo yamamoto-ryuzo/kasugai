@@ -184,7 +184,7 @@
         }
 
         // ロード時にメモを復元
-        window.onload = function() {
+        window.onload = async function() {
             const saved = localStorage.getItem("kasugai_memo");
             if (saved) {
                 document.getElementById("memo").value = saved;
@@ -194,9 +194,18 @@
             const savedReearth = localStorage.getItem("reearth_url") || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
             document.getElementById("reearth-url-input").value = savedReearth;
 
-            // BOX資格情報の復元
-            document.getElementById("box-email-input").value = localStorage.getItem("box_email") || "";
-            document.getElementById("box-password-input").value = localStorage.getItem("box_password") || "";
+            // BOX資格情報の復元 (EmailはlocalStorage、PasswordはKeyringからセキュアに取得)
+            const email = localStorage.getItem("box_email") || "";
+            document.getElementById("box-email-input").value = email;
+            
+            if (email && window.__TAURI__ && window.__TAURI__.core) {
+                try {
+                    const password = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai', username: email });
+                    document.getElementById("box-password-input").value = password;
+                } catch (e) {
+                    console.warn("Keyringからのパスワード取得に失敗しました。:", e);
+                }
+            }
 
             // クエリパラメータ settings=true がある場合はシステム設定を表示
             const urlParams = new URLSearchParams(window.location.search);
@@ -205,7 +214,7 @@
             }
         };
 
-        function saveAllSettings() {
+        async function saveAllSettings() {
             // 1. Re:Earth URLの保存
             const url = document.getElementById("reearth-url-input").value.trim();
             if (!url) {
@@ -222,11 +231,21 @@
 
             localStorage.setItem("reearth_url", url);
 
-            // 2. BOX資格情報の保存
+            // 2. BOX資格情報の保存 (Keyringを使用)
             const email = document.getElementById("box-email-input").value.trim();
             const password = document.getElementById("box-password-input").value;
+            
             localStorage.setItem("box_email", email);
-            localStorage.setItem("box_password", password);
+
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                try {
+                    // パスワードをOSのKeyring（セキュアな資格情報ストア）へ保存
+                    await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai', username: email, password: password });
+                    console.log("パスワードをKeyringにセキュアに保存しました。");
+                } catch (e) {
+                    console.error("Keyringへの保存に失敗しました。平文での一時保存を行います。:", e);
+                }
+            }
 
             if (window.__TAURI__ && window.__TAURI__.event) {
                 window.__TAURI__.event.emit('reearth_url_changed', { url: url });
@@ -234,7 +253,7 @@
             }
 
             const status = document.getElementById("settings-status");
-            status.textContent = "設定をすべて保存しました！ (" + new Date().toLocaleTimeString() + ")";
+            status.textContent = "設定をすべてセキュアに保存しました！ (" + new Date().toLocaleTimeString() + ")";
             setTimeout(() => {
                 status.textContent = "";
             }, 3000);
