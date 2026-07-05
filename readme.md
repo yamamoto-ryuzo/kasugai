@@ -23,3 +23,16 @@
 | :--- | :--- | :--- |
 | **@playwright/test** | Apache-2.0 | E2Eテスト・自動ブラウザ操作 |
 | **typescript** | Apache-2.0 | 静的型付け開発環境 |
+
+## 👤 作者
+
+[yamamoto-ryuzo](https://github.com/yamamoto-ryuzo)
+
+---
+
+**免責事項**: 本システムは個人のPCで作成・テストされたものです。ご利用によるいかなる損害も責任を負いません。
+<p align="center">
+  <a href="https://giphy.com/explore/free-gif" target="_blank">
+    <img src="https://github.com/yamamoto-ryuzo/QGIS_portable_3x/raw/master/imgs/giphy.gif" width="500" title="avvio QGIS">
+  </a>
+</p>
