@@ -665,9 +665,59 @@ fn main() {
                     tauri::webview::NewWindowResponse::Deny
                 });
 
-            let webview_box = WebviewBuilder::new("pane2_box", WebviewUrl::External(tauri::Url::parse("about:blank").unwrap()));
-            let webview_reearth = WebviewBuilder::new("pane2_reearth", WebviewUrl::External(tauri::Url::parse("about:blank").unwrap()));
-            let webview_google = WebviewBuilder::new("pane2_google", WebviewUrl::External(tauri::Url::parse("https://www.google.com/maps").unwrap()));
+            let app_handle_for_box_new = app.handle().clone();
+            let webview_box = WebviewBuilder::new("pane2_box", WebviewUrl::External(tauri::Url::parse("about:blank").unwrap()))
+                .on_new_window(move |url, _new_window| {
+                    let url_str = url.as_str();
+                    let state = app_handle_for_box_new.state::<SplitterState>();
+                    let swapped = *state.pane_swapped.lock().unwrap();
+                    if let Some(window) = app_handle_for_box_new.get_window("main") {
+                        if !swapped {
+                            if let Some(wv3) = window.get_webview("pane3") {
+                                if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                    let _ = wv3.navigate(target_url);
+                                }
+                            }
+                        }
+                    }
+                    tauri::webview::NewWindowResponse::Deny
+                });
+
+            let app_handle_for_reearth_new = app.handle().clone();
+            let webview_reearth = WebviewBuilder::new("pane2_reearth", WebviewUrl::External(tauri::Url::parse("about:blank").unwrap()))
+                .on_new_window(move |url, _new_window| {
+                    let url_str = url.as_str();
+                    let state = app_handle_for_reearth_new.state::<SplitterState>();
+                    let swapped = *state.pane_swapped.lock().unwrap();
+                    if let Some(window) = app_handle_for_reearth_new.get_window("main") {
+                        if !swapped {
+                            if let Some(wv3) = window.get_webview("pane3") {
+                                if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                    let _ = wv3.navigate(target_url);
+                                }
+                            }
+                        }
+                    }
+                    tauri::webview::NewWindowResponse::Deny
+                });
+
+            let app_handle_for_google_new = app.handle().clone();
+            let webview_google = WebviewBuilder::new("pane2_google", WebviewUrl::External(tauri::Url::parse("https://www.google.com/maps").unwrap()))
+                .on_new_window(move |url, _new_window| {
+                    let url_str = url.as_str();
+                    let state = app_handle_for_google_new.state::<SplitterState>();
+                    let swapped = *state.pane_swapped.lock().unwrap();
+                    if let Some(window) = app_handle_for_google_new.get_window("main") {
+                        if !swapped {
+                            if let Some(wv3) = window.get_webview("pane3") {
+                                if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                    let _ = wv3.navigate(target_url);
+                                }
+                            }
+                        }
+                    }
+                    tauri::webview::NewWindowResponse::Deny
+                });
 
             let _wv1 = window.add_child(webview1_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv2 = window.add_child(webview2_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
