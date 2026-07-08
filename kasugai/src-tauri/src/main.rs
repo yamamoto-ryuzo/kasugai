@@ -498,8 +498,8 @@ fn prefetch_basic_auth(
 
 #[tauri::command]
 fn preload_webview(app_handle: tauri::AppHandle, target: String, url: String) {
-    if target == "pane2_reearth" {
-        // Re:Earthは起動時の物理タイピングを確実にするためプレロード（裏読み）をスキップします。
+    if target == "pane2_reearth" || target == "pane2_box" {
+        // Re:EarthとBOXは起動時の自動ログイン（タイピング/DOM操作）を確実にするためプレロード（裏読み）をスキップします。
         return;
     }
     if let Some(window) = app_handle.get_window("main") {
@@ -665,7 +665,7 @@ fn main() {
                     tauri::webview::NewWindowResponse::Deny
                 });
 
-            let webview_box = WebviewBuilder::new("pane2_box", WebviewUrl::External(tauri::Url::parse("https://account.box.com/login").unwrap()));
+            let webview_box = WebviewBuilder::new("pane2_box", WebviewUrl::External(tauri::Url::parse("about:blank").unwrap()));
             let webview_reearth = WebviewBuilder::new("pane2_reearth", WebviewUrl::External(tauri::Url::parse("about:blank").unwrap()));
             let webview_google = WebviewBuilder::new("pane2_google", WebviewUrl::External(tauri::Url::parse("https://www.google.com/maps").unwrap()));
 
