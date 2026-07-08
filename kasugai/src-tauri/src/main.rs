@@ -276,7 +276,10 @@ fn open_in_pane2(
         
         let mut target_str = "pane2";
         if !swapped {
-            if url.contains("google.com/maps") {
+            if url.contains("earth.google.com") {
+                *state.active_pane2.lock().unwrap() = "googleearth".to_string();
+                target_str = "pane2_googleearth";
+            } else if url.contains("google.com/maps") {
                 *state.active_pane2.lock().unwrap() = "google".to_string();
                 target_str = "pane2_google";
             } else if url.contains("box.com") {
@@ -329,7 +332,10 @@ fn open_in_pane3(
     if let Ok(target_url) = tauri::Url::parse(&url) {
         let mut target_str = "pane3";
         if swapped {
-            if url.contains("google.com/maps") {
+            if url.contains("earth.google.com") {
+                *state.active_pane2.lock().unwrap() = "googleearth".to_string();
+                target_str = "pane2_googleearth";
+            } else if url.contains("google.com/maps") {
                 *state.active_pane2.lock().unwrap() = "google".to_string();
                 target_str = "pane2_google";
             } else if url.contains("box.com") {
