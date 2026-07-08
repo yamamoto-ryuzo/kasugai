@@ -20,6 +20,7 @@ struct SplitterState {
     pane_swapped: Mutex<bool>,
     reearth_email: Mutex<Option<String>>,
     box_email: Mutex<Option<String>>,
+    active_pane2: Mutex<String>,
 }
 
 use keyring::Entry;
@@ -132,39 +133,64 @@ fn open_box_in_pane(
 ) {
     let swapped = *state.pane_swapped.lock().unwrap();
     let real_target = if target == "pane2" {
-        if !swapped { "pane2" } else { "pane3" }
+        if !swapped {
+            *state.active_pane2.lock().unwrap() = "box".to_string();
+            update_splitter_internal(&app_handle, &state);
+            "pane2_box"
+        } else { "pane3" }
     } else if target == "pane3" {
-        if !swapped { "pane3" } else { "pane2" }
+        if !swapped { "pane3" } else {
+            *state.active_pane2.lock().unwrap() = "box".to_string();
+            update_splitter_internal(&app_handle, &state);
+            "pane2_box"
+        }
     } else {
         &target
     };
 
     if let Some(window) = app_handle.get_window("main") {
         if let Some(wv) = window.get_webview(real_target) {
-            let _ = wv.navigate(tauri::Url::parse(&url).unwrap());
+            let target_url = tauri::Url::parse(&url).unwrap();
+            
+            let is_dedicated = real_target.starts_with("pane2_");
+            let should_navigate = if let Ok(current_url) = wv.url() {
+                if is_dedicated {
+                    current_url.as_str() == "about:blank" || current_url.as_str().is_empty()
+                } else {
+                    current_url.host() != target_url.host() || current_url.as_str() == "about:blank"
+                }
+            } else {
+                true
+            };
+
+            if should_navigate {
+                let _ = wv.navigate(target_url);
+            }
             let _ = wv.set_focus();
             
-            // 3段階ダメ押しインジェクション
-            let wv_clone1 = wv.clone();
-            let wv_clone2 = wv.clone();
-            let wv_clone3 = wv.clone();
-            let creds_clone1 = creds.clone();
-            let creds_clone2 = creds.clone();
-            let creds_clone3 = creds.clone();
-            
-            let app_handle_clone = app_handle.clone();
-            inject_box_autologin(&wv_clone1, creds_clone1);
-            
-            std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_millis(1800));
-                let _ = app_handle_clone.run_on_main_thread(move || {
-                    inject_box_autologin(&wv_clone2, creds_clone2);
+            if should_navigate {
+                // 3段階ダメ押しインジェクション
+                let wv_clone1 = wv.clone();
+                let wv_clone2 = wv.clone();
+                let wv_clone3 = wv.clone();
+                let creds_clone1 = creds.clone();
+                let creds_clone2 = creds.clone();
+                let creds_clone3 = creds.clone();
+                
+                let app_handle_clone = app_handle.clone();
+                inject_box_autologin(&wv_clone1, creds_clone1);
+                
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(1800));
+                    let _ = app_handle_clone.run_on_main_thread(move || {
+                        inject_box_autologin(&wv_clone2, creds_clone2);
+                    });
+                    std::thread::sleep(std::time::Duration::from_millis(1700));
+                    let _ = app_handle_clone.run_on_main_thread(move || {
+                        inject_box_autologin(&wv_clone3, creds_clone3);
+                    });
                 });
-                std::thread::sleep(std::time::Duration::from_millis(1700));
-                let _ = app_handle_clone.run_on_main_thread(move || {
-                    inject_box_autologin(&wv_clone3, creds_clone3);
-                });
-            });
+            }
         }
     }
 }
@@ -182,32 +208,57 @@ fn open_reearth_in_pane(
 ) {
     let swapped = *state.pane_swapped.lock().unwrap();
     let real_target = if target == "pane2" {
-        if !swapped { "pane2" } else { "pane3" }
+        if !swapped {
+            *state.active_pane2.lock().unwrap() = "reearth".to_string();
+            update_splitter_internal(&app_handle, &state);
+            "pane2_reearth"
+        } else { "pane3" }
     } else if target == "pane3" {
-        if !swapped { "pane3" } else { "pane2" }
+        if !swapped { "pane3" } else {
+            *state.active_pane2.lock().unwrap() = "reearth".to_string();
+            update_splitter_internal(&app_handle, &state);
+            "pane2_reearth"
+        }
     } else {
         &target
     };
 
     if let Some(window) = app_handle.get_window("main") {
         if let Some(wv) = window.get_webview(real_target) {
-            let _ = wv.navigate(tauri::Url::parse(&url).unwrap());
+            let target_url = tauri::Url::parse(&url).unwrap();
+            
+            let is_dedicated = real_target.starts_with("pane2_");
+            let should_navigate = if let Ok(current_url) = wv.url() {
+                if is_dedicated {
+                    current_url.as_str() == "about:blank" || current_url.as_str().is_empty()
+                } else {
+                    current_url.host() != target_url.host() || current_url.as_str() == "about:blank"
+                }
+            } else {
+                true
+            };
+
+            if should_navigate {
+                let _ = wv.navigate(target_url);
+            }
             let _ = wv.set_focus();
             
-            // Basic認証ダイアログ待ちをして物理タイピング
-            let c = creds.clone();
-            std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_millis(1500));
-                let mut enigo = Enigo::new();
-                enigo.key_sequence(&c.email);
-                thread::sleep(Duration::from_millis(100));
-                enigo.key_click(Key::Tab);
-                thread::sleep(Duration::from_millis(100));
-                enigo.key_sequence(&c.password);
-                thread::sleep(Duration::from_millis(100));
-                enigo.key_click(Key::Return);
-                println!("[Kasugai Reearth] Basic Auth typing completed.");
-            });
+            if should_navigate {
+                // Basic認証ダイアログ待ち（またはページ表示後）に物理タイピング
+                let c = creds.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(1500));
+                    let mut enigo = Enigo::new();
+                    enigo.key_sequence(&c.email);
+                    thread::sleep(Duration::from_millis(100));
+                    enigo.key_click(Key::Tab);
+                    thread::sleep(Duration::from_millis(100));
+                    enigo.key_sequence(&c.password);
+                    thread::sleep(Duration::from_millis(100));
+                    enigo.key_click(Key::Return);
+                    println!("[Kasugai Reearth] Basic Auth typing completed.");
+                });
+            }
         }
     }
 }
@@ -222,12 +273,46 @@ fn open_in_pane2(
     let swapped = *state.pane_swapped.lock().unwrap();
     if let Ok(target_url) = tauri::Url::parse(&url) {
         let host = target_url.host_str().map(|h| h.to_string());
+        
+        let mut target_str = "pane2";
+        if !swapped {
+            if url.contains("google.com/maps") {
+                *state.active_pane2.lock().unwrap() = "google".to_string();
+                target_str = "pane2_google";
+            } else if url.contains("box.com") {
+                *state.active_pane2.lock().unwrap() = "box".to_string();
+                target_str = "pane2_box";
+            } else if url.contains("reearth.io") {
+                *state.active_pane2.lock().unwrap() = "reearth".to_string();
+                target_str = "pane2_reearth";
+            } else {
+                *state.active_pane2.lock().unwrap() = "default".to_string();
+                target_str = "pane2";
+            }
+            update_splitter_internal(&app_handle, &state);
+        } else {
+            target_str = "pane3";
+        }
+
         if let Some(window) = app_handle.get_window("main") {
-            let target = if !swapped { "pane2" } else { "pane3" };
-            if let Some(wv) = window.get_webview(target) {
+            if let Some(wv) = window.get_webview(target_str) {
                 if !swapped { if let Some(h) = host { *state.pane2_current_host.lock().unwrap() = Some(h); } }
                 else { if let Some(h) = host { *state.pane3_current_host.lock().unwrap() = Some(h); } }
-                let _ = wv.navigate(target_url);
+                
+                let is_dedicated = target_str.starts_with("pane2_");
+                let should_navigate = if let Ok(current_url) = wv.url() {
+                    if is_dedicated {
+                        current_url.as_str() == "about:blank" || current_url.as_str().is_empty()
+                    } else {
+                        current_url.host() != target_url.host() || current_url.as_str() == "about:blank"
+                    }
+                } else {
+                    true
+                };
+                
+                if should_navigate {
+                    let _ = wv.navigate(target_url);
+                }
                 let _ = wv.set_focus();
             }
         }
@@ -242,10 +327,40 @@ fn open_in_pane3(
 ) {
     let swapped = *state.pane_swapped.lock().unwrap();
     if let Ok(target_url) = tauri::Url::parse(&url) {
+        let mut target_str = "pane3";
+        if swapped {
+            if url.contains("google.com/maps") {
+                *state.active_pane2.lock().unwrap() = "google".to_string();
+                target_str = "pane2_google";
+            } else if url.contains("box.com") {
+                *state.active_pane2.lock().unwrap() = "box".to_string();
+                target_str = "pane2_box";
+            } else if url.contains("reearth.io") {
+                *state.active_pane2.lock().unwrap() = "reearth".to_string();
+                target_str = "pane2_reearth";
+            } else {
+                *state.active_pane2.lock().unwrap() = "default".to_string();
+                target_str = "pane2";
+            }
+            update_splitter_internal(&app_handle, &state);
+        }
+
         if let Some(window) = app_handle.get_window("main") {
-            let target = if !swapped { "pane3" } else { "pane2" };
-            if let Some(wv) = window.get_webview(target) {
-                let _ = wv.navigate(target_url);
+            if let Some(wv) = window.get_webview(target_str) {
+                let is_dedicated = target_str.starts_with("pane2_");
+                let should_navigate = if let Ok(current_url) = wv.url() {
+                    if is_dedicated {
+                        current_url.as_str() == "about:blank" || current_url.as_str().is_empty()
+                    } else {
+                        current_url.host() != target_url.host() || current_url.as_str() == "about:blank"
+                    }
+                } else {
+                    true
+                };
+                
+                if should_navigate {
+                    let _ = wv.navigate(target_url);
+                }
                 let _ = wv.set_focus();
             }
         }
@@ -261,17 +376,24 @@ fn update_splitter(
 ) {
     *state.ratio1.lock().unwrap() = ratio1;
     *state.ratio2.lock().unwrap() = ratio2;
+    update_splitter_internal(&app_handle, &state);
+}
+
+fn update_splitter_internal(app_handle: &tauri::AppHandle, state: &tauri::State<'_, SplitterState>) {
     if let Some(window) = app_handle.get_window("main") {
         if let Ok(size) = window.inner_size() {
             let w = size.width as f64;
             let h = size.height as f64;
+            let r1 = *state.ratio1.lock().unwrap();
+            let r2 = *state.ratio2.lock().unwrap();
             let swapped = *state.pane_swapped.lock().unwrap();
-            recalculate_webview_bounds(&window, w, h, ratio1, ratio2, swapped);
+            let active = state.active_pane2.lock().unwrap().clone();
+            recalculate_webview_bounds(&window, w, h, r1, r2, swapped, &active);
         }
     }
 }
 
-fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f64, ratio2: f64, swapped: bool) {
+fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f64, ratio2: f64, swapped: bool, active_pane2: &str) {
     let splitter_width = 8.0;
     let sh = splitter_width / 2.0;
     let x1 = w * ratio1;
@@ -289,40 +411,40 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
             size: Size::Physical(PhysicalSize::new(width, h as u32)),
         });
     }
-    if !swapped {
-        if let Some(wv2) = window.get_webview("pane2") {
-            let start_x = (x1 + sh) as i32;
-            let width = ((x2 - sh) - (x1 + sh)).max(0.0) as u32;
-            let _ = wv2.set_bounds(Rect {
-                position: Position::Physical(PhysicalPosition::new(start_x, 0)),
-                size: Size::Physical(PhysicalSize::new(width, h as u32)),
-            });
+
+    let rect_center = Rect {
+        position: Position::Physical(PhysicalPosition::new((x1 + sh) as i32, 0)),
+        size: Size::Physical(PhysicalSize::new(((x2 - sh) - (x1 + sh)).max(0.0) as u32, h as u32)),
+    };
+    let rect_right = Rect {
+        position: Position::Physical(PhysicalPosition::new((x2 + sh) as i32, 0)),
+        size: Size::Physical(PhysicalSize::new((w - (x2 + sh)).max(0.0) as u32, h as u32)),
+    };
+    let rect_hidden = Rect {
+        position: Position::Physical(PhysicalPosition::new(-10000, -10000)),
+        size: Size::Physical(PhysicalSize::new(1, 1)),
+    };
+
+    let pane2_rect = if !swapped { rect_center } else { rect_right };
+    let pane3_rect = if !swapped { rect_right } else { rect_center };
+
+    let update_pane2 = |id: &str, is_active: bool| {
+        if let Some(wv) = window.get_webview(id) {
+            if is_active {
+                let _ = wv.set_bounds(pane2_rect);
+            } else {
+                let _ = wv.set_bounds(rect_hidden);
+            }
         }
-        if let Some(wv3) = window.get_webview("pane3") {
-            let start_x = (x2 + sh) as i32;
-            let width = (w - (x2 + sh)).max(0.0) as u32;
-            let _ = wv3.set_bounds(Rect {
-                position: Position::Physical(PhysicalPosition::new(start_x, 0)),
-                size: Size::Physical(PhysicalSize::new(width, h as u32)),
-            });
-        }
-    } else {
-        if let Some(wv3) = window.get_webview("pane3") {
-            let start_x = (x1 + sh) as i32;
-            let width = ((x2 - sh) - (x1 + sh)).max(0.0) as u32;
-            let _ = wv3.set_bounds(Rect {
-                position: Position::Physical(PhysicalPosition::new(start_x, 0)),
-                size: Size::Physical(PhysicalSize::new(width, h as u32)),
-            });
-        }
-        if let Some(wv2) = window.get_webview("pane2") {
-            let start_x = (x2 + sh) as i32;
-            let width = (w - (x2 + sh)).max(0.0) as u32;
-            let _ = wv2.set_bounds(Rect {
-                position: Position::Physical(PhysicalPosition::new(start_x, 0)),
-                size: Size::Physical(PhysicalSize::new(width, h as u32)),
-            });
-        }
+    };
+
+    update_pane2("pane2", active_pane2 == "default");
+    update_pane2("pane2_box", active_pane2 == "box");
+    update_pane2("pane2_reearth", active_pane2 == "reearth");
+    update_pane2("pane2_google", active_pane2 == "google");
+
+    if let Some(wv3) = window.get_webview("pane3") {
+        let _ = wv3.set_bounds(pane3_rect);
     }
 }
 
@@ -332,26 +454,19 @@ fn set_center(
     state: tauri::State<'_, SplitterState>,
     center: String,
 ) {
-    let mut swapped = state.pane_swapped.lock().unwrap();
-    if center == "toggle" {
-        *swapped = !*swapped;
-    } else {
-        *swapped = match center.as_str() {
-            "pane2" => false,
-            "pane3" => true,
-            _ => *swapped,
-        };
-    }
-    
-    if let Some(window) = app_handle.get_window("main") {
-        if let Ok(size) = window.inner_size() {
-            let w = size.width as f64;
-            let h = size.height as f64;
-            let r1 = *state.ratio1.lock().unwrap();
-            let r2 = *state.ratio2.lock().unwrap();
-            recalculate_webview_bounds(&window, w, h, r1, r2, *swapped);
+    {
+        let mut swapped = state.pane_swapped.lock().unwrap();
+        if center == "toggle" {
+            *swapped = !*swapped;
+        } else {
+            *swapped = match center.as_str() {
+                "pane2" => false,
+                "pane3" => true,
+                _ => *swapped,
+            };
         }
     }
+    update_splitter_internal(&app_handle, &state);
 }
 
 #[tauri::command]
@@ -363,25 +478,39 @@ fn prefetch_basic_auth(
 ) {
     *state.reearth_email.lock().unwrap() = Some(creds.email.clone());
     if let Some(window) = app_handle.get_window("main") {
-        if let Some(wv2) = window.get_webview("pane2") {
-            let script = format!(
-                r#"(async function() {{
-                    const basicAuthHeader = "Basic " + btoa(unescape(encodeURIComponent("{}:{}")));
-                    await fetch("{}", {{ method: "GET", headers: {{ "Authorization": basicAuthHeader }}, mode: 'no-cors' }});
-                }})();"#,
-                creds.email, creds.password, url
-            );
-            let _ = wv2.eval(&script);
+        let script = format!(
+            r#"(async function() {{
+                const basicAuthHeader = "Basic " + btoa(unescape(encodeURIComponent("{}:{}")));
+                await fetch("{}", {{ method: "GET", headers: {{ "Authorization": basicAuthHeader }}, mode: 'no-cors' }});
+            }})();"#,
+            creds.email, creds.password, url
+        );
+        if let Some(wv) = window.get_webview("pane2_reearth") {
+            // Re:Earthの自動タイピングが意図しない画面で発火するのを防ぐため、
+            // 初回クリック時（open_reearth_in_pane）までナビゲーションを遅延させます。
+            let _ = wv.eval(&script);
         }
         if let Some(wv3) = window.get_webview("pane3") {
-            let script = format!(
-                r#"(async function() {{
-                    const basicAuthHeader = "Basic " + btoa(unescape(encodeURIComponent("{}:{}")));
-                    await fetch("{}", {{ method: "GET", headers: {{ "Authorization": basicAuthHeader }}, mode: 'no-cors' }});
-                }})();"#,
-                creds.email, creds.password, url
-            );
             let _ = wv3.eval(&script);
+        }
+    }
+}
+
+#[tauri::command]
+fn preload_webview(app_handle: tauri::AppHandle, target: String, url: String) {
+    if target == "pane2_reearth" {
+        // Re:Earthは起動時の物理タイピングを確実にするためプレロード（裏読み）をスキップします。
+        return;
+    }
+    if let Some(window) = app_handle.get_window("main") {
+        if let Some(wv) = window.get_webview(&target) {
+            if let Ok(current) = wv.url() {
+                if current.as_str() == "about:blank" || current.as_str().is_empty() {
+                    if let Ok(target_url) = tauri::Url::parse(&url) {
+                        let _ = wv.navigate(target_url);
+                    }
+                }
+            }
         }
     }
 }
@@ -396,6 +525,7 @@ fn main() {
             pane_swapped: Mutex::new(false),
             reearth_email: Mutex::new(None),
             box_email: Mutex::new(None),
+            active_pane2: Mutex::new("default".to_string()),
         })
         .invoke_handler(tauri::generate_handler![
             get_system_info,
@@ -409,7 +539,8 @@ fn main() {
             get_credential,
             delete_credential,
             prefetch_basic_auth,
-            type_credentials
+            type_credentials,
+            preload_webview
         ])
         .setup(|app| {
             let window = WindowBuilder::new(app, "main")
@@ -534,10 +665,18 @@ fn main() {
                     tauri::webview::NewWindowResponse::Deny
                 });
 
+            let webview_box = WebviewBuilder::new("pane2_box", WebviewUrl::External(tauri::Url::parse("https://account.box.com/login").unwrap()));
+            let webview_reearth = WebviewBuilder::new("pane2_reearth", WebviewUrl::External(tauri::Url::parse("about:blank").unwrap()));
+            let webview_google = WebviewBuilder::new("pane2_google", WebviewUrl::External(tauri::Url::parse("https://www.google.com/maps").unwrap()));
+
             let _wv1 = window.add_child(webview1_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv2 = window.add_child(webview2_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
+            let _wv_box = window.add_child(webview_box, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
+            let _wv_reearth = window.add_child(webview_reearth, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
+            let _wv_google = window.add_child(webview_google, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv3 = window.add_child(webview3_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
-            recalculate_webview_bounds(&window, width, height, 0.1, 0.8, false);
+            
+            recalculate_webview_bounds(&window, width, height, 0.1, 0.8, false, "default");
             Ok(())
         })
         .run(tauri::generate_context!())

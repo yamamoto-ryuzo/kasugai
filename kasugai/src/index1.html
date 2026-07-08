@@ -205,13 +205,22 @@
 
         async function preloadBasicAuth() {
             if (window.__TAURI__ && window.__TAURI__.core) {
-                const url = localStorage.getItem("reearth_url") || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
+                // 1. 各専用WebViewのプリロード開始（初回URLセット）
+                const reearthUrl = localStorage.getItem("reearth_url") || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
+                const boxUrl = "https://account.box.com/login";
+                const googleUrl = "https://www.google.com/maps";
+
+                window.__TAURI__.core.invoke('preload_webview', { target: 'pane2_reearth', url: reearthUrl });
+                window.__TAURI__.core.invoke('preload_webview', { target: 'pane2_box', url: boxUrl });
+                window.__TAURI__.core.invoke('preload_webview', { target: 'pane2_google', url: googleUrl });
+
+                // 2. Re:EarthのBasic認証プレフェッチ（認証情報がある場合）
                 const email = localStorage.getItem("reearth_email") || "";
                 if (email) {
                     try {
                         const password = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai_Reearth', username: email });
                         if (password) {
-                            await window.__TAURI__.core.invoke('prefetch_basic_auth', { url, creds: { email, password } });
+                            await window.__TAURI__.core.invoke('prefetch_basic_auth', { url: reearthUrl, creds: { email, password } });
                         }
                     } catch (e) {}
                 }
