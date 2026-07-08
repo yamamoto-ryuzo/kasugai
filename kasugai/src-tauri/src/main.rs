@@ -127,26 +127,13 @@ fn type_credentials(email: String, password: String) {
 fn open_box_in_pane(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, SplitterState>,
-    target: String, // "pane2" or "pane3"
+    _target: String, // "pane2" or "pane3" (無視して専用画面を使用)
     url: String,
     creds: AutologinCreds,
 ) {
-    let swapped = *state.pane_swapped.lock().unwrap();
-    let real_target = if target == "pane2" {
-        if !swapped {
-            *state.active_pane2.lock().unwrap() = "box".to_string();
-            update_splitter_internal(&app_handle, &state);
-            "pane2_box"
-        } else { "pane3" }
-    } else if target == "pane3" {
-        if !swapped { "pane3" } else {
-            *state.active_pane2.lock().unwrap() = "box".to_string();
-            update_splitter_internal(&app_handle, &state);
-            "pane2_box"
-        }
-    } else {
-        &target
-    };
+    *state.active_pane2.lock().unwrap() = "box".to_string();
+    update_splitter_internal(&app_handle, &state);
+    let real_target = "pane2_box";
 
     if let Some(window) = app_handle.get_window("main") {
         if let Some(wv) = window.get_webview(real_target) {
@@ -202,26 +189,13 @@ fn open_box_in_pane(
 fn open_reearth_in_pane(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, SplitterState>,
-    target: String,
+    _target: String,
     url: String,
     creds: AutologinCreds,
 ) {
-    let swapped = *state.pane_swapped.lock().unwrap();
-    let real_target = if target == "pane2" {
-        if !swapped {
-            *state.active_pane2.lock().unwrap() = "reearth".to_string();
-            update_splitter_internal(&app_handle, &state);
-            "pane2_reearth"
-        } else { "pane3" }
-    } else if target == "pane3" {
-        if !swapped { "pane3" } else {
-            *state.active_pane2.lock().unwrap() = "reearth".to_string();
-            update_splitter_internal(&app_handle, &state);
-            "pane2_reearth"
-        }
-    } else {
-        &target
-    };
+    *state.active_pane2.lock().unwrap() = "reearth".to_string();
+    update_splitter_internal(&app_handle, &state);
+    let real_target = "pane2_reearth";
 
     if let Some(window) = app_handle.get_window("main") {
         if let Some(wv) = window.get_webview(real_target) {
@@ -275,26 +249,30 @@ fn open_in_pane2(
         let host = target_url.host_str().map(|h| h.to_string());
         
         let mut target_str = "pane2";
-        if !swapped {
-            if url.contains("earth.google.com") {
-                *state.active_pane2.lock().unwrap() = "googleearth".to_string();
-                target_str = "pane2_googleearth";
-            } else if url.contains("google.com/maps") {
-                *state.active_pane2.lock().unwrap() = "google".to_string();
-                target_str = "pane2_google";
-            } else if url.contains("box.com") {
-                *state.active_pane2.lock().unwrap() = "box".to_string();
-                target_str = "pane2_box";
-            } else if url.contains("reearth.io") {
-                *state.active_pane2.lock().unwrap() = "reearth".to_string();
-                target_str = "pane2_reearth";
-            } else {
-                *state.active_pane2.lock().unwrap() = "default".to_string();
-                target_str = "pane2";
-            }
+        if url.contains("earth.google.com") {
+            *state.active_pane2.lock().unwrap() = "googleearth".to_string();
+            target_str = "pane2_googleearth";
+            update_splitter_internal(&app_handle, &state);
+        } else if url.contains("google.com/maps") {
+            *state.active_pane2.lock().unwrap() = "google".to_string();
+            target_str = "pane2_google";
+            update_splitter_internal(&app_handle, &state);
+        } else if url.contains("box.com") {
+            *state.active_pane2.lock().unwrap() = "box".to_string();
+            target_str = "pane2_box";
+            update_splitter_internal(&app_handle, &state);
+        } else if url.contains("reearth.io") {
+            *state.active_pane2.lock().unwrap() = "reearth".to_string();
+            target_str = "pane2_reearth";
             update_splitter_internal(&app_handle, &state);
         } else {
-            target_str = "pane3";
+            if !swapped {
+                *state.active_pane2.lock().unwrap() = "default".to_string();
+                target_str = "pane2";
+                update_splitter_internal(&app_handle, &state);
+            } else {
+                target_str = "pane3";
+            }
         }
 
         if let Some(window) = app_handle.get_window("main") {
@@ -331,24 +309,30 @@ fn open_in_pane3(
     let swapped = *state.pane_swapped.lock().unwrap();
     if let Ok(target_url) = tauri::Url::parse(&url) {
         let mut target_str = "pane3";
-        if swapped {
-            if url.contains("earth.google.com") {
-                *state.active_pane2.lock().unwrap() = "googleearth".to_string();
-                target_str = "pane2_googleearth";
-            } else if url.contains("google.com/maps") {
-                *state.active_pane2.lock().unwrap() = "google".to_string();
-                target_str = "pane2_google";
-            } else if url.contains("box.com") {
-                *state.active_pane2.lock().unwrap() = "box".to_string();
-                target_str = "pane2_box";
-            } else if url.contains("reearth.io") {
-                *state.active_pane2.lock().unwrap() = "reearth".to_string();
-                target_str = "pane2_reearth";
-            } else {
+        if url.contains("earth.google.com") {
+            *state.active_pane2.lock().unwrap() = "googleearth".to_string();
+            target_str = "pane2_googleearth";
+            update_splitter_internal(&app_handle, &state);
+        } else if url.contains("google.com/maps") {
+            *state.active_pane2.lock().unwrap() = "google".to_string();
+            target_str = "pane2_google";
+            update_splitter_internal(&app_handle, &state);
+        } else if url.contains("box.com") {
+            *state.active_pane2.lock().unwrap() = "box".to_string();
+            target_str = "pane2_box";
+            update_splitter_internal(&app_handle, &state);
+        } else if url.contains("reearth.io") {
+            *state.active_pane2.lock().unwrap() = "reearth".to_string();
+            target_str = "pane2_reearth";
+            update_splitter_internal(&app_handle, &state);
+        } else {
+            if swapped {
                 *state.active_pane2.lock().unwrap() = "default".to_string();
                 target_str = "pane2";
+                update_splitter_internal(&app_handle, &state);
+            } else {
+                target_str = "pane3";
             }
-            update_splitter_internal(&app_handle, &state);
         }
 
         if let Some(window) = app_handle.get_window("main") {
@@ -448,6 +432,7 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     update_pane2("pane2_box", active_pane2 == "box");
     update_pane2("pane2_reearth", active_pane2 == "reearth");
     update_pane2("pane2_google", active_pane2 == "google");
+    update_pane2("pane2_googleearth", active_pane2 == "googleearth");
 
     if let Some(wv3) = window.get_webview("pane3") {
         let _ = wv3.set_bounds(pane3_rect);
@@ -582,7 +567,7 @@ fn main() {
                     let url_str = url.as_str();
                     if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1") 
                        || url_str.contains("index2.html") || url_str.contains("index3.html") 
-                       || url_str.contains("account.box.com") || url_str.contains("app.box.com") || url_str.contains("reearth.io") {
+                       || url_str.contains("account.box.com") || url_str.contains("app.box.com") || url_str.contains("reearth.io") || url_str.contains("earth.google.com") {
                         return true;
                     }
                     let state = app_handle_for_nav2.state::<SplitterState>();
@@ -630,7 +615,7 @@ fn main() {
                     let url_str = url.as_str();
                     if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1") 
                        || url_str.contains("index2.html") || url_str.contains("index3.html") 
-                       || url_str.contains("account.box.com") || url_str.contains("app.box.com") || url_str.contains("reearth.io") {
+                       || url_str.contains("account.box.com") || url_str.contains("app.box.com") || url_str.contains("reearth.io") || url_str.contains("earth.google.com") {
                         return true;
                     }
                     let state = app_handle_for_nav3.state::<SplitterState>();
@@ -709,6 +694,7 @@ fn main() {
 
             let app_handle_for_google_new = app.handle().clone();
             let webview_google = WebviewBuilder::new("pane2_google", WebviewUrl::External(tauri::Url::parse("https://www.google.com/maps").unwrap()))
+                .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                 .on_new_window(move |url, _new_window| {
                     let url_str = url.as_str();
                     let state = app_handle_for_google_new.state::<SplitterState>();
@@ -729,7 +715,27 @@ fn main() {
             let _wv2 = window.add_child(webview2_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv_box = window.add_child(webview_box, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv_reearth = window.add_child(webview_reearth, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
+            let app_handle_for_googleearth_new = app.handle().clone();
+            let webview_googleearth = WebviewBuilder::new("pane2_googleearth", WebviewUrl::External(tauri::Url::parse("https://earth.google.com/web/").unwrap()))
+                .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .on_new_window(move |url, _new_window| {
+                    let url_str = url.as_str();
+                    let state = app_handle_for_googleearth_new.state::<SplitterState>();
+                    let swapped = *state.pane_swapped.lock().unwrap();
+                    if let Some(window) = app_handle_for_googleearth_new.get_window("main") {
+                        if !swapped {
+                            if let Some(wv3) = window.get_webview("pane3") {
+                                if let Ok(target_url) = tauri::Url::parse(url_str) {
+                                    let _ = wv3.navigate(target_url);
+                                }
+                            }
+                        }
+                    }
+                    tauri::webview::NewWindowResponse::Deny
+                });
+
             let _wv_google = window.add_child(webview_google, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
+            let _wv_googleearth = window.add_child(webview_googleearth, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv3 = window.add_child(webview3_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             
             recalculate_webview_bounds(&window, width, height, 0.1, 0.8, false, "default");
