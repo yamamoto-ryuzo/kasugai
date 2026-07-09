@@ -22,6 +22,9 @@ struct SplitterState {
     reearth_email: Mutex<Option<String>>,
     box_email: Mutex<Option<String>>,
     active_pane2: Mutex<String>,
+    pane3_active_tab: Mutex<String>,
+    pane3_tabs: Mutex<Vec<String>>,
+    tab_counter: Mutex<u64>,
 }
 
 use keyring::Entry;
@@ -238,6 +241,62 @@ fn open_reearth_in_pane(
     }
 }
 
+// 画面3用の動的タブ追加処理
+fn add_pane3_tab(app_handle: tauri::AppHandle, target_url: tauri::Url) {
+    let state = app_handle.state::<SplitterState>();
+    let mut counter = state.tab_counter.lock().unwrap();
+    *counter += 1;
+    let tab_id = format!("pane3_tab_{}", *counter);
+    
+    state.pane3_tabs.lock().unwrap().push(tab_id.clone());
+    *state.pane3_active_tab.lock().unwrap() = tab_id.clone();
+    
+    let url_str = target_url.as_str().to_string();
+    let tab_id_clone = tab_id.clone();
+    
+    let app_handle_clone = app_handle.clone();
+    
+    let _ = app_handle.run_on_main_thread(move || {
+        if let Some(window) = app_handle_clone.get_window("main") {
+            let app_for_new = app_handle_clone.clone();
+            
+            let init_script = r#"
+                window.addEventListener('dblclick', function(e) {
+                    if (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke) {
+                        window.__TAURI_INTERNALS__.invoke('pane_dblclick', { pane: 'pane3' });
+                    } else if (window.__TAURI__ && window.__TAURI__.core) {
+                        window.__TAURI__.core.invoke('pane_dblclick', { pane: 'pane3' });
+                    }
+                });
+            "#;
+
+            let builder = WebviewBuilder::new(&tab_id_clone, WebviewUrl::External(target_url))
+                .initialization_script(init_script)
+                .on_new_window(move |url, _new_window| {
+                    if let Ok(target) = tauri::Url::parse(url.as_str()) {
+                        add_pane3_tab(app_for_new.clone(), target);
+                    }
+                    tauri::webview::NewWindowResponse::Deny
+                })
+                .on_navigation(move |_url| {
+                    true
+                });
+                
+            let _wv = window.add_child(builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0));
+            
+            // フロントに通知してタブUIを作らせる
+            let _ = window.emit("pane3_new_tab", serde_json::json!({
+                "id": tab_id_clone,
+                "url": url_str
+            }));
+            
+            // Bounds再計算
+            let state = app_handle_clone.state::<SplitterState>();
+            update_splitter_internal(&app_handle_clone, &state);
+        }
+    });
+}
+
 // 通常のナビゲーション（Google Map等）
 #[tauri::command]
 fn open_in_pane2(
@@ -276,26 +335,30 @@ fn open_in_pane2(
             }
         }
 
-        if let Some(window) = app_handle.get_window("main") {
-            if let Some(wv) = window.get_webview(target_str) {
-                if !swapped { if let Some(h) = host { *state.pane2_current_host.lock().unwrap() = Some(h); } }
-                else { if let Some(h) = host { *state.pane3_current_host.lock().unwrap() = Some(h); } }
-                
-                let is_dedicated = target_str.starts_with("pane2_");
-                let should_navigate = if let Ok(current_url) = wv.url() {
-                    if is_dedicated {
-                        current_url.as_str() == "about:blank" || current_url.as_str().is_empty()
+        if target_str == "pane3" {
+            add_pane3_tab(app_handle.clone(), target_url);
+        } else {
+            if let Some(window) = app_handle.get_window("main") {
+                if let Some(wv) = window.get_webview(target_str) {
+                    if !swapped { if let Some(h) = host { *state.pane2_current_host.lock().unwrap() = Some(h); } }
+                    else { if let Some(h) = host { *state.pane3_current_host.lock().unwrap() = Some(h); } }
+                    
+                    let is_dedicated = target_str.starts_with("pane2_");
+                    let should_navigate = if let Ok(current_url) = wv.url() {
+                        if is_dedicated {
+                            current_url.as_str() == "about:blank" || current_url.as_str().is_empty()
+                        } else {
+                            current_url.host() != target_url.host() || current_url.as_str() == "about:blank"
+                        }
                     } else {
-                        current_url.host() != target_url.host() || current_url.as_str() == "about:blank"
+                        true
+                    };
+                    
+                    if should_navigate {
+                        let _ = wv.navigate(target_url);
                     }
-                } else {
-                    true
-                };
-                
-                if should_navigate {
-                    let _ = wv.navigate(target_url);
+                    let _ = wv.set_focus();
                 }
-                let _ = wv.set_focus();
             }
         }
     }
@@ -336,23 +399,27 @@ fn open_in_pane3(
             }
         }
 
-        if let Some(window) = app_handle.get_window("main") {
-            if let Some(wv) = window.get_webview(target_str) {
-                let is_dedicated = target_str.starts_with("pane2_");
-                let should_navigate = if let Ok(current_url) = wv.url() {
-                    if is_dedicated {
-                        current_url.as_str() == "about:blank" || current_url.as_str().is_empty()
+        if target_str == "pane3" {
+            add_pane3_tab(app_handle.clone(), target_url);
+        } else {
+            if let Some(window) = app_handle.get_window("main") {
+                if let Some(wv) = window.get_webview(target_str) {
+                    let is_dedicated = target_str.starts_with("pane2_");
+                    let should_navigate = if let Ok(current_url) = wv.url() {
+                        if is_dedicated {
+                            current_url.as_str() == "about:blank" || current_url.as_str().is_empty()
+                        } else {
+                            current_url.host() != target_url.host() || current_url.as_str() == "about:blank"
+                        }
                     } else {
-                        current_url.host() != target_url.host() || current_url.as_str() == "about:blank"
+                        true
+                    };
+                    
+                    if should_navigate {
+                        let _ = wv.navigate(target_url);
                     }
-                } else {
-                    true
-                };
-                
-                if should_navigate {
-                    let _ = wv.navigate(target_url);
+                    let _ = wv.set_focus();
                 }
-                let _ = wv.set_focus();
             }
         }
     }
@@ -428,12 +495,12 @@ fn update_splitter_internal(app_handle: &tauri::AppHandle, state: &tauri::State<
             let r2 = *state.ratio2.lock().unwrap();
             let swapped = *state.pane_swapped.lock().unwrap();
             let active = state.active_pane2.lock().unwrap().clone();
-            recalculate_webview_bounds(&window, w, h, r1, r2, swapped, &active);
+            recalculate_webview_bounds(&window, w, h, r1, r2, swapped, &active, state);
         }
     }
 }
 
-fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f64, ratio2: f64, swapped: bool, active_pane2: &str) {
+fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f64, ratio2: f64, swapped: bool, active_pane2: &str, state: &SplitterState) {
     let splitter_width = 8.0;
     let sh = splitter_width / 2.0;
     let x1 = w * ratio1;
@@ -477,6 +544,7 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     let pane2_rect = if !swapped { rect_center } else { rect_right };
     let pane2_dedicated_rect = if !swapped { rect_center_dedicated } else { rect_right_dedicated };
     let pane3_rect = if !swapped { rect_right } else { rect_center };
+    let pane3_dedicated_rect = if !swapped { rect_right_dedicated } else { rect_center_dedicated };
 
     let update_pane2 = |id: &str, is_active: bool, is_dedicated: bool| {
         if let Some(wv) = window.get_webview(id) {
@@ -500,9 +568,77 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     update_pane2("pane2_google", active_pane2 == "google", true);
     update_pane2("pane2_googleearth", active_pane2 == "googleearth", true);
 
+    // pane3 (ベース画面、タブUI領域など用) は常に配置
     if let Some(wv3) = window.get_webview("pane3") {
         let _ = wv3.set_bounds(pane3_rect);
     }
+
+    // 動的に追加された pane3 の各タブWebviewのBounds更新
+    let pane3_active = state.pane3_active_tab.lock().unwrap().clone();
+    let pane3_tabs_vec = state.pane3_tabs.lock().unwrap().clone();
+    
+    for tab_id in pane3_tabs_vec {
+        if let Some(wv) = window.get_webview(&tab_id) {
+            if tab_id == pane3_active {
+                let _ = wv.set_bounds(pane3_dedicated_rect); // タブ領域(50px)の下に配置
+            } else {
+                let _ = wv.set_bounds(rect_hidden);
+            }
+        }
+    }
+}
+
+#[tauri::command]
+fn switch_pane3_tab(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
+    tab: String,
+) {
+    if state.pane3_tabs.lock().unwrap().contains(&tab) || tab == "default" {
+        *state.pane3_active_tab.lock().unwrap() = tab;
+        update_splitter_internal(&app_handle, &state);
+    }
+}
+
+#[tauri::command]
+fn close_pane3_tab(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
+    tab: String,
+) {
+    let mut tabs = state.pane3_tabs.lock().unwrap();
+    if let Some(pos) = tabs.iter().position(|x| *x == tab) {
+        tabs.remove(pos);
+        
+        let app_clone = app_handle.clone();
+        let tab_id = tab.clone();
+        let _ = app_handle.run_on_main_thread(move || {
+            if let Some(window) = app_clone.get_window("main") {
+                if let Some(wv) = window.get_webview(&tab_id) {
+                    let _ = wv.close();
+                }
+            }
+        });
+
+        // 削除したタブがアクティブだった場合、別のタブをアクティブにする
+        let mut active = state.pane3_active_tab.lock().unwrap();
+        if *active == tab {
+            if tabs.len() > 0 {
+                // 右隣か、なければ最後のタブ
+                let new_idx = if pos < tabs.len() { pos } else { tabs.len() - 1 };
+                *active = tabs[new_idx].clone();
+            } else {
+                *active = "default".to_string(); // すべてのタブが消えたらdefaultに戻る
+            }
+            
+            // UIに新しいアクティブタブを通知
+            let _ = app_handle.emit("pane3_active_changed", serde_json::json!({
+                "id": *active
+            }));
+        }
+    }
+    drop(tabs); // ロック解放
+    update_splitter_internal(&app_handle, &state);
 }
 
 #[tauri::command]
@@ -594,6 +730,9 @@ fn main() {
             reearth_email: Mutex::new(None),
             box_email: Mutex::new(None),
             active_pane2: Mutex::new("default".to_string()),
+            pane3_active_tab: Mutex::new("default".to_string()),
+            pane3_tabs: Mutex::new(Vec::new()),
+            tab_counter: Mutex::new(0),
         })
         .invoke_handler(tauri::generate_handler![
             get_system_info,
@@ -610,7 +749,9 @@ fn main() {
             prefetch_basic_auth,
             type_credentials,
             preload_webview,
-            switch_pane2_tab
+            switch_pane2_tab,
+            switch_pane3_tab,
+            close_pane3_tab
         ])
         .setup(|app| {
             let window = WindowBuilder::new(app, "main")
@@ -658,12 +799,8 @@ fn main() {
                 .initialization_script(init_script_pane1)
                 .on_new_window(move |url, _new_window| {
                     let url_str = url.as_str();
-                    if let Some(window) = app_handle_for_pane1.get_window("main") {
-                        if let Some(wv3) = window.get_webview("pane3") {
-                            if let Ok(target_url) = tauri::Url::parse(url_str) {
-                                let _ = wv3.navigate(target_url);
-                            }
-                        }
+                    if let Ok(target_url) = tauri::Url::parse(url_str) {
+                        add_pane3_tab(app_handle_for_pane1.clone(), target_url);
                     }
                     tauri::webview::NewWindowResponse::Deny
                 });
@@ -690,13 +827,9 @@ fn main() {
                                 }
                             }
                         }
-                        if let Some(window) = app_handle_for_nav2.get_window("main") {
-                            if let Some(wv3) = window.get_webview("pane3") {
-                                if let Ok(target_url) = tauri::Url::parse(url_str) {
-                                    let _ = wv3.navigate(target_url);
-                                    return false;
-                                }
-                            }
+                        if let Ok(target_url) = tauri::Url::parse(url_str) {
+                            add_pane3_tab(app_handle_for_nav2.clone(), target_url);
+                            return false;
                         }
                     }
                     true
@@ -705,13 +838,9 @@ fn main() {
                     let url_str = url.as_str();
                     let state = app_handle_for_new_window2.state::<SplitterState>();
                     let swapped = *state.pane_swapped.lock().unwrap();
-                    if let Some(window) = app_handle_for_new_window2.get_window("main") {
-                        if !swapped {
-                            if let Some(wv3) = window.get_webview("pane3") {
-                                if let Ok(target_url) = tauri::Url::parse(url_str) {
-                                    let _ = wv3.navigate(target_url);
-                                }
-                            }
+                    if !swapped {
+                        if let Ok(target_url) = tauri::Url::parse(url_str) {
+                            add_pane3_tab(app_handle_for_new_window2.clone(), target_url);
                         }
                     }
                     tauri::webview::NewWindowResponse::Deny
@@ -773,13 +902,9 @@ fn main() {
                     let url_str = url.as_str();
                     let state = app_handle_for_box_new.state::<SplitterState>();
                     let swapped = *state.pane_swapped.lock().unwrap();
-                    if let Some(window) = app_handle_for_box_new.get_window("main") {
-                        if !swapped {
-                            if let Some(wv3) = window.get_webview("pane3") {
-                                if let Ok(target_url) = tauri::Url::parse(url_str) {
-                                    let _ = wv3.navigate(target_url);
-                                }
-                            }
+                    if !swapped {
+                        if let Ok(target_url) = tauri::Url::parse(url_str) {
+                            add_pane3_tab(app_handle_for_box_new.clone(), target_url);
                         }
                     }
                     tauri::webview::NewWindowResponse::Deny
@@ -792,13 +917,9 @@ fn main() {
                     let url_str = url.as_str();
                     let state = app_handle_for_reearth_new.state::<SplitterState>();
                     let swapped = *state.pane_swapped.lock().unwrap();
-                    if let Some(window) = app_handle_for_reearth_new.get_window("main") {
-                        if !swapped {
-                            if let Some(wv3) = window.get_webview("pane3") {
-                                if let Ok(target_url) = tauri::Url::parse(url_str) {
-                                    let _ = wv3.navigate(target_url);
-                                }
-                            }
+                    if !swapped {
+                        if let Ok(target_url) = tauri::Url::parse(url_str) {
+                            add_pane3_tab(app_handle_for_reearth_new.clone(), target_url);
                         }
                     }
                     tauri::webview::NewWindowResponse::Deny
@@ -812,13 +933,9 @@ fn main() {
                     let url_str = url.as_str();
                     let state = app_handle_for_google_new.state::<SplitterState>();
                     let swapped = *state.pane_swapped.lock().unwrap();
-                    if let Some(window) = app_handle_for_google_new.get_window("main") {
-                        if !swapped {
-                            if let Some(wv3) = window.get_webview("pane3") {
-                                if let Ok(target_url) = tauri::Url::parse(url_str) {
-                                    let _ = wv3.navigate(target_url);
-                                }
-                            }
+                    if !swapped {
+                        if let Ok(target_url) = tauri::Url::parse(url_str) {
+                            add_pane3_tab(app_handle_for_google_new.clone(), target_url);
                         }
                     }
                     tauri::webview::NewWindowResponse::Deny
@@ -836,13 +953,9 @@ fn main() {
                     let url_str = url.as_str();
                     let state = app_handle_for_googleearth_new.state::<SplitterState>();
                     let swapped = *state.pane_swapped.lock().unwrap();
-                    if let Some(window) = app_handle_for_googleearth_new.get_window("main") {
-                        if !swapped {
-                            if let Some(wv3) = window.get_webview("pane3") {
-                                if let Ok(target_url) = tauri::Url::parse(url_str) {
-                                    let _ = wv3.navigate(target_url);
-                                }
-                            }
+                    if !swapped {
+                        if let Ok(target_url) = tauri::Url::parse(url_str) {
+                            add_pane3_tab(app_handle_for_googleearth_new.clone(), target_url);
                         }
                     }
                     tauri::webview::NewWindowResponse::Deny
@@ -852,7 +965,8 @@ fn main() {
             let _wv_googleearth = window.add_child(webview_googleearth, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv3 = window.add_child(webview3_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             
-            recalculate_webview_bounds(&window, width, height, 0.1, 0.8, false, "default");
+            let state = app.state::<SplitterState>();
+            recalculate_webview_bounds(&window, width, height, 0.1, 0.8, false, "default", &state);
             Ok(())
         })
         .run(tauri::generate_context!())
