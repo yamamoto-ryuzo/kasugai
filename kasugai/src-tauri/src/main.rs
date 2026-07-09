@@ -15,6 +15,7 @@ use std::time::Duration;
 struct SplitterState {
     ratio1: Mutex<f64>,
     ratio2: Mutex<f64>,
+    saved_ratios: Mutex<Option<(f64, f64)>>,
     pane2_current_host: Mutex<Option<String>>,
     pane3_current_host: Mutex<Option<String>>,
     pane_swapped: Mutex<bool>,
@@ -366,7 +367,56 @@ fn update_splitter(
 ) {
     *state.ratio1.lock().unwrap() = ratio1;
     *state.ratio2.lock().unwrap() = ratio2;
+    *state.saved_ratios.lock().unwrap() = None;
     update_splitter_internal(&app_handle, &state);
+}
+
+use tauri::Emitter;
+
+#[tauri::command]
+fn pane_dblclick(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
+    pane: String,
+) {
+    let mut saved = state.saved_ratios.lock().unwrap();
+    if saved.is_some() {
+        // 復元
+        let (r1, r2) = saved.unwrap();
+        *state.ratio1.lock().unwrap() = r1;
+        *state.ratio2.lock().unwrap() = r2;
+        *saved = None;
+    } else {
+        // 現在の比率を保存して最大化
+        let r1 = *state.ratio1.lock().unwrap();
+        let r2 = *state.ratio2.lock().unwrap();
+        *saved = Some((r1, r2));
+
+        match pane.as_str() {
+            "pane1" => {
+                *state.ratio1.lock().unwrap() = 1.0;
+                *state.ratio2.lock().unwrap() = 1.0;
+            }
+            "pane2" => {
+                *state.ratio1.lock().unwrap() = 0.0;
+                *state.ratio2.lock().unwrap() = 1.0;
+            }
+            "pane3" => {
+                *state.ratio1.lock().unwrap() = 0.0;
+                *state.ratio2.lock().unwrap() = 0.0;
+            }
+            _ => {}
+        }
+    }
+    
+    update_splitter_internal(&app_handle, &state);
+
+    let r1 = *state.ratio1.lock().unwrap();
+    let r2 = *state.ratio2.lock().unwrap();
+    let _ = app_handle.emit("update_splitter_ui", serde_json::json!({
+        "ratio1": r1,
+        "ratio2": r2
+    }));
 }
 
 fn update_splitter_internal(app_handle: &tauri::AppHandle, state: &tauri::State<'_, SplitterState>) {
@@ -511,6 +561,7 @@ fn main() {
         .manage(SplitterState {
             ratio1: Mutex::new(0.1),
             ratio2: Mutex::new(0.8),
+            saved_ratios: Mutex::new(None),
             pane2_current_host: Mutex::new(None),
             pane3_current_host: Mutex::new(None),
             pane_swapped: Mutex::new(false),
@@ -521,6 +572,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_system_info,
             update_splitter,
+            pane_dblclick,
             open_in_pane2,
             open_in_pane3,
             open_box_in_pane,
@@ -546,8 +598,37 @@ fn main() {
             let base_webview_builder = WebviewBuilder::new("main_webview", WebviewUrl::App("index.html".into()));
             let _base_wv = window.add_child(base_webview_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(width as u32, height as u32))?;
             
+            let init_script_pane1 = r#"
+                window.addEventListener('dblclick', function(e) {
+                    if (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke) {
+                        window.__TAURI_INTERNALS__.invoke('pane_dblclick', { pane: 'pane1' });
+                    } else if (window.__TAURI__ && window.__TAURI__.core) {
+                        window.__TAURI__.core.invoke('pane_dblclick', { pane: 'pane1' });
+                    }
+                });
+            "#;
+            let init_script_pane2 = r#"
+                window.addEventListener('dblclick', function(e) {
+                    if (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke) {
+                        window.__TAURI_INTERNALS__.invoke('pane_dblclick', { pane: 'pane2' });
+                    } else if (window.__TAURI__ && window.__TAURI__.core) {
+                        window.__TAURI__.core.invoke('pane_dblclick', { pane: 'pane2' });
+                    }
+                });
+            "#;
+            let init_script_pane3 = r#"
+                window.addEventListener('dblclick', function(e) {
+                    if (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke) {
+                        window.__TAURI_INTERNALS__.invoke('pane_dblclick', { pane: 'pane3' });
+                    } else if (window.__TAURI__ && window.__TAURI__.core) {
+                        window.__TAURI__.core.invoke('pane_dblclick', { pane: 'pane3' });
+                    }
+                });
+            "#;
+
             let app_handle_for_pane1 = app.handle().clone();
             let webview1_builder = WebviewBuilder::new("pane1", WebviewUrl::App("index1.html".into()))
+                .initialization_script(init_script_pane1)
                 .on_new_window(move |url, _new_window| {
                     let url_str = url.as_str();
                     if let Some(window) = app_handle_for_pane1.get_window("main") {
@@ -563,6 +644,7 @@ fn main() {
             let app_handle_for_nav2 = app.handle().clone();
             let app_handle_for_new_window2 = app.handle().clone();
             let webview2_builder = WebviewBuilder::new("pane2", WebviewUrl::App("index2.html".into()))
+                .initialization_script(init_script_pane2)
                 .on_navigation(move |url| {
                     let url_str = url.as_str();
                     if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1") 
@@ -611,6 +693,7 @@ fn main() {
             let app_handle_for_nav3 = app.handle().clone();
             let app_handle_for_new_window3 = app.handle().clone();
             let webview3_builder = WebviewBuilder::new("pane3", WebviewUrl::App("index3.html".into()))
+                .initialization_script(init_script_pane3)
                 .on_navigation(move |url| {
                     let url_str = url.as_str();
                     if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1") 
@@ -658,6 +741,7 @@ fn main() {
 
             let app_handle_for_box_new = app.handle().clone();
             let webview_box = WebviewBuilder::new("pane2_box", WebviewUrl::External(tauri::Url::parse("about:blank").unwrap()))
+                .initialization_script(init_script_pane2)
                 .on_new_window(move |url, _new_window| {
                     let url_str = url.as_str();
                     let state = app_handle_for_box_new.state::<SplitterState>();
@@ -676,6 +760,7 @@ fn main() {
 
             let app_handle_for_reearth_new = app.handle().clone();
             let webview_reearth = WebviewBuilder::new("pane2_reearth", WebviewUrl::External(tauri::Url::parse("about:blank").unwrap()))
+                .initialization_script(init_script_pane2)
                 .on_new_window(move |url, _new_window| {
                     let url_str = url.as_str();
                     let state = app_handle_for_reearth_new.state::<SplitterState>();
@@ -694,6 +779,7 @@ fn main() {
 
             let app_handle_for_google_new = app.handle().clone();
             let webview_google = WebviewBuilder::new("pane2_google", WebviewUrl::External(tauri::Url::parse("https://www.google.com/maps").unwrap()))
+                .initialization_script(init_script_pane2)
                 .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                 .on_new_window(move |url, _new_window| {
                     let url_str = url.as_str();
@@ -717,6 +803,7 @@ fn main() {
             let _wv_reearth = window.add_child(webview_reearth, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let app_handle_for_googleearth_new = app.handle().clone();
             let webview_googleearth = WebviewBuilder::new("pane2_googleearth", WebviewUrl::External(tauri::Url::parse("https://earth.google.com/web/").unwrap()))
+                .initialization_script(init_script_pane2)
                 .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                 .on_new_window(move |url, _new_window| {
                     let url_str = url.as_str();

@@ -134,6 +134,15 @@
 
         // --- Tauri イベントシステムによる他Webviewからのマウスクリップの中継 ---
         if (window.__TAURI__ && window.__TAURI__.event) {
+            // Rustから発行された比率更新イベントを受け取る
+            window.__TAURI__.event.listen('update_splitter_ui', (event) => {
+                if (event.payload) {
+                    ratio1 = event.payload.ratio1;
+                    ratio2 = event.payload.ratio2;
+                    updateSplitterElements();
+                }
+            });
+
             // 他のWebviewで検知されたmousemoveを受け取る（絶対座標 screenX を クライアント座標に変換）
             window.__TAURI__.event.listen('global_mousemove', (event) => {
                 if (!activeSplitter) return;
