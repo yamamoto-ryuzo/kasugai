@@ -438,6 +438,7 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     let sh = splitter_width / 2.0;
     let x1 = w * ratio1;
     let x2 = w * ratio2;
+    let tab_height = 50.0; // 画面2上部のタブ領域の高さ
     if let Some(base_wv) = window.get_webview("main_webview") {
         let _ = base_wv.set_bounds(Rect {
             position: Position::Physical(PhysicalPosition::new(0, 0)),
@@ -456,9 +457,17 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
         position: Position::Physical(PhysicalPosition::new((x1 + sh) as i32, 0)),
         size: Size::Physical(PhysicalSize::new(((x2 - sh) - (x1 + sh)).max(0.0) as u32, h as u32)),
     };
+    let rect_center_dedicated = Rect {
+        position: Position::Physical(PhysicalPosition::new((x1 + sh) as i32, tab_height as i32)),
+        size: Size::Physical(PhysicalSize::new(((x2 - sh) - (x1 + sh)).max(0.0) as u32, (h - tab_height).max(0.0) as u32)),
+    };
     let rect_right = Rect {
         position: Position::Physical(PhysicalPosition::new((x2 + sh) as i32, 0)),
         size: Size::Physical(PhysicalSize::new((w - (x2 + sh)).max(0.0) as u32, h as u32)),
+    };
+    let rect_right_dedicated = Rect {
+        position: Position::Physical(PhysicalPosition::new((x2 + sh) as i32, tab_height as i32)),
+        size: Size::Physical(PhysicalSize::new((w - (x2 + sh)).max(0.0) as u32, (h - tab_height).max(0.0) as u32)),
     };
     let rect_hidden = Rect {
         position: Position::Physical(PhysicalPosition::new(-10000, -10000)),
@@ -466,23 +475,30 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     };
 
     let pane2_rect = if !swapped { rect_center } else { rect_right };
+    let pane2_dedicated_rect = if !swapped { rect_center_dedicated } else { rect_right_dedicated };
     let pane3_rect = if !swapped { rect_right } else { rect_center };
 
-    let update_pane2 = |id: &str, is_active: bool| {
+    let update_pane2 = |id: &str, is_active: bool, is_dedicated: bool| {
         if let Some(wv) = window.get_webview(id) {
             if is_active {
-                let _ = wv.set_bounds(pane2_rect);
+                let _ = wv.set_bounds(if is_dedicated { pane2_dedicated_rect } else { pane2_rect });
             } else {
                 let _ = wv.set_bounds(rect_hidden);
             }
         }
     };
 
-    update_pane2("pane2", active_pane2 == "default");
-    update_pane2("pane2_box", active_pane2 == "box");
-    update_pane2("pane2_reearth", active_pane2 == "reearth");
-    update_pane2("pane2_google", active_pane2 == "google");
-    update_pane2("pane2_googleearth", active_pane2 == "googleearth");
+    // pane2 (ベース画面) は、常に表示しておく（アクティブかどうかに関わらず、背面またはタブ領域として表示する）
+    // ただし、完全に非表示にするのではなく、pane2 は常に配置しておくことでタブ部分が見えるようにする
+    if let Some(wv2) = window.get_webview("pane2") {
+        let _ = wv2.set_bounds(pane2_rect);
+    }
+    
+    // update_pane2("pane2", active_pane2 == "default", false); // 上で常に表示にしたので不要
+    update_pane2("pane2_box", active_pane2 == "box", true);
+    update_pane2("pane2_reearth", active_pane2 == "reearth", true);
+    update_pane2("pane2_google", active_pane2 == "google", true);
+    update_pane2("pane2_googleearth", active_pane2 == "googleearth", true);
 
     if let Some(wv3) = window.get_webview("pane3") {
         let _ = wv3.set_bounds(pane3_rect);
@@ -507,6 +523,16 @@ fn set_center(
             };
         }
     }
+    update_splitter_internal(&app_handle, &state);
+}
+
+#[tauri::command]
+fn switch_pane2_tab(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
+    tab: String,
+) {
+    *state.active_pane2.lock().unwrap() = tab;
     update_splitter_internal(&app_handle, &state);
 }
 
@@ -583,7 +609,8 @@ fn main() {
             delete_credential,
             prefetch_basic_auth,
             type_credentials,
-            preload_webview
+            preload_webview,
+            switch_pane2_tab
         ])
         .setup(|app| {
             let window = WindowBuilder::new(app, "main")

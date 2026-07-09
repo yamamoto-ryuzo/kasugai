@@ -10,20 +10,34 @@
             background-color: #f0fdf4;
             color: #333;
             margin: 0;
-            padding: 20px;
+            padding: 0;
             display: flex;
             flex-direction: column;
             height: 100vh;
             box-sizing: border-box;
+            overflow: hidden;
+        }
+        .header-tabs {
+            height: 50px;
+            background-color: #ffffff;
+            border-bottom: 1px solid #cbd5e1;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            box-sizing: border-box;
+            overflow-x: auto;
+            white-space: nowrap;
         }
         .container {
             background-color: #ffffff;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 10px;
             padding: 20px;
             flex-grow: 1;
             display: flex;
             flex-direction: column;
+            overflow-y: auto;
         }
         h1 {
             color: #15803d;
@@ -92,16 +106,13 @@
         /* タブ用のスタイル */
         .tabs {
             display: flex;
-            gap: 8px;
-            margin-bottom: 15px;
-            border-bottom: 1px solid #cbd5e1;
-            padding-bottom: 8px;
+            gap: 5px;
         }
         .tab-btn {
             background: none;
             border: none;
-            padding: 8px 16px;
-            font-size: 14px;
+            padding: 6px 12px;
+            font-size: 13px;
             font-weight: bold;
             color: #64748b;
             cursor: pointer;
@@ -119,14 +130,19 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1 id="view-title">メモ帳</h1>
-       
-        <!-- タブボタンの追加 -->
+    <div class="header-tabs">
         <div class="tabs">
             <button class="tab-btn active" id="tab-editor" onclick="switchTab('editor')">📝 メモ帳</button>
             <button class="tab-btn" id="tab-settings" onclick="switchTab('settings')">⚙️ システム設定</button>
+            <button class="tab-btn" id="tab-box" onclick="switchTab('box')">📦 BOX</button>
+            <button class="tab-btn" id="tab-reearth" onclick="switchTab('reearth')">🌐 Re:Earth</button>
+            <button class="tab-btn" id="tab-google" onclick="switchTab('google')">🗺️ Google Map</button>
+            <button class="tab-btn" id="tab-googleearth" onclick="switchTab('googleearth')">🌍 Google Earth</button>
         </div>
+    </div>
+
+    <div class="container">
+        <h1 id="view-title">メモ帳</h1>
 
         <div id="content-editor" class="tab-content">
             <p>この画面は完全に独立したメモ帳です。ここに入力されたテキストは、メモリやローカルストレージに保持できます。</p>
@@ -191,10 +207,16 @@
 
     <script>
         // タブ切り替え処理
-        function switchTab(tabName) {
-            document.getElementById('tab-editor').classList.toggle('active', tabName === 'editor');
-            document.getElementById('tab-settings').classList.toggle('active', tabName === 'settings');
+        async function switchTab(tabName) {
+            // UIのアクティブ状態の更新
+            const tabs = ['editor', 'settings', 'box', 'reearth', 'google', 'googleearth'];
+            tabs.forEach(t => {
+                const el = document.getElementById('tab-' + t);
+                if (el) el.classList.toggle('active', tabName === t);
+            });
 
+            // ローカルコンテンツの表示切り替え
+            const isLocal = (tabName === 'editor' || tabName === 'settings');
             document.getElementById('content-editor').style.display = tabName === 'editor' ? 'block' : 'none';
             document.getElementById('content-settings').style.display = tabName === 'settings' ? 'block' : 'none';
 
@@ -203,6 +225,40 @@
                 title.textContent = 'メモ帳';
             } else if (tabName === 'settings') {
                 title.textContent = 'システム設定';
+            } else {
+                title.textContent = ''; // 外部ビューの場合はタイトル不要
+            }
+
+            // Rustバックエンドにタブ切り替え・ロードを指示
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                if (isLocal) {
+                    window.__TAURI__.core.invoke('switch_pane2_tab', { tab: 'default' });
+                } else if (tabName === 'box') {
+                    const email = document.getElementById("box-email-input")?.value || "";
+                    const password = document.getElementById("box-password-input")?.value || "";
+                    window.__TAURI__.core.invoke('open_box_in_pane', {
+                        target: 'pane2',
+                        url: 'https://app.box.com/',
+                        creds: { email, password }
+                    });
+                } else if (tabName === 'reearth') {
+                    const url = document.getElementById("reearth-url-input")?.value || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
+                    const email = document.getElementById("reearth-email-input")?.value || "";
+                    const password = document.getElementById("reearth-password-input")?.value || "";
+                    window.__TAURI__.core.invoke('open_reearth_in_pane', {
+                        target: 'pane2',
+                        url: url,
+                        creds: { email, password }
+                    });
+                } else if (tabName === 'google') {
+                    window.__TAURI__.core.invoke('open_in_pane2', {
+                        url: 'https://www.google.com/maps'
+                    });
+                } else if (tabName === 'googleearth') {
+                    window.__TAURI__.core.invoke('open_in_pane2', {
+                        url: 'https://earth.google.com/web/'
+                    });
+                }
             }
         }
 

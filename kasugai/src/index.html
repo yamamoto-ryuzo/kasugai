@@ -85,6 +85,18 @@
         splitter1.addEventListener('mousedown', (e) => onMouseDown(e, 1));
         splitter2.addEventListener('mousedown', (e) => onMouseDown(e, 2));
 
+        // スプリッターのダブルクリックによる最大化・復元
+        splitter1.addEventListener('dblclick', () => {
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                window.__TAURI__.core.invoke('pane_dblclick', { pane: 'pane1' });
+            }
+        });
+        splitter2.addEventListener('dblclick', () => {
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                window.__TAURI__.core.invoke('pane_dblclick', { pane: 'pane3' });
+            }
+        });
+
         // マウス位置に基づくスプリッター比率の更新ロジック
         function handleMove(clientX) {
             if (!activeSplitter) return;
