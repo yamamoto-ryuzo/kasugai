@@ -91,11 +91,6 @@
 
         
         <div class="footer">
-            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
-                <button id="toggle-pane-btn" class="portal-btn" style="padding: 8px 12px; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="togglePane()">
-                    <span>🔄 表示切替</span>
-                </button>
-            </div>
             <a href="#" id="system-settings-btn" style="color: #3b82f6; text-decoration: none; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;" onclick="openSystemSettings(event)">
                 <span>⚙️ システム設定</span>
             </a>
@@ -174,12 +169,6 @@
             event.preventDefault();
             const url = window.location.origin + '/index2.html?settings=true';
             openLink(event, url, 'pane2');
-        }
-
-        async function togglePane() {
-            if (window.__TAURI__ && window.__TAURI__.core) {
-                await window.__TAURI__.core.invoke('set_center', { center: 'toggle' }); // 実際はRust側で判定
-            }
         }
 
         if (window.__TAURI__ && window.__TAURI__.event) {
