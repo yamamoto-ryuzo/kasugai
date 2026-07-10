@@ -832,6 +832,7 @@ fn main() {
             let app_handle_for_reearth_new = app.handle().clone();
             let webview_reearth = WebviewBuilder::new("pane2_reearth", WebviewUrl::External(tauri::Url::parse("about:blank").unwrap()))
                 .initialization_script(init_script_pane2)
+                .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                 .on_new_window(move |url, _new_window| {
                     let url_str = url.as_str();
                     if let Ok(target_url) = tauri::Url::parse(url_str) {
