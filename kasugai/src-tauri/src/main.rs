@@ -509,7 +509,7 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     }
     if let Some(wv1) = window.get_webview("pane1") {
         let width = (x1 - sh).max(0.0) as u32;
-        if width < 220 {
+        if width < 120 {
             let _ = wv1.set_bounds(rect_hidden);
         } else {
             let _ = wv1.set_bounds(Rect {
