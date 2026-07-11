@@ -323,6 +323,14 @@ fn open_in_pane2(
             *state.active_pane2.lock().unwrap() = "reearth".to_string();
             target_str = "pane2_reearth";
             update_splitter_internal(&app_handle, &state);
+        } else if url.contains("map.yahoo.co.jp") {
+            *state.active_pane2.lock().unwrap() = "yahoo".to_string();
+            target_str = "pane2_yahoo";
+            update_splitter_internal(&app_handle, &state);
+        } else if url.contains("mapion.co.jp") {
+            *state.active_pane2.lock().unwrap() = "mapion".to_string();
+            target_str = "pane2_mapion";
+            update_splitter_internal(&app_handle, &state);
         } else {
             *state.active_pane2.lock().unwrap() = "default".to_string();
             target_str = "pane2";
@@ -380,6 +388,14 @@ fn open_in_pane3(
         } else if url.contains("reearth.io") {
             *state.active_pane2.lock().unwrap() = "reearth".to_string();
             target_str = "pane2_reearth";
+            update_splitter_internal(&app_handle, &state);
+        } else if url.contains("map.yahoo.co.jp") {
+            *state.active_pane2.lock().unwrap() = "yahoo".to_string();
+            target_str = "pane2_yahoo";
+            update_splitter_internal(&app_handle, &state);
+        } else if url.contains("mapion.co.jp") {
+            *state.active_pane2.lock().unwrap() = "mapion".to_string();
+            target_str = "pane2_mapion";
             update_splitter_internal(&app_handle, &state);
         } else {
             target_str = "pane3";
@@ -552,6 +568,8 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     update_pane2("pane2_reearth", active_pane2 == "reearth", true);
     update_pane2("pane2_google", active_pane2 == "google", true);
     update_pane2("pane2_googleearth", active_pane2 == "googleearth", true);
+    update_pane2("pane2_yahoo", active_pane2 == "yahoo", true);
+    update_pane2("pane2_mapion", active_pane2 == "mapion", true);
 
     // pane3 (ベース画面、タブUI領域など用) は常に配置
     if let Some(wv3) = window.get_webview("pane3") {
@@ -869,8 +887,34 @@ fn main() {
                     tauri::webview::NewWindowResponse::Deny
                 });
 
+            let app_handle_for_yahoo_new = app.handle().clone();
+            let webview_yahoo = WebviewBuilder::new("pane2_yahoo", WebviewUrl::External(tauri::Url::parse("https://map.yahoo.co.jp/").unwrap()))
+                .initialization_script(init_script_pane2)
+                .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .on_new_window(move |url, _new_window| {
+                    let url_str = url.as_str();
+                    if let Ok(target_url) = tauri::Url::parse(url_str) {
+                        add_pane3_tab(app_handle_for_yahoo_new.clone(), target_url);
+                    }
+                    tauri::webview::NewWindowResponse::Deny
+                });
+
+            let app_handle_for_mapion_new = app.handle().clone();
+            let webview_mapion = WebviewBuilder::new("pane2_mapion", WebviewUrl::External(tauri::Url::parse("https://www.mapion.co.jp/").unwrap()))
+                .initialization_script(init_script_pane2)
+                .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .on_new_window(move |url, _new_window| {
+                    let url_str = url.as_str();
+                    if let Ok(target_url) = tauri::Url::parse(url_str) {
+                        add_pane3_tab(app_handle_for_mapion_new.clone(), target_url);
+                    }
+                    tauri::webview::NewWindowResponse::Deny
+                });
+
             let _wv_google = window.add_child(webview_google, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv_googleearth = window.add_child(webview_googleearth, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
+            let _wv_yahoo = window.add_child(webview_yahoo, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
+            let _wv_mapion = window.add_child(webview_mapion, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv3 = window.add_child(webview3_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             
             let state = app.state::<SplitterState>();
