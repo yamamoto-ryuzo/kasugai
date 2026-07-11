@@ -785,7 +785,7 @@ fn preload_webview(app_handle: tauri::AppHandle, target: String, url: String) {
 }
 
 #[tauri::command]
-async fn call_gemini(prompt: String) -> Result<String, String> {
+async fn call_gemini(prompt: String, model: Option<String>) -> Result<String, String> {
     let entry = keyring::Entry::new("Kasugai_Gemini", "apikey").map_err(|e| e.to_string())?;
     let api_key = entry.get_password().map_err(|_| "Gemini APIキーが設定されていません。システム設定画面でAPIキーを登録してください。".to_string())?;
 
@@ -793,8 +793,16 @@ async fn call_gemini(prompt: String) -> Result<String, String> {
         return Err("Gemini APIキーが設定されていません。システム設定画面でAPIキーを登録してください。".to_string());
     }
 
+    let model_name = model.unwrap_or_else(|| "gemini-1.5-flash".to_string());
+    let model_name = if model_name.trim().is_empty() {
+        "gemini-1.5-flash".to_string()
+    } else {
+        model_name
+    };
+
     let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={}",
+        "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
+        model_name,
         api_key
     );
 
