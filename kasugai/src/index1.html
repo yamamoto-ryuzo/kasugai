@@ -40,14 +40,14 @@
             background-color: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 4px;
-            padding: 4px;
+            padding: 6px 12px;
             text-decoration: none;
             color: #1e293b;
             font-weight: bold;
-            font-size: 11px;
+            font-size: 13px; /* 元の見やすいサイズに戻す */
             transition: all 0.2s ease;
             box-sizing: border-box;
-            height: 28px; /* ボタンを低くして省スペース化 */
+            height: 34px; 
         }
         .portal-btn:hover {
             background-color: #eff6ff;
@@ -56,11 +56,11 @@
         }
         input {
             width: 100%;
-            padding: 4px;
+            padding: 6px;
             border: 1px solid #cbd5e1;
             border-radius: 4px;
             box-sizing: border-box;
-            font-size: 11px; /* 入力文字・プレースホルダーも極小化 */
+            font-size: 13px; /* 元の見やすいサイズに戻す */
             text-align: center; /* 中央揃えで見やすく */
         }
     </style>
@@ -70,7 +70,7 @@
         <div class="link-list">
             <!-- 超コンパクト・リモコン型UI (縦一列に隙間なく収める) -->
             <div style="display: flex; flex-direction: column; gap: 8px;">
-                <div style="font-size: 11px; font-weight: bold; color: #1e293b; text-align: center; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">🗺️ 連携</div>
+                <div style="font-size: 13px; font-weight: bold; color: #1e293b; text-align: center; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">🗺️ 連携</div>
                 
                 <button class="portal-btn" onclick="getLocation(event)" style="width: 100%; background-color: #22c55e; color: white; border-color: #16a34a; cursor: pointer;" title="位置情報を取得">
                     取得
