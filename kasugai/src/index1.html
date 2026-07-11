@@ -137,8 +137,8 @@
                         lat = matchEarth[1];
                         lng = matchEarth[2];
                         const distance = parseFloat(matchEarth[3]);
-                        // Google Earthのカメラ距離(d)を標準のZoom値に簡易変換
-                        zoom = Math.round(27 - Math.log2(distance || 5000));
+                        // Google Earthのカメラ距離(d)を標準のZoom値に簡易変換（詳細な小数値を保持）
+                        zoom = Number(27 - Math.log2(distance || 5000)).toFixed(4);
                     }
                 } else {
                     // Google Maps 形式: /@35.681236,139.767125,15z
@@ -234,7 +234,7 @@
                                 targetUrl = `https://map.yahoo.co.jp/?lat=${lat}&lon=${lng}&zoom=${zoom}`;
                             } else if (url.hostname.includes('earth.google.com')) {
                                 // Google Earth 用に標準のZoom値からカメラ距離(d)へ簡易逆変換
-                                const distance = Math.pow(2, 27 - Number(zoom));
+                                const distance = Math.pow(2, 27 - Number(zoom)).toFixed(2);
                                 targetUrl = `https://earth.google.com/web/@${lat},${lng},0a,${distance}d,35y,0h,0t,0r`;
                             }
                         }
