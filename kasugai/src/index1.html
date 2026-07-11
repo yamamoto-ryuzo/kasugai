@@ -10,7 +10,7 @@
             background-color: #ffffff; /* シンプルな白背景 */
             color: #333;
             margin: 0;
-            padding: 6px 10px 6px 4px; /* 右側を10px空けて、スプリッター（8px幅）の下に文字が潜り込むのを防止 */
+            padding: 6px 12px 6px 2px; /* 右側の余白をさらに12pxに広げてスプリッターとの重なりを完全回避、左は2px */
             display: flex;
             flex-direction: column;
             min-height: 100vh;
@@ -25,7 +25,7 @@
             flex-grow: 1;
             display: flex;
             flex-direction: column;
-            min-width: 75px; /* 最小幅を 75px に極小化 */
+            min-width: 80px; /* スプリッターの幅を考慮し、最小幅を 80px に微調整 */
         }
         .link-list {
             display: flex;
@@ -40,14 +40,14 @@
             background-color: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 4px;
-            padding: 6px 2px; /* 左右パディングを2pxに縮小し文字見切れを防止 */
+            padding: 4px 2px; /* パディングをさらに小さく */
             text-decoration: none;
             color: #1e293b;
             font-weight: bold;
-            font-size: 13px; /* 元の見やすいサイズに戻す */
+            font-size: 12px; /* ボタンのフォントサイズを一回り小さく（13pxから12pxに） */
             transition: all 0.2s ease;
             box-sizing: border-box;
-            height: 34px; 
+            height: 30px; /* ボタンの高さを一回り小さく（34pxから30pxに） */
         }
         .portal-btn:hover {
             background-color: #eff6ff;
