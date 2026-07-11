@@ -28,6 +28,12 @@
         .splitter:hover, .splitter.dragging {
             background-color: #3b82f6; /* ホバー・ドラッグ時に青く光らせる */
         }
+        /* 画面1が閉じている時のスプリッターを分かりやすくする装飾 */
+        .splitter.splitter1-closed {
+            background-color: #3b82f6; /* 閉じている時は青く光らせてアピール */
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
+            border-right: 1px solid #ffffff;
+        }
     </style>
 </head>
 <body>
@@ -104,13 +110,17 @@
             const w = window.innerWidth;
             let newRatio = clientX / w;
 
-            // 各ペインが最小5%をキープするように制限
-            const minRatio = 0.05;
             if (activeSplitter === 1) {
-                if (newRatio < minRatio) newRatio = minRatio;
-                if (newRatio > ratio2 - minRatio) newRatio = ratio2 - minRatio;
+                // 120px未満の縮尺になったら、左端にスナップ（クローズ）する
+                const closeThreshold = 120 / w;
+                if (newRatio < closeThreshold) {
+                    newRatio = 0.0;
+                }
+                // 右側ペインとの衝突防止
+                if (newRatio > ratio2 - 0.05) newRatio = ratio2 - 0.05;
                 ratio1 = newRatio;
             } else if (activeSplitter === 2) {
+                const minRatio = 0.05;
                 if (newRatio < ratio1 + minRatio) newRatio = ratio1 + minRatio;
                 if (newRatio > 1 - minRatio) newRatio = 1 - minRatio;
                 ratio2 = newRatio;

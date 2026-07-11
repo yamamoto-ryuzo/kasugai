@@ -437,32 +437,55 @@ fn pane_dblclick(
     pane: String,
 ) {
     let mut saved = state.saved_ratios.lock().unwrap();
-    if saved.is_some() {
-        // 復元
-        let (r1, r2) = saved.unwrap();
-        *state.ratio1.lock().unwrap() = r1;
-        *state.ratio2.lock().unwrap() = r2;
-        *saved = None;
-    } else {
-        // 現在の比率を保存して最大化
+    
+    if pane == "pane1" {
+        let w = if let Some(window) = app_handle.get_window("main") {
+            window.inner_size().map(|s| s.width as f64).unwrap_or(1200.0)
+        } else {
+            1200.0
+        };
         let r1 = *state.ratio1.lock().unwrap();
         let r2 = *state.ratio2.lock().unwrap();
-        *saved = Some((r1, r2));
+        let width1 = w * r1;
 
-        match pane.as_str() {
-            "pane1" => {
-                *state.ratio1.lock().unwrap() = 1.0;
-                *state.ratio2.lock().unwrap() = 1.0;
+        if width1 < 120.0 {
+            // すでに閉じている（スプリットだけ）の場合は、通常表示に戻す
+            let target_r = if let Some((saved_r1, _)) = *saved {
+                if saved_r1 >= 120.0 / w { saved_r1 } else { 0.1 }
+            } else {
+                0.1
+            };
+            *state.ratio1.lock().unwrap() = target_r;
+            *saved = None;
+        } else {
+            // 通常表示されている場合は、閉じる（スプリットだけ、比率 0.0にする）
+            *saved = Some((r1, r2));
+            *state.ratio1.lock().unwrap() = 0.0;
+        }
+    } else {
+        if saved.is_some() {
+            // 復元
+            let (r1, r2) = saved.unwrap();
+            *state.ratio1.lock().unwrap() = r1;
+            *state.ratio2.lock().unwrap() = r2;
+            *saved = None;
+        } else {
+            // 現在の比率を保存して最大化
+            let r1 = *state.ratio1.lock().unwrap();
+            let r2 = *state.ratio2.lock().unwrap();
+            *saved = Some((r1, r2));
+
+            match pane.as_str() {
+                "pane2" => {
+                    *state.ratio1.lock().unwrap() = 0.0;
+                    *state.ratio2.lock().unwrap() = 1.0;
+                }
+                "pane3" => {
+                    *state.ratio1.lock().unwrap() = 0.0;
+                    *state.ratio2.lock().unwrap() = 0.0;
+                }
+                _ => {}
             }
-            "pane2" => {
-                *state.ratio1.lock().unwrap() = 0.0;
-                *state.ratio2.lock().unwrap() = 1.0;
-            }
-            "pane3" => {
-                *state.ratio1.lock().unwrap() = 0.0;
-                *state.ratio2.lock().unwrap() = 0.0;
-            }
-            _ => {}
         }
     }
     
