@@ -252,17 +252,11 @@
                         creds: { email, password }
                     });
                 } else if (tabName === 'google') {
-                    window.__TAURI__.core.invoke('open_in_pane2', {
-                        url: 'https://www.google.com/maps'
-                    });
+                    window.__TAURI__.core.invoke('switch_pane2_tab', { tab: 'google' });
                 } else if (tabName === 'googleearth') {
-                    window.__TAURI__.core.invoke('open_in_pane2', {
-                        url: 'https://earth.google.com/web/'
-                    });
+                    window.__TAURI__.core.invoke('switch_pane2_tab', { tab: 'googleearth' });
                 } else if (tabName === 'yahoo') {
-                    window.__TAURI__.core.invoke('open_in_pane2', {
-                        url: 'https://map.yahoo.co.jp/'
-                    });
+                    window.__TAURI__.core.invoke('switch_pane2_tab', { tab: 'yahoo' });
                 }
             }
         }
