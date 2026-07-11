@@ -129,7 +129,7 @@
             font-size: 14px;
             resize: none;
             box-sizing: border-box;
-            height: 40px;
+            height: 62px;
             max-height: 120px;
             font-family: inherit;
         }
@@ -356,7 +356,7 @@
 
             <div class="chat-input-area">
                 <button class="clear-btn" onclick="clearHistory()" title="会話履歴をクリア">🗑️</button>
-                <textarea class="chat-input" id="chat-input" placeholder="Gemini にメッセージを送信..." onkeydown="handleKeyDown(event)"></textarea>
+                <textarea class="chat-input" id="chat-input" rows="2" placeholder="Gemini にメッセージを送信..." onkeydown="handleKeyDown(event)"></textarea>
                 <button class="send-btn" id="send-btn" onclick="sendMessage()">送信</button>
             </div>
         </div>
