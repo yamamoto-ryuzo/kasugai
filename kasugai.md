@@ -51,7 +51,7 @@ graph TD
 | :--- | :--- | :--- |
 | **Re:Earth / CesiumJS** | Web GIS / 3D地球儀プラットフォーム、3Dビジュアル統合UI | フロントエンド（Tauri UI）のメインビューとして統合。点群データ、PLATEAU (3D Tiles)、BIM/CIMをGPU支援により高速描画 |
 | **Rust 空間データエンジン** | 空間データハンドリング、重い3DファイルのI/O制御 | ローカルにある点群（LAS/LAZ）、BIMモデルなどの巨大なファイルをRust側で高速解析・監視・ストリーミング処理 |
-| **地図同期エンジン** | WebViewのURLリアルタイム解析による緯度経度同期 | 画面間でGoogle MapsやYahoo Map等の現在位置（URLベースの緯度経度・縮尺）を双方向に取得・移動・同期する機能（実装済） |
+| **地図同期エンジン** | WebViewのURLリアルタイム解析による緯度経度同期 | 画面間でGoogle MapsやYahoo Map、Google Earth等の現在位置（URLベースの緯度経度・縮尺）を双方向に取得・移動・同期する機能（実装済）。Google Earthの特殊なカメラ距離も標準ズーム値へ自動変換。 |
 
 ---
 
