@@ -10,7 +10,7 @@
             background-color: #ffffff; /* シンプルな白背景 */
             color: #333;
             margin: 0;
-            padding: 5px; /* マージンをさらに狭くして極小スペースに対応 */
+            padding: 6px 10px 6px 4px; /* 右側を10px空けて、スプリッター（8px幅）の下に文字が潜り込むのを防止 */
             display: flex;
             flex-direction: column;
             min-height: 100vh;
@@ -40,7 +40,7 @@
             background-color: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 4px;
-            padding: 6px 12px;
+            padding: 6px 2px; /* 左右パディングを2pxに縮小し文字見切れを防止 */
             text-decoration: none;
             color: #1e293b;
             font-weight: bold;
@@ -56,7 +56,7 @@
         }
         input {
             width: 100%;
-            padding: 6px;
+            padding: 6px 2px; /* 左右パディングを2pxに縮小し文字見切れを防止 */
             border: 1px solid #cbd5e1;
             border-radius: 4px;
             box-sizing: border-box;
