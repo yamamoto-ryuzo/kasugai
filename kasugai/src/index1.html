@@ -132,28 +132,28 @@
 
                 if (url.hostname.includes('earth.google.com')) {
                     // Google Earth 形式: /@35.68,139.76,10a,5000d,...
-                    const matchEarth = urlStr.match(/@(-?\d+\.\d+),(-?\d+\.\d+).*?,(\d+(?:\.\d+)?)d/);
+                    const matchEarth = urlStr.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?).*?,(\d+(?:\.\d+)?)d/);
                     if (matchEarth) {
-                        lat = matchEarth[1];
-                        lng = matchEarth[2];
+                        lat = Number(matchEarth[1]).toFixed(6);
+                        lng = Number(matchEarth[2]).toFixed(6);
                         const distance = parseFloat(matchEarth[3]);
                         // Google Earthのカメラ距離(d)を標準のZoom値に簡易変換（詳細な小数値を保持）
                         zoom = Number(27 - Math.log2(distance || 5000)).toFixed(4);
                     }
                 } else {
                     // Google Maps 形式: /@35.681236,139.767125,15z
-                    const matchAt = urlStr.match(/@(-?\d+\.\d+),(-?\d+\.\d+),(\d+(?:\.\d+)?)z/);
+                    const matchAt = urlStr.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),(\d+(?:\.\d+)?)z/);
                     if (matchAt) {
-                        lat = matchAt[1];
-                        lng = matchAt[2];
-                        zoom = matchAt[3];
+                        lat = Number(matchAt[1]).toFixed(6);
+                        lng = Number(matchAt[2]).toFixed(6);
+                        zoom = Number(matchAt[3]).toFixed(4);
                     } else {
                         // Yahoo Map 形式: ?lat=35.681236&lon=139.767125&zoom=15
                         const params = url.searchParams;
                         if (params.has('lat') && params.has('lon')) {
-                            lat = params.get('lat');
-                            lng = params.get('lon');
-                            zoom = params.get('zoom') || params.get('z');
+                            lat = Number(params.get('lat')).toFixed(6);
+                            lng = Number(params.get('lon')).toFixed(6);
+                            zoom = Number(params.get('zoom') || params.get('z') || 15).toFixed(4);
                         }
                     }
                 }
