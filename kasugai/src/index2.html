@@ -139,7 +139,6 @@
             <button class="tab-btn" id="tab-google" onclick="switchTab('google')">🗺️ Google Map</button>
             <button class="tab-btn" id="tab-googleearth" onclick="switchTab('googleearth')">🌍 Google Earth</button>
             <button class="tab-btn" id="tab-yahoo" onclick="switchTab('yahoo')">🗾 Yahoo Map</button>
-            <button class="tab-btn" id="tab-mapion" onclick="switchTab('mapion')">📍 Mapion</button>
         </div>
     </div>
 
@@ -211,7 +210,7 @@
         // タブ切り替え処理
         async function switchTab(tabName) {
             // UIのアクティブ状態の更新
-            const tabs = ['editor', 'settings', 'box', 'reearth', 'google', 'googleearth', 'yahoo', 'mapion'];
+            const tabs = ['editor', 'settings', 'box', 'reearth', 'google', 'googleearth', 'yahoo'];
             tabs.forEach(t => {
                 const el = document.getElementById('tab-' + t);
                 if (el) el.classList.toggle('active', tabName === t);
@@ -263,10 +262,6 @@
                 } else if (tabName === 'yahoo') {
                     window.__TAURI__.core.invoke('open_in_pane2', {
                         url: 'https://map.yahoo.co.jp/'
-                    });
-                } else if (tabName === 'mapion') {
-                    window.__TAURI__.core.invoke('open_in_pane2', {
-                        url: 'https://www.mapion.co.jp/'
                     });
                 }
             }

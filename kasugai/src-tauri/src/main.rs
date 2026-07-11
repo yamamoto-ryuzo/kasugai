@@ -344,13 +344,9 @@ fn open_in_pane2(
                 if let Some(wv) = window.get_webview(target_str) {
                     if let Some(h) = host { *state.pane2_current_host.lock().unwrap() = Some(h); }
                     
-                    let is_dedicated = target_str.starts_with("pane2_");
                     let should_navigate = if let Ok(current_url) = wv.url() {
-                        if is_dedicated {
-                            current_url.as_str() == "about:blank" || current_url.as_str().is_empty()
-                        } else {
-                            current_url.host() != target_url.host() || current_url.as_str() == "about:blank"
-                        }
+                        // 現在のURLと異なる場合（位置情報などのパラメータ変更含む）は必ずナビゲートする
+                        current_url.as_str() != target_url.as_str() && current_url.as_str() != format!("{}/", target_url.as_str())
                     } else {
                         true
                     };
@@ -406,13 +402,8 @@ fn open_in_pane3(
         } else {
             if let Some(window) = app_handle.get_window("main") {
                 if let Some(wv) = window.get_webview(target_str) {
-                    let is_dedicated = target_str.starts_with("pane2_");
                     let should_navigate = if let Ok(current_url) = wv.url() {
-                        if is_dedicated {
-                            current_url.as_str() == "about:blank" || current_url.as_str().is_empty()
-                        } else {
-                            current_url.host() != target_url.host() || current_url.as_str() == "about:blank"
-                        }
+                        current_url.as_str() != target_url.as_str() && current_url.as_str() != format!("{}/", target_url.as_str())
                     } else {
                         true
                     };
@@ -569,7 +560,6 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     update_pane2("pane2_google", active_pane2 == "google", true);
     update_pane2("pane2_googleearth", active_pane2 == "googleearth", true);
     update_pane2("pane2_yahoo", active_pane2 == "yahoo", true);
-    update_pane2("pane2_mapion", active_pane2 == "mapion", true);
 
     // pane3 (ベース画面、タブUI領域など用) は常に配置
     if let Some(wv3) = window.get_webview("pane3") {
@@ -682,6 +672,40 @@ fn prefetch_basic_auth(
 }
 
 #[tauri::command]
+async fn get_pane2_url(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
+) -> Result<String, String> {
+    let active = state.active_pane2.lock().unwrap().clone();
+    let target_str = match active.as_str() {
+        "box" => "pane2_box",
+        "reearth" => "pane2_reearth",
+        "google" => "pane2_google",
+        "googleearth" => "pane2_googleearth",
+        "yahoo" => "pane2_yahoo",
+        "mapion" => "pane2_mapion",
+        _ => "pane2",
+    };
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let app_clone = app_handle.clone();
+    
+    let _ = app_handle.run_on_main_thread(move || {
+        let mut result = Err("Could not get URL".to_string());
+        if let Some(window) = app_clone.get_window("main") {
+            if let Some(wv) = window.get_webview(&target_str) {
+                if let Ok(url) = wv.url() {
+                    result = Ok(url.to_string());
+                }
+            }
+        }
+        let _ = tx.send(result);
+    });
+
+    rx.recv().unwrap_or(Err("Thread communication error".to_string()))
+}
+
+#[tauri::command]
 fn preload_webview(app_handle: tauri::AppHandle, target: String, url: String) {
     if target == "pane2_reearth" || target == "pane2_box" {
         // Re:EarthとBOXは起動時の自動ログイン（タイピング/DOM操作）を確実にするためプレロード（裏読み）をスキップします。
@@ -731,7 +755,8 @@ fn main() {
             preload_webview,
             switch_pane2_tab,
             switch_pane3_tab,
-            close_pane3_tab
+            close_pane3_tab,
+            get_pane2_url
         ])
         .setup(|app| {
             let window = WindowBuilder::new(app, "main")
@@ -899,22 +924,9 @@ fn main() {
                     tauri::webview::NewWindowResponse::Deny
                 });
 
-            let app_handle_for_mapion_new = app.handle().clone();
-            let webview_mapion = WebviewBuilder::new("pane2_mapion", WebviewUrl::External(tauri::Url::parse("https://www.mapion.co.jp/").unwrap()))
-                .initialization_script(init_script_pane2)
-                .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                .on_new_window(move |url, _new_window| {
-                    let url_str = url.as_str();
-                    if let Ok(target_url) = tauri::Url::parse(url_str) {
-                        add_pane3_tab(app_handle_for_mapion_new.clone(), target_url);
-                    }
-                    tauri::webview::NewWindowResponse::Deny
-                });
-
             let _wv_google = window.add_child(webview_google, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv_googleearth = window.add_child(webview_googleearth, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv_yahoo = window.add_child(webview_yahoo, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
-            let _wv_mapion = window.add_child(webview_mapion, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv3 = window.add_child(webview3_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             
             let state = app.state::<SplitterState>();

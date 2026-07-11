@@ -88,12 +88,162 @@
     <div class="container">
         <h1>ポータル</h1>
         
+        <div class="link-list">
+            <!-- 既存のポータルリンクなどがあればここに入る -->
+            
+            <!-- 地図連携UI -->
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-top: 20px;">
+                <h3 style="margin-top: 0; font-size: 15px; color: #1e293b; margin-bottom: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">🗺️ 地図の連携</h3>
+                
+                <button class="portal-btn" onclick="getLocation(event)" style="width: 100%; justify-content: center; background-color: #22c55e; color: white; border-color: #16a34a; padding: 10px; margin-bottom: 15px;">
+                    <span class="icon" style="margin-right: 8px;">📍</span> 画面2から位置情報を取得
+                </button>
 
-        
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                    <div>
+                        <label style="font-size: 12px; font-weight: bold; color: #64748b;">緯度 (Lat)</label>
+                        <input type="text" id="input-lat" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; font-weight: bold; color: #64748b;">経度 (Lng)</label>
+                        <input type="text" id="input-lng" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label style="font-size: 12px; font-weight: bold; color: #64748b;">縮尺 (Zoom) ※任意</label>
+                        <input type="text" id="input-zoom" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;" placeholder="例: 15">
+                    </div>
+                </div>
+
+                <button class="portal-btn" onclick="moveMap(event)" style="width: 100%; justify-content: center; background-color: #3b82f6; color: white; border-color: #2563eb; padding: 10px;">
+                    <span class="icon" style="margin-right: 8px;">🚀</span> この位置へ画面2の地図を移動
+                </button>
+
+                <div id="location-status" style="margin-top: 10px; font-size: 12px; color: #dc2626; display: none; text-align: center; word-break: break-all;"></div>
+            </div>
+        </div>
 
     </div>
 
     <script>
+        function parseLocation(urlStr) {
+            try {
+                const url = new URL(urlStr);
+                let lat = null, lng = null, zoom = null;
+
+                // Google Maps 形式: /@35.681236,139.767125,15z
+                const matchAt = urlStr.match(/@(-?\d+\.\d+),(-?\d+\.\d+),(\d+(?:\.\d+)?)z/);
+                if (matchAt) {
+                    lat = matchAt[1];
+                    lng = matchAt[2];
+                    zoom = matchAt[3];
+                } else {
+                    // Yahoo Map 形式: ?lat=35.681236&lon=139.767125&zoom=15
+                    const params = url.searchParams;
+                    if (params.has('lat') && params.has('lon')) {
+                        lat = params.get('lat');
+                        lng = params.get('lon');
+                        zoom = params.get('zoom') || params.get('z');
+                    }
+                }
+
+                if (lat && lng) {
+                    return { lat, lng, zoom, originalUrl: urlStr };
+                }
+                return null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function getLocation(event) {
+            if (event) event.preventDefault();
+            const statusDiv = document.getElementById('location-status');
+            statusDiv.style.display = 'none';
+
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                try {
+                    const url = await window.__TAURI__.core.invoke('get_pane2_url');
+                    const loc = parseLocation(url);
+                    if (loc) {
+                        document.getElementById('input-lat').value = loc.lat;
+                        document.getElementById('input-lng').value = loc.lng;
+                        document.getElementById('input-zoom').value = loc.zoom || '';
+                        statusDiv.style.display = 'block';
+                        statusDiv.style.color = '#16a34a';
+                        statusDiv.textContent = "位置情報を取得しました。";
+                    } else {
+                        statusDiv.style.display = 'block';
+                        statusDiv.style.color = '#dc2626';
+                        statusDiv.innerHTML = `位置情報を解析できませんでした。<br><a href="${url}" target="_blank" style="color: #3b82f6;">${url}</a>`;
+                    }
+                } catch (e) {
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.color = '#dc2626';
+                    statusDiv.textContent = "位置情報の取得に失敗しました: " + e;
+                }
+            } else {
+                statusDiv.style.display = 'block';
+                statusDiv.style.color = '#dc2626';
+                statusDiv.textContent = "Tauri環境で実行してください。";
+            }
+        }
+
+        async function moveMap(event) {
+            if (event) event.preventDefault();
+            const statusDiv = document.getElementById('location-status');
+            
+            const lat = document.getElementById('input-lat').value.trim();
+            const lng = document.getElementById('input-lng').value.trim();
+            let zoom = document.getElementById('input-zoom').value.trim();
+            if (!zoom) zoom = '15'; // デフォルト
+
+            if (!lat || !lng) {
+                statusDiv.style.display = 'block';
+                statusDiv.style.color = '#dc2626';
+                statusDiv.textContent = "緯度と経度を入力してください。";
+                return;
+            }
+
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                try {
+                    // 現在画面2で開いている地図サービスを判定
+                    let currentUrlStr = "";
+                    try {
+                        currentUrlStr = await window.__TAURI__.core.invoke('get_pane2_url');
+                    } catch(err) {}
+
+                    // デフォルトはGoogle Maps
+                    let targetUrl = `https://www.google.com/maps/@${lat},${lng},${zoom}z`;
+                    
+                    try {
+                        if (currentUrlStr) {
+                            const url = new URL(currentUrlStr);
+                            if (url.hostname.includes('yahoo.co.jp')) {
+                                targetUrl = `https://map.yahoo.co.jp/?lat=${lat}&lon=${lng}&zoom=${zoom}`;
+                            } else if (url.hostname.includes('earth.google.com')) {
+                                // Google Earth は複雑なURLパラメータを使用するが、簡易的に以下で移動可能
+                                targetUrl = `https://earth.google.com/web/@${lat},${lng}`;
+                            }
+                        }
+                    } catch(err) {
+                        // パース失敗時はデフォルトのGoogle Mapsを使用
+                    }
+
+                    await window.__TAURI__.core.invoke('open_in_pane2', { url: targetUrl });
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.color = '#16a34a';
+                    statusDiv.textContent = "画面2の地図を移動しました。";
+                } catch (e) {
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.color = '#dc2626';
+                    statusDiv.textContent = "移動に失敗しました: " + e;
+                }
+            } else {
+                statusDiv.style.display = 'block';
+                statusDiv.style.color = '#dc2626';
+                statusDiv.textContent = "Tauri環境で実行してください。";
+            }
+        }
         // 1. BOX専用のオープン関数
         async function openBox(event, url, target) {
             if (event) event.preventDefault();
