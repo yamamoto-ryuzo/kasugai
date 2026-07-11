@@ -136,8 +136,7 @@
 <body>
     <div class="header-tabs">
         <div class="tabs">
-            <button class="tab-btn active" id="tab-editor" onclick="switchTab('editor')">📝 メモ帳</button>
-            <button class="tab-btn" id="tab-settings" onclick="switchTab('settings')">⚙️ システム設定</button>
+            <button class="tab-btn active" id="tab-settings" onclick="switchTab('settings')">⚙️ システム設定</button>
             <button class="tab-btn" id="tab-box" onclick="switchTab('box')">📦 BOX</button>
             <button class="tab-btn" id="tab-reearth" onclick="switchTab('reearth')">🌐 Re:Earth</button>
             <button class="tab-btn" id="tab-google" onclick="switchTab('google')">🗺️ Google Map</button>
@@ -147,18 +146,9 @@
     </div>
 
     <div class="container">
-        <h1 id="view-title">メモ帳</h1>
+        <h1 id="view-title">システム設定</h1>
 
-        <div id="content-editor" class="tab-content">
-            <p>この画面は完全に独立したメモ帳です。ここに入力されたテキストは、メモリやローカルストレージに保持できます。</p>
-            <div class="interactive-section">
-                <textarea id="memo" placeholder="ここに自由にメモを入力してください..."></textarea>
-                <button class="btn" onclick="saveMemo()">ローカルに保存</button>
-                <div id="status" class="status-msg"></div>
-            </div>
-        </div>
-
-        <div id="content-settings" class="tab-content" style="display: none;">
+        <div id="content-settings" class="tab-content">
             <p>システムの動作に関する設定を行います。変更は即座に反映されます。</p>
             <div class="interactive-section" style="gap: 15px;">
                 <!-- BOX 設定セクション -->
@@ -214,21 +204,18 @@
         // タブ切り替え処理
         async function switchTab(tabName) {
             // UIのアクティブ状態の更新
-            const tabs = ['editor', 'settings', 'box', 'reearth', 'google', 'googleearth', 'yahoo'];
+            const tabs = ['settings', 'box', 'reearth', 'google', 'googleearth', 'yahoo'];
             tabs.forEach(t => {
                 const el = document.getElementById('tab-' + t);
                 if (el) el.classList.toggle('active', tabName === t);
             });
 
             // ローカルコンテンツの表示切り替え
-            const isLocal = (tabName === 'editor' || tabName === 'settings');
-            document.getElementById('content-editor').style.display = tabName === 'editor' ? 'block' : 'none';
+            const isLocal = (tabName === 'settings');
             document.getElementById('content-settings').style.display = tabName === 'settings' ? 'block' : 'none';
 
             const title = document.getElementById('view-title');
-            if (tabName === 'editor') {
-                title.textContent = 'メモ帳';
-            } else if (tabName === 'settings') {
+            if (tabName === 'settings') {
                 title.textContent = 'システム設定';
             } else {
                 title.textContent = ''; // 外部ビューの場合はタイトル不要
@@ -265,13 +252,8 @@
             }
         }
 
-        // ロード時にメモを復元
+        // ロード時の初期化処理
         window.onload = async function() {
-            const saved = localStorage.getItem("kasugai_memo");
-            if (saved) {
-                document.getElementById("memo").value = saved;
-            }
-
             // Re:Earth URLの復元
             const savedReearth = localStorage.getItem("reearth_url") || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
             document.getElementById("reearth-url-input").value = savedReearth;
@@ -302,11 +284,8 @@
                 }
             }
 
-            // クエリパラメータ settings=true がある場合はシステム設定を表示
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('settings') === 'true') {
-                switchTab('settings');
-            }
+            // デフォルトでシステム設定タブをアクティブにする
+            switchTab('settings');
         };
 
         async function saveAllSettings() {
@@ -369,17 +348,6 @@
                 status.textContent = "";
             }, 3000);
         }
-
-        function saveMemo() {
-            const text = document.getElementById("memo").value;
-            localStorage.setItem("kasugai_memo", text);
-            const status = document.getElementById("status");
-            status.textContent = "保存しました！ (" + new Date().toLocaleTimeString() + ")";
-            setTimeout(() => {
-                status.textContent = "";
-            }, 3000);
-        }
-
 
         // --- スプリッターのドラッグ・リサイズ用中継処理 ---
         (function() {
