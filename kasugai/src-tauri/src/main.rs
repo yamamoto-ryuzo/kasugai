@@ -17,7 +17,6 @@ struct SplitterState {
     ratio2: Mutex<f64>,
     saved_ratios: Mutex<Option<(f64, f64)>>,
     pane2_current_host: Mutex<Option<String>>,
-    pane3_current_host: Mutex<Option<String>>,
     reearth_email: Mutex<Option<String>>,
     box_email: Mutex<Option<String>>,
     active_pane2: Mutex<String>,
@@ -306,36 +305,35 @@ fn open_in_pane2(
     if let Ok(target_url) = tauri::Url::parse(&url) {
         let host = target_url.host_str().map(|h| h.to_string());
         
-        let mut target_str = "pane2";
-        if url.contains("earth.google.com") {
+        let target_str = if url.contains("earth.google.com") {
             *state.active_pane2.lock().unwrap() = "googleearth".to_string();
-            target_str = "pane2_googleearth";
             update_splitter_internal(&app_handle, &state);
+            "pane2_googleearth"
         } else if url.contains("google.com/maps") {
             *state.active_pane2.lock().unwrap() = "google".to_string();
-            target_str = "pane2_google";
             update_splitter_internal(&app_handle, &state);
+            "pane2_google"
         } else if url.contains("box.com") {
             *state.active_pane2.lock().unwrap() = "box".to_string();
-            target_str = "pane2_box";
             update_splitter_internal(&app_handle, &state);
+            "pane2_box"
         } else if url.contains("reearth.io") {
             *state.active_pane2.lock().unwrap() = "reearth".to_string();
-            target_str = "pane2_reearth";
             update_splitter_internal(&app_handle, &state);
+            "pane2_reearth"
         } else if url.contains("map.yahoo.co.jp") {
             *state.active_pane2.lock().unwrap() = "yahoo".to_string();
-            target_str = "pane2_yahoo";
             update_splitter_internal(&app_handle, &state);
+            "pane2_yahoo"
         } else if url.contains("mapion.co.jp") {
             *state.active_pane2.lock().unwrap() = "mapion".to_string();
-            target_str = "pane2_mapion";
             update_splitter_internal(&app_handle, &state);
+            "pane2_mapion"
         } else {
             *state.active_pane2.lock().unwrap() = "default".to_string();
-            target_str = "pane2";
             update_splitter_internal(&app_handle, &state);
-        }
+            "pane2"
+        };
 
         if target_str == "pane3" {
             add_pane3_tab(app_handle.clone(), target_url);
@@ -368,34 +366,33 @@ fn open_in_pane3(
     url: String,
 ) {
     if let Ok(target_url) = tauri::Url::parse(&url) {
-        let mut target_str = "pane3";
-        if url.contains("earth.google.com") {
+        let target_str = if url.contains("earth.google.com") {
             *state.active_pane2.lock().unwrap() = "googleearth".to_string();
-            target_str = "pane2_googleearth";
             update_splitter_internal(&app_handle, &state);
+            "pane2_googleearth"
         } else if url.contains("google.com/maps") {
             *state.active_pane2.lock().unwrap() = "google".to_string();
-            target_str = "pane2_google";
             update_splitter_internal(&app_handle, &state);
+            "pane2_google"
         } else if url.contains("box.com") {
             *state.active_pane2.lock().unwrap() = "box".to_string();
-            target_str = "pane2_box";
             update_splitter_internal(&app_handle, &state);
+            "pane2_box"
         } else if url.contains("reearth.io") {
             *state.active_pane2.lock().unwrap() = "reearth".to_string();
-            target_str = "pane2_reearth";
             update_splitter_internal(&app_handle, &state);
+            "pane2_reearth"
         } else if url.contains("map.yahoo.co.jp") {
             *state.active_pane2.lock().unwrap() = "yahoo".to_string();
-            target_str = "pane2_yahoo";
             update_splitter_internal(&app_handle, &state);
+            "pane2_yahoo"
         } else if url.contains("mapion.co.jp") {
             *state.active_pane2.lock().unwrap() = "mapion".to_string();
-            target_str = "pane2_mapion";
             update_splitter_internal(&app_handle, &state);
+            "pane2_mapion"
         } else {
-            target_str = "pane3";
-        }
+            "pane3"
+        };
 
         if target_str == "pane3" {
             add_pane3_tab(app_handle.clone(), target_url);
@@ -731,7 +728,6 @@ fn main() {
             ratio2: Mutex::new(0.8),
             saved_ratios: Mutex::new(None),
             pane2_current_host: Mutex::new(None),
-            pane3_current_host: Mutex::new(None),
             reearth_email: Mutex::new(None),
             box_email: Mutex::new(None),
             active_pane2: Mutex::new("default".to_string()),
@@ -844,8 +840,6 @@ fn main() {
                     tauri::webview::NewWindowResponse::Deny
                 });
 
-            let app_handle_for_nav3 = app.handle().clone();
-            let app_handle_for_new_window3 = app.handle().clone();
             let webview3_builder = WebviewBuilder::new("pane3", WebviewUrl::App("index3.html".into()))
                 .initialization_script(init_script_pane3)
                 .on_navigation(move |url| {
