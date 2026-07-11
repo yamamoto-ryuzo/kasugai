@@ -10,7 +10,7 @@
             background-color: #ffffff; /* シンプルな白背景 */
             color: #333;
             margin: 0;
-            padding: 6px 0; /* 左右の余白を0にし、95%幅の中央寄せに一任する */
+            padding: 6px 8px 6px 3px; /* 左右に少し物理余白（右8px、左3px）を設けて、スプリッター重なり回避と美観を両立 */
             display: flex;
             flex-direction: column;
             min-height: 100vh;
@@ -26,8 +26,7 @@
             display: flex;
             flex-direction: column;
             min-width: 80px; /* スプリッターの幅を考慮し、最小幅を 80px に微調整 */
-            width: 95%; /* 緯度経度等（全体）の表示を95%にする */
-            margin: 0 auto; /* 中央寄せ */
+            width: 100%; /* 左右の余白はbodyのpaddingで綺麗にとるため、コンテナは100%幅にする */
         }
         .link-list {
             display: flex;
