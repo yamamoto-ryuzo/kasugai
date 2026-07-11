@@ -252,13 +252,82 @@
             background-color: #fff;
             color: #be123c;
         }
+        /* AI回答用のマークダウンスタイル */
+        .message.gemini h1, .message.gemini h2, .message.gemini h3, .message.gemini h4 {
+            margin-top: 12px;
+            margin-bottom: 6px;
+            color: #1e3a8a;
+            font-weight: bold;
+        }
+        .message.gemini h1 { font-size: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }
+        .message.gemini h2 { font-size: 15px; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; }
+        .message.gemini h3 { font-size: 14px; }
+        .message.gemini h4 { font-size: 13px; }
+        .message.gemini ul, .message.gemini ol {
+            margin-top: 6px;
+            margin-bottom: 6px;
+            padding-left: 20px;
+        }
+        .message.gemini li {
+            margin-bottom: 4px;
+        }
+        .message.gemini p {
+            margin: 6px 0;
+        }
+        .message.gemini table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+        .message.gemini th, .message.gemini td {
+            border: 1px solid #cbd5e1;
+            padding: 6px 10px;
+            text-align: left;
+        }
+        .message.gemini th {
+            background-color: #f1f5f9;
+            font-weight: bold;
+        }
+        .message.gemini blockquote {
+            margin: 8px 0;
+            padding-left: 12px;
+            border-left: 4px solid #cbd5e1;
+            color: #475569;
+            font-style: italic;
+        }
+        .message.gemini code {
+            background-color: #f1f5f9;
+            color: #eb5757;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .message.gemini pre {
+            background-color: #1e293b;
+            color: #f8fafc;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 13px;
+            margin: 8px 0;
+        }
+        .message.gemini pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+            font-size: inherit;
+        }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div class="header-tabs">
         <div class="tabs" id="tabs-container">
             <button class="tab-btn active" id="tab-default" onclick="switchPane3Tab('default')">
-                <span class="tab-title">🏠 ホーム</span>
+                <span class="tab-title">✨  Gemini</span>
             </button>
         </div>
     </div>
@@ -450,8 +519,17 @@
             });
         }
 
-        // 簡易的なマークダウン・改行パーサー
+        // マークダウンパーサー（marked.js が読み込めていればそれを使用し、なければ簡易フォールバック）
         function formatMarkdown(text) {
+            if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
+                try {
+                    return marked.parse(text);
+                } catch (e) {
+                    console.error("marked.parse error:", e);
+                }
+            }
+            
+            // 以下、簡易フォールバック用パーサー
             let escaped = escapeHtml(text);
             
             // コードブロック ```code```
