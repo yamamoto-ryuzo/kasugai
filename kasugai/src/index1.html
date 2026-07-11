@@ -96,10 +96,10 @@
                 <h3 style="margin-top: 0; font-size: 15px; color: #1e293b; margin-bottom: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">🗺️ 地図の連携</h3>
                 
                 <button class="portal-btn" onclick="getLocation(event)" style="width: 100%; justify-content: center; background-color: #22c55e; color: white; border-color: #16a34a; padding: 10px; margin-bottom: 15px;">
-                    <span class="icon" style="margin-right: 8px;">📍</span> 画面2から位置情報を取得
+                    <span class="icon" style="margin-right: 8px;">📍</span>取得
                 </button>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
                     <div>
                         <label style="font-size: 12px; font-weight: bold; color: #64748b;">緯度 (Lat)</label>
                         <input type="text" id="input-lat" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;">
@@ -108,14 +108,14 @@
                         <label style="font-size: 12px; font-weight: bold; color: #64748b;">経度 (Lng)</label>
                         <input type="text" id="input-lng" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;">
                     </div>
-                    <div style="grid-column: span 2;">
+                    <div>
                         <label style="font-size: 12px; font-weight: bold; color: #64748b;">縮尺 (Zoom) ※任意</label>
                         <input type="text" id="input-zoom" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;" placeholder="例: 15">
                     </div>
                 </div>
 
                 <button class="portal-btn" onclick="moveMap(event)" style="width: 100%; justify-content: center; background-color: #3b82f6; color: white; border-color: #2563eb; padding: 10px;">
-                    <span class="icon" style="margin-right: 8px;">🚀</span> この位置へ画面2の地図を移動
+                    <span class="icon" style="margin-right: 8px;">🚀</span> 移動
                 </button>
 
                 <div id="location-status" style="margin-top: 10px; font-size: 12px; color: #dc2626; display: none; text-align: center; word-break: break-all;"></div>
@@ -140,20 +140,27 @@
                         // Google Earthのカメラ距離(d)を標準のZoom値に簡易変換（詳細な小数値を保持）
                         zoom = Number(27 - Math.log2(distance || 5000)).toFixed(4);
                     }
-                } else {
+                } else if (url.hostname.includes('google.com')) {
                     // Google Maps 形式: /@35.681236,139.767125,15z
                     const matchAt = urlStr.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),(\d+(?:\.\d+)?)z/);
                     if (matchAt) {
                         lat = Number(matchAt[1]).toFixed(6);
                         lng = Number(matchAt[2]).toFixed(6);
                         zoom = Number(matchAt[3]).toFixed(4);
-                    } else {
-                        // Yahoo Map 形式: ?lat=35.681236&lon=139.767125&zoom=15
-                        const params = url.searchParams;
-                        if (params.has('lat') && params.has('lon')) {
-                            lat = Number(params.get('lat')).toFixed(6);
-                            lng = Number(params.get('lon')).toFixed(6);
-                            zoom = Number(params.get('zoom') || params.get('z') || 15).toFixed(4);
+                    }
+                } else {
+                    // Yahoo Map 形式: ?lat=35.681236&lon=139.767125&zoom=15 (またはハッシュ等の形式)
+                    const matchLat = urlStr.match(/[?&#]lat=(-?\d+(?:\.\d+)?)/);
+                    const matchLon = urlStr.match(/[?&#]lon=(-?\d+(?:\.\d+)?)/);
+                    const matchZoom = urlStr.match(/[?&#](?:zoom|z)=(\d+(?:\.\d+)?)/);
+
+                    if (matchLat && matchLon) {
+                        lat = Number(matchLat[1]).toFixed(6);
+                        lng = Number(matchLon[1]).toFixed(6);
+                        if (matchZoom) {
+                            zoom = Number(matchZoom[1]).toFixed(4);
+                        } else {
+                            zoom = "15.0000";
                         }
                     }
                 }
