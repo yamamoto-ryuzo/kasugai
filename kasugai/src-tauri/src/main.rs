@@ -342,15 +342,32 @@ fn open_in_pane2(
                 if let Some(wv) = window.get_webview(target_str) {
                     if let Some(h) = host { *state.pane2_current_host.lock().unwrap() = Some(h); }
                     
+                    let mut is_googleearth_smooth = false;
                     let should_navigate = if let Ok(current_url) = wv.url() {
-                        // 現在のURLと異なる場合（位置情報などのパラメータ変更含む）は必ずナビゲートする
-                        current_url.as_str() != target_url.as_str() && current_url.as_str() != format!("{}/", target_url.as_str())
+                        if target_str == "pane2_googleearth" && current_url.host_str() == Some("earth.google.com") {
+                            is_googleearth_smooth = true;
+                            false
+                        } else {
+                            // 現在のURLと異なる場合（位置情報などのパラメータ変更含む）は必ずナビゲートする
+                            current_url.as_str() != target_url.as_str() && current_url.as_str() != format!("{}/", target_url.as_str())
+                        }
                     } else {
                         true
                     };
                     
                     if should_navigate {
                         let _ = wv.navigate(target_url);
+                    } else if is_googleearth_smooth {
+                        let js = format!(
+                            r#"
+                            (function() {{
+                                window.history.pushState(null, null, "{}");
+                                window.dispatchEvent(new PopStateEvent('popstate', {{ state: null }}));
+                            }})();
+                            "#,
+                            target_url.as_str()
+                        );
+                        let _ = wv.eval(&js);
                     }
                     let _ = wv.set_focus();
                 }
@@ -399,14 +416,31 @@ fn open_in_pane3(
         } else {
             if let Some(window) = app_handle.get_window("main") {
                 if let Some(wv) = window.get_webview(target_str) {
+                    let mut is_googleearth_smooth = false;
                     let should_navigate = if let Ok(current_url) = wv.url() {
-                        current_url.as_str() != target_url.as_str() && current_url.as_str() != format!("{}/", target_url.as_str())
+                        if target_str == "pane2_googleearth" && current_url.host_str() == Some("earth.google.com") {
+                            is_googleearth_smooth = true;
+                            false
+                        } else {
+                            current_url.as_str() != target_url.as_str() && current_url.as_str() != format!("{}/", target_url.as_str())
+                        }
                     } else {
                         true
                     };
                     
                     if should_navigate {
                         let _ = wv.navigate(target_url);
+                    } else if is_googleearth_smooth {
+                        let js = format!(
+                            r#"
+                            (function() {{
+                                window.history.pushState(null, null, "{}");
+                                window.dispatchEvent(new PopStateEvent('popstate', {{ state: null }}));
+                            }})();
+                            "#,
+                            target_url.as_str()
+                        );
+                        let _ = wv.eval(&js);
                     }
                     let _ = wv.set_focus();
                 }

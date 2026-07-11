@@ -161,9 +161,7 @@
                         document.getElementById('input-lat').value = loc.lat;
                         document.getElementById('input-lng').value = loc.lng;
                         document.getElementById('input-zoom').value = loc.zoom || '';
-                        statusDiv.style.display = 'block';
-                        statusDiv.style.color = '#16a34a';
-                        statusDiv.textContent = "位置情報を取得しました。";
+                        statusDiv.style.display = 'none';
                     } else {
                         statusDiv.style.display = 'block';
                         statusDiv.style.color = '#dc2626';
@@ -224,9 +222,7 @@
                     }
 
                     await window.__TAURI__.core.invoke('open_in_pane2', { url: targetUrl });
-                    statusDiv.style.display = 'block';
-                    statusDiv.style.color = '#16a34a';
-                    statusDiv.textContent = "画面2の地図を移動しました。";
+                    statusDiv.style.display = 'none';
                 } catch (e) {
                     statusDiv.style.display = 'block';
                     statusDiv.style.color = '#dc2626';
