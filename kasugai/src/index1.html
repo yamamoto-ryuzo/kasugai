@@ -10,7 +10,7 @@
             background-color: #ffffff; /* シンプルな白背景 */
             color: #333;
             margin: 0;
-            padding: 6px 12px 6px 2px; /* 右側の余白をさらに12pxに広げてスプリッターとの重なりを完全回避、左は2px */
+            padding: 6px 0; /* 左右の余白を0にし、95%幅の中央寄せに一任する */
             display: flex;
             flex-direction: column;
             min-height: 100vh;
@@ -26,6 +26,8 @@
             display: flex;
             flex-direction: column;
             min-width: 80px; /* スプリッターの幅を考慮し、最小幅を 80px に微調整 */
+            width: 95%; /* 緯度経度等（全体）の表示を95%にする */
+            margin: 0 auto; /* 中央寄せ */
         }
         .link-list {
             display: flex;
@@ -72,7 +74,7 @@
             <div style="display: flex; flex-direction: column; gap: 8px;">
                 <div style="font-size: 13px; font-weight: bold; color: #1e293b; text-align: center; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">🗺️ 連携</div>
                 
-                <button class="portal-btn" onclick="getLocation(event)" style="width: 100%; background-color: #22c55e; color: white; border-color: #16a34a; cursor: pointer;" title="位置情報を取得">
+                <button class="portal-btn" onclick="getLocation(event)" style="width: 95%; background-color: #22c55e; color: white; border-color: #16a34a; cursor: pointer;" title="位置情報を取得">
                     取得
                 </button>
 
@@ -88,7 +90,7 @@
                     </div>
                 </div>
 
-                <button class="portal-btn" onclick="moveMap(event)" style="width: 100%; background-color: #3b82f6; color: white; border-color: #2563eb; cursor: pointer;" title="地図を移動">
+                <button class="portal-btn" onclick="moveMap(event)" style="width: 95%; background-color: #3b82f6; color: white; border-color: #2563eb; cursor: pointer;" title="地図を移動">
                     移動
                 </button>
 
