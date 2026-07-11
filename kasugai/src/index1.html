@@ -13,8 +13,9 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            min-height: 100vh;
             box-sizing: border-box;
+            overflow: auto;
         }
         .container {
             background-color: #ffffff;
@@ -24,6 +25,7 @@
             flex-grow: 1;
             display: flex;
             flex-direction: column;
+            min-width: 220px;
         }
         h1 {
             color: #1e3a8a;
@@ -86,17 +88,16 @@
 </head>
 <body>
     <div class="container">
-        <h1>ポータル</h1>
-        
+       
         <div class="link-list">
             <!-- 既存のポータルリンクなどがあればここに入る -->
             
             <!-- 地図連携UI -->
             <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-top: 20px;">
-                <h3 style="margin-top: 0; font-size: 15px; color: #1e293b; margin-bottom: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">🗺️ 地図の連携</h3>
+                <h3 style="margin-top: 0; font-size: 15px; color: #1e293b; margin-bottom: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">🗺️ 連携</h3>
                 
                 <button class="portal-btn" onclick="getLocation(event)" style="width: 100%; justify-content: center; background-color: #22c55e; color: white; border-color: #16a34a; padding: 10px; margin-bottom: 15px;">
-                    <span class="icon" style="margin-right: 8px;">📍</span>取得
+                    取得
                 </button>
 
                 <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
@@ -109,13 +110,13 @@
                         <input type="text" id="input-lng" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;">
                     </div>
                     <div>
-                        <label style="font-size: 12px; font-weight: bold; color: #64748b;">縮尺 (Zoom) ※任意</label>
+                        <label style="font-size: 12px; font-weight: bold; color: #64748b;">縮尺 (Zoom) </label>
                         <input type="text" id="input-zoom" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;" placeholder="例: 15">
                     </div>
                 </div>
 
                 <button class="portal-btn" onclick="moveMap(event)" style="width: 100%; justify-content: center; background-color: #3b82f6; color: white; border-color: #2563eb; padding: 10px;">
-                    <span class="icon" style="margin-right: 8px;">🚀</span> 移動
+                    移動
                 </button>
 
                 <div id="location-status" style="margin-top: 10px; font-size: 12px; color: #dc2626; display: none; text-align: center; word-break: break-all;"></div>

@@ -761,6 +761,15 @@ fn main() {
                 .resizable(true)
                 .maximized(true)
                 .build()?;
+
+            let app_handle_for_resize = app.handle().clone();
+            window.on_window_event(move |event| {
+                if let tauri::WindowEvent::Resized(_) = event {
+                    let state = app_handle_for_resize.state::<SplitterState>();
+                    update_splitter_internal(&app_handle_for_resize, &state);
+                }
+            });
+
             let size = window.inner_size()?;
             let width = size.width as f64;
             let height = size.height as f64;
