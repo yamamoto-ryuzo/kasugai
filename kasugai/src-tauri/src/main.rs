@@ -495,6 +495,12 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     let x1 = w * ratio1;
     let x2 = w * ratio2;
     let tab_height = 50.0; // 画面2上部のタブ領域の高さ
+
+    let rect_hidden = Rect {
+        position: Position::Physical(PhysicalPosition::new(-10000, -10000)),
+        size: Size::Physical(PhysicalSize::new(1, 1)),
+    };
+
     if let Some(base_wv) = window.get_webview("main_webview") {
         let _ = base_wv.set_bounds(Rect {
             position: Position::Physical(PhysicalPosition::new(0, 0)),
@@ -503,10 +509,14 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     }
     if let Some(wv1) = window.get_webview("pane1") {
         let width = (x1 - sh).max(0.0) as u32;
-        let _ = wv1.set_bounds(Rect {
-            position: Position::Physical(PhysicalPosition::new(0, 0)),
-            size: Size::Physical(PhysicalSize::new(width, h as u32)),
-        });
+        if width < 220 {
+            let _ = wv1.set_bounds(rect_hidden);
+        } else {
+            let _ = wv1.set_bounds(Rect {
+                position: Position::Physical(PhysicalPosition::new(0, 0)),
+                size: Size::Physical(PhysicalSize::new(width, h as u32)),
+            });
+        }
     }
 
     let rect_center = Rect {
@@ -524,10 +534,6 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     let rect_right_dedicated = Rect {
         position: Position::Physical(PhysicalPosition::new((x2 + sh) as i32, tab_height as i32)),
         size: Size::Physical(PhysicalSize::new((w - (x2 + sh)).max(0.0) as u32, (h - tab_height).max(0.0) as u32)),
-    };
-    let rect_hidden = Rect {
-        position: Position::Physical(PhysicalPosition::new(-10000, -10000)),
-        size: Size::Physical(PhysicalSize::new(1, 1)),
     };
 
     let pane2_rect = rect_center;
