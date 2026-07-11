@@ -515,8 +515,8 @@ fn update_splitter_internal(app_handle: &tauri::AppHandle, state: &tauri::State<
 fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f64, ratio2: f64, active_pane2: &str, state: &SplitterState) {
     let splitter_width = 8.0;
     let sh = splitter_width / 2.0;
-    // 画面1が開いている時（ratio1 != 0.0 の時）は、常に最小幅 75px で完全に固定する
-    let x1 = if ratio1 == 0.0 { 0.0 } else { 75.0 + sh };
+    // 画面1が開いている時（ratio1 != 0.0 の時）は、常に最小幅 80px で完全に固定する
+    let x1 = if ratio1 == 0.0 { 0.0 } else { 80.0 + sh };
     let x2 = w * ratio2;
     let tab_height = 50.0; // 画面2上部のタブ領域の高さ
 
@@ -537,7 +537,7 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
         } else {
             let _ = wv1.set_bounds(Rect {
                 position: Position::Physical(PhysicalPosition::new(0, 0)),
-                size: Size::Physical(PhysicalSize::new(75, h as u32)),
+                size: Size::Physical(PhysicalSize::new(80, h as u32)),
             });
         }
     }
