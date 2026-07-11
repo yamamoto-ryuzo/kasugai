@@ -354,6 +354,20 @@
                 </div>
             </div>
 
+            <div id="token-meter-container" style="display: none; padding: 6px 10px; margin-bottom: 8px; background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 11px; color: #475569; width: 100%; box-sizing: border-box;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <span style="font-weight: bold;">📊 コンテキスト使用量 (トークン数):</span>
+                    <span id="token-text" style="font-family: monospace;">0 / 1,048,576 (0.00%)</span>
+                </div>
+                <div style="width: 100%; height: 6px; background-color: #cbd5e1; border-radius: 3px; overflow: hidden;">
+                    <div id="token-bar" style="width: 0%; height: 100%; background-color: #10b981; transition: width 0.3s;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 3px; color: #64748b; font-size: 10px;">
+                    <span id="token-detail-prompt">入力: -</span>
+                    <span id="token-detail-candidates">出力: -</span>
+                </div>
+            </div>
+
             <div class="chat-input-area">
                 <button class="clear-btn" onclick="clearHistory()" title="会話履歴をクリア">🗑️</button>
                 <textarea class="chat-input" id="chat-input" rows="2" placeholder="Gemini にメッセージを送信..." onkeydown="handleKeyDown(event)"></textarea>
@@ -414,6 +428,51 @@
                     <span class="message-time">${new Date().toLocaleTimeString()}</span>
                 </div>
             `;
+            const meterContainer = document.getElementById('token-meter-container');
+            if (meterContainer) {
+                meterContainer.style.display = 'none';
+            }
+        }
+
+        function updateTokenMeter(promptTokens, candidatesTokens, totalTokens) {
+            const meterContainer = document.getElementById('token-meter-container');
+            const tokenText = document.getElementById('token-text');
+            const tokenBar = document.getElementById('token-bar');
+            const promptDetail = document.getElementById('token-detail-prompt');
+            const candidatesDetail = document.getElementById('token-detail-candidates');
+
+            if (!meterContainer || !totalTokens) return;
+
+            // モデルに基づいて最大トークンを設定
+            const modelSelect = document.getElementById('gemini-model-select');
+            const model = modelSelect ? modelSelect.value : 'gemini-1.5-flash';
+            
+            let maxTokens = 1048576; // 1,048,576 (約100万トークン、Flash系のデフォルト)
+            if (model.includes('pro')) {
+                maxTokens = 2097152; // 2,097,152 (約200万トークン、Pro系)
+            }
+
+            const percentage = Math.min((totalTokens / maxTokens) * 100, 100);
+
+            meterContainer.style.display = 'block';
+            tokenText.textContent = `${totalTokens.toLocaleString()} / ${maxTokens.toLocaleString()} (${percentage.toFixed(4)}%)`;
+            tokenBar.style.width = `${percentage}%`;
+
+            // 色を変更（例: 80%以上は黄色、95%以上は赤）
+            if (percentage >= 95) {
+                tokenBar.style.backgroundColor = '#ef4444';
+            } else if (percentage >= 80) {
+                tokenBar.style.backgroundColor = '#f59e0b';
+            } else {
+                tokenBar.style.backgroundColor = '#10b981';
+            }
+
+            if (promptTokens !== undefined && promptTokens !== null) {
+                promptDetail.textContent = `入力: ${promptTokens.toLocaleString()} トークン`;
+            }
+            if (candidatesTokens !== undefined && candidatesTokens !== null) {
+                candidatesDetail.textContent = `出力: ${candidatesTokens.toLocaleString()} トークン`;
+            }
         }
 
         function saveSelectedModel() {
@@ -474,7 +533,7 @@
             try {
                 if (window.__TAURI__ && window.__TAURI__.core) {
                     // Rust側の call_gemini コマンドを呼び出す
-                    const result = await window.__TAURI__.core.invoke("call_gemini", { prompt: prompt, model: model });
+                    const res = await window.__TAURI__.core.invoke("call_gemini", { prompt: prompt, model: model });
                     
                     // ローディング削除
                     loadingMsgEl.remove();
@@ -482,8 +541,13 @@
                     // Geminiの応答を追加
                     const geminiMsgEl = document.createElement('div');
                     geminiMsgEl.className = 'message gemini';
-                    geminiMsgEl.innerHTML = `${formatMarkdown(result)}<span class="message-time">${new Date().toLocaleTimeString()}</span>`;
+                    geminiMsgEl.innerHTML = `${formatMarkdown(res.text)}<span class="message-time">${new Date().toLocaleTimeString()}</span>`;
                     chatMessages.appendChild(geminiMsgEl);
+
+                    // メーターの更新
+                    if (res.total_tokens) {
+                        updateTokenMeter(res.prompt_tokens, res.candidates_tokens, res.total_tokens);
+                    }
                 } else {
                     loadingMsgEl.remove();
                     const errEl = document.createElement('div');

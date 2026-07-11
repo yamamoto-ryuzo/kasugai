@@ -784,8 +784,16 @@ fn preload_webview(app_handle: tauri::AppHandle, target: String, url: String) {
     }
 }
 
+#[derive(serde::Serialize)]
+struct GeminiResponse {
+    text: String,
+    prompt_tokens: Option<i64>,
+    candidates_tokens: Option<i64>,
+    total_tokens: Option<i64>,
+}
+
 #[tauri::command]
-async fn call_gemini(prompt: String, model: Option<String>) -> Result<String, String> {
+async fn call_gemini(prompt: String, model: Option<String>) -> Result<GeminiResponse, String> {
     let entry = keyring::Entry::new("Kasugai_Gemini", "apikey").map_err(|e| e.to_string())?;
     let api_key = entry.get_password().map_err(|_| "Gemini APIキーが設定されていません。システム設定画面でAPIキーを登録してください。".to_string())?;
 
@@ -842,7 +850,16 @@ async fn call_gemini(prompt: String, model: Option<String>) -> Result<String, St
             )
         })?;
 
-    Ok(text.to_string())
+    let prompt_tokens = json_resp.pointer("/usageMetadata/promptTokenCount").and_then(|v| v.as_i64());
+    let candidates_tokens = json_resp.pointer("/usageMetadata/candidatesTokenCount").and_then(|v| v.as_i64());
+    let total_tokens = json_resp.pointer("/usageMetadata/totalTokenCount").and_then(|v| v.as_i64());
+
+    Ok(GeminiResponse {
+        text: text.to_string(),
+        prompt_tokens,
+        candidates_tokens,
+        total_tokens,
+    })
 }
 
 fn main() {
