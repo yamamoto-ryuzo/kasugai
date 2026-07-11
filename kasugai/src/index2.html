@@ -194,6 +194,20 @@
                     </div>
                 </div>
 
+                <!-- 区切り線 -->
+                <hr style="border: 0; border-top: 2px solid #22c55e; margin: 10px 0; opacity: 0.3;">
+
+                <!-- Gemini 設定セクション -->
+                <div>
+                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">✨ Gemini AI 設定</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div>
+                            <label for="gemini-api-key-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">Gemini APIキー</label>
+                            <input type="password" id="gemini-api-key-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="AIzaSy...">
+                        </div>
+                    </div>
+                </div>
+
                 <button class="btn" onclick="saveAllSettings()">設定をすべて保存</button>
                 <div id="settings-status" class="status-msg"></div>
             </div>
@@ -284,6 +298,16 @@
                 }
             }
 
+            // Gemini APIキーの復元 (PasswordはKeyringからセキュアに取得)
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                try {
+                    const apiKey = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai_Gemini', username: 'apikey' });
+                    document.getElementById("gemini-api-key-input").value = apiKey;
+                } catch (e) {
+                    console.warn("KeyringからのGemini APIキー取得に失敗しました。:", e);
+                }
+            }
+
             // デフォルトでシステム設定タブをアクティブにする
             switchTab('settings');
         };
@@ -336,10 +360,22 @@
                 }
             }
 
+            // 4. Gemini APIキーの保存 (Keyringを使用)
+            const gApiKey = document.getElementById("gemini-api-key-input").value;
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                try {
+                    await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai_Gemini', username: 'apikey', password: gApiKey });
+                    console.log("Gemini APIキーをKeyringにセキュアに保存しました。");
+                } catch (e) {
+                    console.error("Gemini APIキーのKeyring保存に失敗しました:", e);
+                }
+            }
+
             if (window.__TAURI__ && window.__TAURI__.event) {
                 window.__TAURI__.event.emit('reearth_url_changed', { url: url });
                 window.__TAURI__.event.emit('box_credentials_changed', { email: email, password: password });
                 window.__TAURI__.event.emit('reearth_credentials_changed', { email: rEmail, password: rPassword });
+                window.__TAURI__.event.emit('gemini_api_key_changed', { apiKey: gApiKey });
             }
 
             const status = document.getElementById("settings-status");

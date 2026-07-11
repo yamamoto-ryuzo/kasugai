@@ -784,6 +784,59 @@ fn preload_webview(app_handle: tauri::AppHandle, target: String, url: String) {
     }
 }
 
+#[tauri::command]
+async fn call_gemini(prompt: String) -> Result<String, String> {
+    let entry = keyring::Entry::new("Kasugai_Gemini", "apikey").map_err(|e| e.to_string())?;
+    let api_key = entry.get_password().map_err(|_| "Gemini APIキーが設定されていません。システム設定画面でAPIキーを登録してください。".to_string())?;
+
+    if api_key.trim().is_empty() {
+        return Err("Gemini APIキーが設定されていません。システム設定画面でAPIキーを登録してください。".to_string());
+    }
+
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={}",
+        api_key
+    );
+
+    let body = serde_json::json!({
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    });
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("APIリクエスト送信に失敗しました: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_body = response.text().await.unwrap_or_default();
+        return Err(format!("Gemini APIエラー (ステータス: {}): {}", status, error_body));
+    }
+
+    let json_resp: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("応答の解析に失敗しました: {}", e))?;
+
+    let text = json_resp
+        .pointer("/candidates/0/content/parts/0/text")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| {
+            format!(
+                "APIの応答形式が想定と異なります: {}",
+                serde_json::to_string_pretty(&json_resp).unwrap_or_default()
+            )
+        })?;
+
+    Ok(text.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(SplitterState {
@@ -815,7 +868,8 @@ fn main() {
             switch_pane2_tab,
             switch_pane3_tab,
             close_pane3_tab,
-            get_pane2_url
+            get_pane2_url,
+            call_gemini
         ])
         .setup(|app| {
             let window = WindowBuilder::new(app, "main")

@@ -7,15 +7,15 @@
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #fff1f2;
-            color: #333;
+            background-color: #f8fafc;
+            color: #0f172a;
             margin: 0;
             padding: 0;
             display: flex;
             flex-direction: column;
             height: 100vh;
             box-sizing: border-box;
-            overflow: auto;
+            overflow: hidden;
         }
         .header-tabs {
             height: 50px;
@@ -33,66 +33,166 @@
         .container {
             background-color: #ffffff;
             border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
             margin: 10px;
-            padding: 20px;
+            padding: 15px;
             flex-grow: 1;
             display: flex;
             flex-direction: column;
-            overflow: auto;
+            overflow: hidden;
             min-width: 280px;
             min-height: 0;
         }
         h1 {
-            color: #be123c;
-            font-size: 20px;
+            color: #1e3a8a;
+            font-size: 18px;
             margin-top: 0;
-            border-bottom: 2px solid #f43f5e;
-            padding-bottom: 10px;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .badge {
-            display: inline-block;
-            background-color: #f43f5e;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            align-self: flex-start;
+        /* チャットインターフェース */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            min-height: 0;
         }
-        p {
-            line-height: 1.6;
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background-color: #f1f5f9;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border: 1px solid #e2e8f0;
+        }
+        .message {
+            display: flex;
+            flex-direction: column;
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: 8px;
             font-size: 14px;
-            margin-bottom: 15px;
+            line-height: 1.5;
+            word-break: break-all;
         }
-        .btn {
-            background-color: #f43f5e;
+        .message.user {
+            align-self: flex-end;
+            background-color: #3b82f6;
+            color: #ffffff;
+            border-bottom-right-radius: 2px;
+        }
+        .message.gemini {
+            align-self: flex-start;
+            background-color: #ffffff;
+            color: #0f172a;
+            border-bottom-left-radius: 2px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .message.error {
+            align-self: center;
+            background-color: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fca5a5;
+            max-width: 95%;
+        }
+        .message-time {
+            font-size: 10px;
+            margin-top: 4px;
+            opacity: 0.7;
+            align-self: flex-end;
+        }
+        .message.user .message-time {
+            color: #e0f2fe;
+        }
+        .message.gemini .message-time {
+            color: #64748b;
+        }
+        .chat-input-area {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+        .chat-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+            resize: none;
+            box-sizing: border-box;
+            height: 40px;
+            max-height: 120px;
+            font-family: inherit;
+        }
+        .chat-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+        }
+        .send-btn {
+            background-color: #3b82f6;
             color: white;
             border: none;
-            padding: 10px 15px;
+            padding: 10px 16px;
             border-radius: 6px;
             font-weight: bold;
             cursor: pointer;
             transition: background-color 0.2s;
-            text-align: center;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .btn:hover {
-            background-color: #e11d48;
+        .send-btn:hover {
+            background-color: #2563eb;
         }
-        .output-box {
-            background-color: #1e293b;
-            color: #38bdf8;
+        .send-btn:disabled {
+            background-color: #94a3b8;
+            cursor: not-allowed;
+        }
+        .clear-btn {
+            background-color: #e2e8f0;
+            color: #475569;
+            border: none;
+            padding: 10px;
             border-radius: 6px;
-            padding: 15px;
-            font-family: monospace;
-            font-size: 13px;
-            white-space: pre-wrap;
-            flex-grow: 1;
-            margin-top: 15px;
-            box-sizing: border-box;
-            border: 1px solid #334155;
-            overflow-y: auto;
+            cursor: pointer;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        .clear-btn:hover {
+            background-color: #cbd5e1;
+        }
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+        }
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background-color: #3b82f6;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
         }
         /* タブ用のスタイル */
         .tabs {
@@ -164,12 +264,23 @@
     </div>
 
     <div class="container" id="content-default">
-        <h1>Rust バックエンド連携</h1>
-        <p>この画面では、Tauri IPC（Inter-Process Communication）を利用して、Rustのネイティブコードを直接呼び出します。</p>
+        <h1>✨ Gemini AI アシスタント</h1>
         
-        <button class="btn" onclick="callRust()">Rustコマンドを呼び出す</button>
-        
-        <div id="output" class="output-box">ここにRustからの応答が表示されます...</div>
+        <div class="chat-container">
+            <div class="chat-messages" id="chat-messages">
+                <div class="message gemini">
+                    こんにちは！Gemini AI アシスタントです。質問やお手伝いできることがあれば何でもどうぞ。
+                    <br><small style="color: #64748b; font-size: 11px;">※あらかじめシステム設定（⚙️）でGemini APIキーを登録してください。</small>
+                    <span class="message-time">システム</span>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <button class="clear-btn" onclick="clearHistory()" title="会話履歴をクリア">🗑️</button>
+                <textarea class="chat-input" id="chat-input" placeholder="Gemini にメッセージを送信..." onkeydown="handleKeyDown(event)"></textarea>
+                <button class="send-btn" id="send-btn" onclick="sendMessage()">送信</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -209,20 +320,127 @@
             }
         }
 
-        async function callRust() {
-            const output = document.getElementById("output");
-            output.textContent = "呼び出し中...";
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function clearHistory() {
+            const chatMessages = document.getElementById('chat-messages');
+            chatMessages.innerHTML = `
+                <div class="message gemini">
+                    会話をリセットしました。何か御用はありますか？
+                    <span class="message-time">${new Date().toLocaleTimeString()}</span>
+                </div>
+            `;
+        }
+
+        async function sendMessage() {
+            const inputEl = document.getElementById('chat-input');
+            const sendBtn = document.getElementById('send-btn');
+            const chatMessages = document.getElementById('chat-messages');
+            
+            const prompt = inputEl.value.trim();
+            if (!prompt) return;
+
+            // ユーザーメッセージを追加
+            const timeStr = new Date().toLocaleTimeString();
+            const userMsgEl = document.createElement('div');
+            userMsgEl.className = 'message user';
+            userMsgEl.innerHTML = `${escapeHtml(prompt)}<span class="message-time">${timeStr}</span>`;
+            chatMessages.appendChild(userMsgEl);
+            
+            // 入力欄をクリアしてスクロール
+            inputEl.value = '';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // ローディング表示（タイピングインジケータ）
+            const loadingMsgEl = document.createElement('div');
+            loadingMsgEl.className = 'message gemini';
+            loadingMsgEl.id = 'gemini-loading';
+            loadingMsgEl.innerHTML = `
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            `;
+            chatMessages.appendChild(loadingMsgEl);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // ボタンなどの無効化
+            inputEl.disabled = true;
+            sendBtn.disabled = true;
+
             try {
-                // Tauri v2 の invoke API を使ってRustの get_system_info コマンドを呼び出す
                 if (window.__TAURI__ && window.__TAURI__.core) {
-                    const result = await window.__TAURI__.core.invoke("get_system_info");
-                    output.textContent = result + "\n\n取得時刻: " + new Date().toLocaleTimeString();
+                    // Rust側の call_gemini コマンドを呼び出す
+                    const result = await window.__TAURI__.core.invoke("call_gemini", { prompt: prompt });
+                    
+                    // ローディング削除
+                    loadingMsgEl.remove();
+
+                    // Geminiの応答を追加
+                    const geminiMsgEl = document.createElement('div');
+                    geminiMsgEl.className = 'message gemini';
+                    geminiMsgEl.innerHTML = `${formatMarkdown(result)}<span class="message-time">${new Date().toLocaleTimeString()}</span>`;
+                    chatMessages.appendChild(geminiMsgEl);
                 } else {
-                    output.textContent = "エラー: Tauri環境が検出されませんでした。\nTauriアプリとして実行してください。";
+                    loadingMsgEl.remove();
+                    const errEl = document.createElement('div');
+                    errEl.className = 'message error';
+                    errEl.innerHTML = `Tauri環境が検出されませんでした。デスクトップアプリから実行してください。<span class="message-time">${new Date().toLocaleTimeString()}</span>`;
+                    chatMessages.appendChild(errEl);
                 }
             } catch (err) {
-                output.textContent = "エラーが発生しました:\n" + err;
+                loadingMsgEl.remove();
+                const errEl = document.createElement('div');
+                errEl.className = 'message error';
+                errEl.innerHTML = `エラー: ${escapeHtml(err)}<span class="message-time">${new Date().toLocaleTimeString()}</span>`;
+                chatMessages.appendChild(errEl);
+            } finally {
+                inputEl.disabled = false;
+                sendBtn.disabled = false;
+                inputEl.focus();
+                chatMessages.scrollTop = chatMessages.scrollHeight;
             }
+        }
+
+        function escapeHtml(string) {
+            if (typeof string !== 'string') return string;
+            return string.replace(/[&<>"']/g, function(match) {
+                const escapeMap = {
+                    '&': '\x26amp;',
+                    '<': '\x26lt;',
+                    '>': '\x26gt;',
+                    '"': '\x26quot;',
+                    "'": '&#039;'
+                };
+                return escapeMap[match];
+            });
+        }
+
+        // 簡易的なマークダウン・改行パーサー
+        function formatMarkdown(text) {
+            let escaped = escapeHtml(text);
+            
+            // コードブロック ```code```
+            escaped = escaped.replace(/```([\s\S]+?)```/g, function(match, code) {
+                return `<pre style="background-color: #1e293b; color: #f8fafc; padding: 10px; border-radius: 4px; overflow-x: auto; font-family: monospace; font-size: 13px; margin: 8px 0;"><code>${code}</code></pre>`;
+            });
+
+            // インラインコード `code`
+            escaped = escaped.replace(/`([^`\n]+?)`/g, function(match, code) {
+                return `<code style="background-color: #f1f5f9; color: #eb5757; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 13px;">${code}</code>`;
+            });
+
+            // 強調 **text**
+            escaped = escaped.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
+
+            // 改行の変換
+            return escaped.replace(/\n/g, '<br>');
         }
 
         // タブの追加イベントのリッスン
