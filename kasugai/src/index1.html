@@ -10,7 +10,7 @@
             background-color: #ffffff; /* シンプルな白背景 */
             color: #333;
             margin: 0;
-            padding: 10px; /* パディングを狭くして省スペース化 */
+            padding: 5px; /* マージンをさらに狭くして極小スペースに対応 */
             display: flex;
             flex-direction: column;
             min-height: 100vh;
@@ -25,12 +25,12 @@
             flex-grow: 1;
             display: flex;
             flex-direction: column;
-            min-width: 120px;
+            min-width: 75px; /* 最小幅を 75px に極小化 */
         }
         .link-list {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             flex-grow: 1;
         }
         .portal-btn {
@@ -39,54 +39,60 @@
             justify-content: center;
             background-color: #f8fafc;
             border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 8px 12px;
+            border-radius: 4px;
+            padding: 4px;
             text-decoration: none;
             color: #1e293b;
-            font-weight: 600;
-            font-size: 13px;
+            font-weight: bold;
+            font-size: 11px;
             transition: all 0.2s ease;
             box-sizing: border-box;
-            height: 36px;
+            height: 28px; /* ボタンを低くして省スペース化 */
         }
         .portal-btn:hover {
             background-color: #eff6ff;
             border-color: #3b82f6;
             color: #2563eb;
         }
+        input {
+            width: 100%;
+            padding: 4px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 11px; /* 入力文字・プレースホルダーも極小化 */
+            text-align: center; /* 中央揃えで見やすく */
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="link-list">
-            <!-- 地図連携UI (装飾枠・背景を排除し、シンプルな並びにする) -->
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                <h3 style="margin: 0; font-size: 14px; color: #1e293b; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px;">🗺️ 地図連携</h3>
+            <!-- 超コンパクト・リモコン型UI (縦一列に隙間なく収める) -->
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="font-size: 11px; font-weight: bold; color: #1e293b; text-align: center; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">🗺️ 連携</div>
                 
-                <button class="portal-btn" onclick="getLocation(event)" style="width: 100%; background-color: #22c55e; color: white; border-color: #16a34a; cursor: pointer;">
+                <button class="portal-btn" onclick="getLocation(event)" style="width: 100%; background-color: #22c55e; color: white; border-color: #16a34a; cursor: pointer;" title="位置情報を取得">
                     取得
                 </button>
 
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <div>
-                        <label style="font-size: 11px; font-weight: bold; color: #64748b; display: block; margin-bottom: 2px;">緯度 (Lat)</label>
-                        <input type="text" id="input-lat" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 12px;">
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <div title="緯度">
+                        <input type="text" id="input-lat" placeholder="Lat">
                     </div>
-                    <div>
-                        <label style="font-size: 11px; font-weight: bold; color: #64748b; display: block; margin-bottom: 2px;">経度 (Lng)</label>
-                        <input type="text" id="input-lng" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 12px;">
+                    <div title="経度">
+                        <input type="text" id="input-lng" placeholder="Lng">
                     </div>
-                    <div>
-                        <label style="font-size: 11px; font-weight: bold; color: #64748b; display: block; margin-bottom: 2px;">縮尺 (Zoom) </label>
-                        <input type="text" id="input-zoom" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 12px;" placeholder="例: 15">
+                    <div title="縮尺 (Zoom)">
+                        <input type="text" id="input-zoom" placeholder="Zoom">
                     </div>
                 </div>
 
-                <button class="portal-btn" onclick="moveMap(event)" style="width: 100%; background-color: #3b82f6; color: white; border-color: #2563eb; cursor: pointer;">
+                <button class="portal-btn" onclick="moveMap(event)" style="width: 100%; background-color: #3b82f6; color: white; border-color: #2563eb; cursor: pointer;" title="地図を移動">
                     移動
                 </button>
 
-                <div id="location-status" style="margin-top: 5px; font-size: 11px; color: #dc2626; display: none; text-align: center; word-break: break-all;"></div>
+                <div id="location-status" style="margin-top: 3px; font-size: 10px; color: #dc2626; display: none; text-align: center; word-break: break-all;"></div>
             </div>
         </div>
     </div>
