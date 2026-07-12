@@ -4,7 +4,7 @@
 use std::sync::Mutex;
 use tauri::{
     Manager, Position, Rect, Size, WebviewBuilder, WebviewUrl, WindowBuilder,
-    PhysicalPosition, PhysicalSize
+    PhysicalPosition, PhysicalSize, Listener
 };
 
 use enigo::{Enigo, KeyboardControllable, Key};
@@ -897,6 +897,41 @@ fn main() {
             call_gemini
         ])
         .setup(|app| {
+            // =================================================================
+            // Re:Earth 位置同期イベントリスナー（CORS/二重iframeサンドボックス完全突破）
+            // ポータル（index1.html）や他ペインから 'move_cesium'（共通位置変更）イベントが
+            // 発行された際、裏側のRustバックエンド権限により、Re:Earthを表示しているWebview
+            // に対し、eval 経由で直接 window.reearth.visualizer.camera.flyTo を実行します。
+            // =================================================================
+            let app_handle_for_sync = app.handle().clone();
+            app.listen("move_cesium", move |event| {
+                if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
+                    let lat = payload.get("lat").and_then(|v| v.as_f64()).unwrap_or(35.6812);
+                    let lon = payload.get("lon").and_then(|v| v.as_f64()).unwrap_or(139.7671);
+                    let zoom = payload.get("zoom").and_then(|v| v.as_f64()).unwrap_or(15.0);
+                    // ズームレベルから高度（メートル）への概算換算
+                    let height = 20000000.0 / 2.0_f64.powf(zoom - 1.0);
+
+                    if let Some(window) = app_handle_for_sync.get_window("main") {
+                        if let Some(wv_reearth) = window.get_webview("pane2_reearth") {
+                            let js_code = format!(
+                                r#"
+                                if (window.reearth && window.reearth.visualizer) {{
+                                    window.reearth.visualizer.camera.flyTo({{
+                                        lat: {},
+                                        lng: {},
+                                        height: {}
+                                    }}, {{ duration: 1.5 }});
+                                }}
+                                "#,
+                                lat, lon, height
+                            );
+                            let _ = wv_reearth.eval(&js_code);
+                        }
+                    }
+                }
+            });
+
             let window = WindowBuilder::new(app, "main")
                 .title("Kasugai 3-Split Viewer")
                 .inner_size(1200.0, 800.0)
