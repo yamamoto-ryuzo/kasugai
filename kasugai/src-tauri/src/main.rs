@@ -913,21 +913,27 @@ fn main() {
                     let height = 20000000.0 / 2.0_f64.powf(zoom - 1.0);
 
                     if let Some(window) = app_handle_for_sync.get_window("main") {
-                        if let Some(wv_reearth) = window.get_webview("pane2_reearth") {
-                            let js_code = format!(
-                                r#"
-                                if (window.reearth && window.reearth.visualizer) {{
-                                    window.reearth.visualizer.camera.flyTo({{
-                                        lat: {},
-                                        lng: {},
-                                        height: {}
-                                    }}, {{ duration: 1.5 }});
-                                }}
-                                "#,
-                                lat, lon, height
-                            );
-                            let _ = wv_reearth.eval(&js_code);
-                        }
+                            if let Some(wv_reearth) = window.get_webview("pane2_reearth") {
+                                // Re:Earthのプラグイン(widget.html)が安全に待ち受けている
+                                // W3C標準の "sync_camera" postMessage イベントを最外層に投げます。
+                                // これにより、二重iframe隔離を完全に無視してプラグインがデータをキャッチします。
+                                let js_code = format!(
+                                    r#"
+                                    (function() {{
+                                        window.postMessage({{
+                                            action: "sync_camera",
+                                            payload: {{
+                                                lat: {},
+                                                lon: {},
+                                                height: {}
+                                            }}
+                                        }}, "*");
+                                    }})();
+                                    "#,
+                                    lat, lon, height
+                                );
+                                let _ = wv_reearth.eval(&js_code);
+                            }
                     }
                 }
             });
