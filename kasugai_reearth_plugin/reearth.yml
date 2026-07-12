@@ -7,5 +7,6 @@ widgets:
   - id: sync-widget
     name: Kasugai カメラ同期ウィジェット
     description: KASUGAIからの位置情報メッセージを受け取り、カメラを連動させます。
+    path: plugin.js
     supportedLayers: []
     visible: true
