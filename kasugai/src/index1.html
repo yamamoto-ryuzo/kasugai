@@ -222,6 +222,13 @@
                                     statusDiv.style.display = 'none';
                                     return;
                                 }
+                            } else if (url.hostname.includes('reearth.io')) {
+                                // Re:Earthへの同期移動（イベント発行・CORS突破）
+                                if (window.__TAURI__ && window.__TAURI__.event) {
+                                    window.__TAURI__.event.emit('move_cesium', { lat: Number(lat), lon: Number(lng), zoom: Number(zoom) });
+                                    statusDiv.style.display = 'none';
+                                    return;
+                                }
                             }
                         }
                     } catch(err) {
