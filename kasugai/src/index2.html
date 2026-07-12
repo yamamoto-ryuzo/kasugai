@@ -273,9 +273,12 @@
             currentAppliedToken = cesiumToken;
             Cesium.Ion.defaultAccessToken = cesiumToken;
 
-            // CesiumJS ビューアーの作成
+            // 起動直後に真っ黒になるのを防ぐため、アクセストークン不要で表示可能なOpenStreetMapをデフォルトのベースレイヤーに指定
+            // また、Ionアセット未同意による描画エラーを防ぐため、デフォルトの地形（Terrain）は「なし（楕円体）」に設定します
             cesiumViewer = new Cesium.Viewer('cesiumContainer', {
-                terrain: Cesium.Terrain.fromWorldTerrain(), // 3D世界地形(Cesium World Terrain)を有効化
+                baseLayer: Cesium.ImageryLayer.fromProviderAsync(
+                    Cesium.OpenStreetMapImageryProvider.fromUrl("https://a.tile.openstreetmap.org/")
+                ),
                 baseLayerPicker: true,
                 geocoder: true,
                 navigationHelpButton: false,
