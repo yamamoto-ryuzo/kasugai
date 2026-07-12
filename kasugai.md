@@ -76,7 +76,7 @@ c:\github\kasugai\
         ├── index1.html    # 左ペイン (システム説明、特徴)
         ├── index2.html    # 中央ペイン (システム設定、localStorage隔離空間)
         └── index3.html    # 右ペイン (Gemini AIアシスタント & 動的タブブラウザ)
-    ```
+```
 
 ---
 
