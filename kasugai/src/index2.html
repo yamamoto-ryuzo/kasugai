@@ -263,6 +263,7 @@
 
             // CesiumJS ビューアーの作成
             cesiumViewer = new Cesium.Viewer('cesiumContainer', {
+                terrain: Cesium.Terrain.fromWorldTerrain(), // 3D世界地形(Cesium World Terrain)を有効化
                 baseLayerPicker: true,
                 geocoder: true,
                 navigationHelpButton: false,
