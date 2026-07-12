@@ -1,12 +1,16 @@
 id: kasugai-sync-plugin
 name: Kasugai 位置同期プラグイン
 version: 1.0.0
-organization: kasugai
-ext: []
-widgets:
-  - id: sync-widget
-    name: Kasugai カメラ同期ウィジェット
-    description: KASUGAIからの位置情報メッセージを受け取り、カメラを連動させます。
-    path: plugin.js
-    supportedLayers: []
-    visible: true
+description: "KASUGAIから送られてくる位置情報メッセージを受け取り、カメラを連動・同期させるプラグイン"
+author: yamamoto-ryuzo
+extensions:
+  - id: kasugai-sync-widget
+    type: widget
+    name: "Kasugai カメラ同期ウィジェット"
+    description: "KASUGAIからの位置情報メッセージを受け取り、カメラを連動させます。"
+    entry: plugin.js
+    widgetLayout:
+      defaultLocation:
+        zone: outer
+        section: left
+        area: top
