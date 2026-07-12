@@ -102,6 +102,12 @@
         .btn:hover {
             background-color: #16a34a;
         }
+        .btn-danger {
+            background-color: #ef4444 !important;
+        }
+        .btn-danger:hover {
+            background-color: #dc2626 !important;
+        }
         .status-msg {
             font-size: 12px;
             color: #64748b;
@@ -208,7 +214,10 @@
                     </div>
                 </div>
 
-                <button class="btn" onclick="saveAllSettings()">設定をすべて保存</button>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn" onclick="saveAllSettings()" style="flex: 1;">設定をすべて保存</button>
+                    <button class="btn btn-danger" onclick="resetAllSettings()" style="flex: 1;">設定を初期化</button>
+                </div>
                 <div id="settings-status" class="status-msg"></div>
             </div>
         </div>
@@ -380,6 +389,74 @@
 
             const status = document.getElementById("settings-status");
             status.textContent = "設定をすべてセキュアに保存しました！ (" + new Date().toLocaleTimeString() + ")";
+            setTimeout(() => {
+                status.textContent = "";
+            }, 3000);
+        }
+
+        async function resetAllSettings() {
+            if (!confirm("すべてのシステム設定を初期化し、セキュアストア(Keyring)からパスワードを完全に削除しますか？\nこの操作は取り消せません。")) {
+                return;
+            }
+
+            const defaultReearthUrl = "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
+
+            // 1. セキュアストア(Keyring)からの削除
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                // BOX資格情報の削除
+                const boxEmail = document.getElementById("box-email-input").value.trim() || localStorage.getItem("box_email") || "";
+                if (boxEmail) {
+                    try {
+                        await window.__TAURI__.core.invoke('delete_credential', { service: 'Kasugai', username: boxEmail });
+                        console.log("BOXパスワードをKeyringから削除しました。");
+                    } catch (e) {
+                        console.warn("KeyringからのBOXパスワード削除に失敗、または既に存在しません:", e);
+                    }
+                }
+
+                // Re:Earth資格情報の削除
+                const reearthEmail = document.getElementById("reearth-email-input").value.trim() || localStorage.getItem("reearth_email") || "";
+                if (reearthEmail) {
+                    try {
+                        await window.__TAURI__.core.invoke('delete_credential', { service: 'Kasugai_Reearth', username: reearthEmail });
+                        console.log("Re:EarthパスワードをKeyringから削除しました。");
+                    } catch (e) {
+                        console.warn("KeyringからのRe:Earthパスワード削除に失敗、または既に存在しません:", e);
+                    }
+                }
+
+                // Gemini APIキーの削除
+                try {
+                    await window.__TAURI__.core.invoke('delete_credential', { service: 'Kasugai_Gemini', username: 'apikey' });
+                    console.log("Gemini APIキーをKeyringから削除しました。");
+                } catch (e) {
+                    console.warn("KeyringからのGemini APIキー削除に失敗、または既に存在しません:", e);
+                }
+            }
+
+            // 2. localStorageのクリア
+            localStorage.removeItem("reearth_url");
+            localStorage.removeItem("box_email");
+            localStorage.removeItem("reearth_email");
+
+            // 3. 入力項目の初期化
+            document.getElementById("reearth-url-input").value = defaultReearthUrl;
+            document.getElementById("box-email-input").value = "";
+            document.getElementById("box-password-input").value = "";
+            document.getElementById("reearth-email-input").value = "";
+            document.getElementById("reearth-password-input").value = "";
+            document.getElementById("gemini-api-key-input").value = "";
+
+            // 4. 他のウィンドウ/コンポーネントへの変更イベント通知
+            if (window.__TAURI__ && window.__TAURI__.event) {
+                window.__TAURI__.event.emit('reearth_url_changed', { url: defaultReearthUrl });
+                window.__TAURI__.event.emit('box_credentials_changed', { email: "", password: "" });
+                window.__TAURI__.event.emit('reearth_credentials_changed', { email: "", password: "" });
+                window.__TAURI__.event.emit('gemini_api_key_changed', { apiKey: "" });
+            }
+
+            const status = document.getElementById("settings-status");
+            status.textContent = "設定をすべて初期化しました。 (" + new Date().toLocaleTimeString() + ")";
             setTimeout(() => {
                 status.textContent = "";
             }, 3000);
