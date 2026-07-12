@@ -329,33 +329,13 @@
             if (tabId === 'settings') return window.location.origin + '/index2.html?settings=true';
             if (tabId === 'cesium') return window.location.origin + '/index2.html?cesium=true';
             
-            // Rust側の状態に合わせてタブ名を解決（box -> pane2_box 等）
-            const tabNameToRustActive = {
-                'box': 'box',
-                'reearth': 'reearth',
-                'google': 'google',
-                'googleearth': 'googleearth',
-                'yahoo': 'yahoo'
-            };
-
-            if (window.__TAURI__ && window.__TAURI__.core) {
-                // 明示的にタブを切り替えてからURLを取得
-                try {
-                    if (tabNameToRustActive[tabId]) {
-                        await window.__TAURI__.core.invoke('switch_pane2_tab', { tab: tabNameToRustActive[tabId] });
-                    }
-                    return await window.__TAURI__.core.invoke('get_pane2_url');
-                } catch(e) {
-                    console.error("URL取得失敗:", e);
-                }
-            }
-
-            // フォールバック
+            // 各専用画面のベースURL
             if (tabId === 'box') return 'https://app.box.com/';
             if (tabId === 'reearth') return document.getElementById("reearth-url-input").value;
             if (tabId === 'google') return 'https://www.google.com/maps';
             if (tabId === 'googleearth') return 'https://earth.google.com/web/';
             if (tabId === 'yahoo') return 'https://map.yahoo.co.jp/';
+            
             return window.location.href;
         }
 
