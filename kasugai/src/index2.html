@@ -248,17 +248,29 @@
 
     <script>
         let cesiumViewer = null;
+        let currentAppliedToken = null;
 
         // CesiumJS 初期化関数
         function initCesium() {
+            const cesiumToken = document.getElementById("cesium-ion-token-input")?.value || '';
+
             if (cesiumViewer) {
-                // すでに初期化済みの場合はサイズ調整のみ行う
-                cesiumViewer.resize();
-                return;
+                if (currentAppliedToken === cesiumToken) {
+                    // トークンに変更がない場合はサイズ調整のみ
+                    cesiumViewer.resize();
+                    return;
+                } else {
+                    // トークンが変更された場合は、既存のビューアーを破棄して再作成する
+                    try {
+                        cesiumViewer.destroy();
+                    } catch (e) {
+                        console.error("Cesium Viewerの破棄に失敗しました:", e);
+                    }
+                    cesiumViewer = null;
+                }
             }
 
-            // Cesium Ionトークンの設定
-            const cesiumToken = document.getElementById("cesium-ion-token-input")?.value || '';
+            currentAppliedToken = cesiumToken;
             Cesium.Ion.defaultAccessToken = cesiumToken;
 
             // CesiumJS ビューアーの作成
