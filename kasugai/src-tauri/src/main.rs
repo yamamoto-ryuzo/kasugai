@@ -732,6 +732,43 @@ fn prefetch_basic_auth(
 }
 
 #[tauri::command]
+async fn detach_window(
+    app_handle: tauri::AppHandle,
+    label: String,
+    url: String,
+    title: String,
+) -> Result<(), String> {
+    let window_label = format!("detached_{}", label);
+    
+    // すでに開いている場合はフォーカスするだけ
+    if let Some(win) = app_handle.get_window(&window_label) {
+        let _ = win.set_focus();
+        return Ok(());
+    }
+
+    let _ = WindowBuilder::new(&app_handle, &window_label)
+        .title(&title)
+        .inner_size(800.0, 600.0)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    if let Some(win) = app_handle.get_window(&window_label) {
+        let wv_builder = WebviewBuilder::new(&window_label, WebviewUrl::External(tauri::Url::parse(&url).unwrap()));
+        let _ = win.add_child(wv_builder, PhysicalPosition::new(0, 0), win.inner_size().unwrap());
+
+        let app_clone = app_handle.clone();
+        let label_clone = label.clone();
+        win.on_window_event(move |event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                let _ = app_clone.emit("window_restored", serde_json::json!({ "label": label_clone }));
+            }
+        });
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 async fn get_pane2_url(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, SplitterState>,
@@ -894,7 +931,8 @@ fn main() {
             switch_pane3_tab,
             close_pane3_tab,
             get_pane2_url,
-            call_gemini
+            call_gemini,
+            detach_window
         ])
         .setup(|app| {
             // =================================================================
@@ -912,28 +950,25 @@ fn main() {
                     // ズームレベルから高度（メートル）への概算換算
                     let height = 20000000.0 / 2.0_f64.powf(zoom - 1.0);
 
-                    if let Some(window) = app_handle_for_sync.get_window("main") {
-                            if let Some(wv_reearth) = window.get_webview("pane2_reearth") {
-                                // Re:Earthのプラグイン(widget.html)が安全に待ち受けている
-                                // W3C標準の "sync_camera" postMessage イベントを最外層に投げます。
-                                // これにより、二重iframe隔離を完全に無視してプラグインがデータをキャッチします。
-                                let js_code = format!(
-                                    r#"
-                                    (function() {{
-                                        window.postMessage({{
-                                            action: "sync_camera",
-                                            payload: {{
-                                                lat: {},
-                                                lon: {},
-                                                height: {}
-                                            }}
-                                        }}, "*");
-                                    }})();
-                                    "#,
-                                    lat, lon, height
-                                );
-                                let _ = wv_reearth.eval(&js_code);
-                            }
+                    let js_code = format!(
+                        r#"
+                        (function() {{
+                            window.postMessage({{
+                                action: "sync_camera",
+                                payload: {{
+                                    lat: {},
+                                    lon: {},
+                                    height: {}
+                                }}
+                            }}, "*");
+                        }})();
+                        "#,
+                        lat, lon, height
+                    );
+
+                    // 全ウィンドウの全Webviewに対してブロードキャスト（Re:Earth以外にも届くが害はない）
+                    for (_, window) in app_handle_for_sync.webview_windows() {
+                        let _ = window.eval(&js_code);
                     }
                 }
             });

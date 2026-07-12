@@ -140,18 +140,29 @@
             background-color: #22c55e;
             color: white;
         }
+        .tab-btn.detached {
+            background-color: #cbd5e1;
+            color: #64748b;
+            border: 1px dashed #64748b;
+            cursor: default;
+        }
+        .tab-btn.detached:hover {
+            background-color: #94a3b8;
+            color: #ffffff;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
     <div class="header-tabs">
         <div class="tabs">
-            <button class="tab-btn active" id="tab-settings" onclick="switchTab('settings')">⚙️ システム設定</button>
-            <button class="tab-btn" id="tab-box" onclick="switchTab('box')">📦 BOX</button>
-            <button class="tab-btn" id="tab-google" onclick="switchTab('google')">🗺️ Google Map</button>
-            <button class="tab-btn" id="tab-googleearth" onclick="switchTab('googleearth')">🌍 Google Earth</button>
-            <button class="tab-btn" id="tab-yahoo" onclick="switchTab('yahoo')">🗾 Yahoo Map</button>
-            <button class="tab-btn" id="tab-cesium" onclick="switchTab('cesium')">🌌 CesiumJS</button>
-            <button class="tab-btn" id="tab-reearth" onclick="switchTab('reearth')">🌐 Re:Earth</button>
+            <button class="tab-btn active" id="tab-settings" onclick="switchTab('settings')" ondblclick="detachTab('settings', '⚙️ システム設定')">⚙️ システム設定</button>
+            <button class="tab-btn" id="tab-box" onclick="switchTab('box')" ondblclick="detachTab('box', '📦 BOX')">📦 BOX</button>
+            <button class="tab-btn" id="tab-google" onclick="switchTab('google')" ondblclick="detachTab('google', '🗺️ Google Map')">🗺️ Google Map</button>
+            <button class="tab-btn" id="tab-googleearth" onclick="switchTab('googleearth')" ondblclick="detachTab('googleearth', '🌍 Google Earth')">🌍 Google Earth</button>
+            <button class="tab-btn" id="tab-yahoo" onclick="switchTab('yahoo')" ondblclick="detachTab('yahoo', '🗾 Yahoo Map')">🗾 Yahoo Map</button>
+            <button class="tab-btn" id="tab-cesium" onclick="switchTab('cesium')" ondblclick="detachTab('cesium', '🌌 CesiumJS')">🌌 CesiumJS</button>
+            <button class="tab-btn" id="tab-reearth" onclick="switchTab('reearth')" ondblclick="detachTab('reearth', '🌐 Re:Earth')">🌐 Re:Earth</button>
         </div>
     </div>
 
@@ -249,6 +260,104 @@
     <script>
         let cesiumViewer = null;
         let currentAppliedToken = null;
+        let detachedTabs = new Set();
+
+        async function detachTab(tabId, title) {
+            if (detachedTabs.has(tabId)) {
+                if (window.__TAURI__ && window.__TAURI__.core) {
+                    await window.__TAURI__.core.invoke('detach_window', { 
+                        label: 'pane2_' + tabId, 
+                        url: await getTabUrl(tabId),
+                        title: title || 'Kasugai Detached Window'
+                    });
+                }
+                return;
+            }
+
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                const url = await getTabUrl(tabId);
+                await window.__TAURI__.core.invoke('detach_window', { 
+                    label: 'pane2_' + tabId, 
+                    url: url,
+                    title: title || 'Kasugai Detached Window'
+                });
+                
+                detachedTabs.add(tabId);
+                const btn = document.getElementById('tab-' + tabId);
+                if (btn) btn.classList.add('detached');
+            }
+        }
+
+        // --- スプリッターのドラッグ・リサイズ用中継処理 ---
+        (function() {
+            let isDragging = false;
+            let activeSplitter = null;
+
+            if (window.__TAURI__ && window.__TAURI__.event) {
+                // 親がドラッグを開始したことを検知
+                window.__TAURI__.event.listen('splitter_drag_start', (event) => {
+                    isDragging = true;
+                    activeSplitter = event.payload.activeSplitter;
+                });
+
+                // 親がドラッグを終了したことを検知
+                window.__TAURI__.event.listen('splitter_drag_end', () => {
+                    isDragging = false;
+                    activeSplitter = null;
+                });
+
+                // ドラッグ中、マウスのグローバル座標を親に伝える
+                window.addEventListener('mousemove', (e) => {
+                    if (isDragging && activeSplitter) {
+                        window.__TAURI__.event.emit('global_mousemove', {
+                            screenX: e.screenX,
+                            screenY: e.screenY
+                        });
+                    }
+                });
+
+                // ドラッグ中にこのペイン上でマウスを離した場合
+                window.addEventListener('mouseup', () => {
+                    if (isDragging) {
+                        window.__TAURI__.event.emit('global_mouseup');
+                    }
+                });
+            }
+        })();
+
+        async function getTabUrl(tabId) {
+            if (tabId === 'settings') return window.location.origin + '/index2.html?settings=true';
+            if (tabId === 'cesium') return window.location.origin + '/index2.html?cesium=true';
+            
+            // Rust側の状態に合わせてタブ名を解決（box -> pane2_box 等）
+            const tabNameToRustActive = {
+                'box': 'box',
+                'reearth': 'reearth',
+                'google': 'google',
+                'googleearth': 'googleearth',
+                'yahoo': 'yahoo'
+            };
+
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                // 明示的にタブを切り替えてからURLを取得
+                try {
+                    if (tabNameToRustActive[tabId]) {
+                        await window.__TAURI__.core.invoke('switch_pane2_tab', { tab: tabNameToRustActive[tabId] });
+                    }
+                    return await window.__TAURI__.core.invoke('get_pane2_url');
+                } catch(e) {
+                    console.error("URL取得失敗:", e);
+                }
+            }
+
+            // フォールバック
+            if (tabId === 'box') return 'https://app.box.com/';
+            if (tabId === 'reearth') return document.getElementById("reearth-url-input").value;
+            if (tabId === 'google') return 'https://www.google.com/maps';
+            if (tabId === 'googleearth') return 'https://earth.google.com/web/';
+            if (tabId === 'yahoo') return 'https://map.yahoo.co.jp/';
+            return window.location.href;
+        }
 
         // CesiumJS 初期化関数
         function initCesium() {
@@ -639,44 +748,19 @@
                     });
                 }
             });
+
+            // ウィンドウが閉じられた際の復元通知
+            window.__TAURI__.event.listen('window_restored', (event) => {
+                const label = event.payload.label;
+                if (label.startsWith('pane2_')) {
+                    const tabId = label.replace('pane2_', '');
+                    detachedTabs.delete(tabId);
+                    const btn = document.getElementById('tab-' + tabId);
+                    if (btn) btn.classList.remove('detached');
+                }
+            });
         }
 
-        // --- スプリッターのドラッグ・リサイズ用中継処理 ---
-        (function() {
-            let isDragging = false;
-            let activeSplitter = null;
-
-            if (window.__TAURI__ && window.__TAURI__.event) {
-                // 親がドラッグを開始したことを検知
-                window.__TAURI__.event.listen('splitter_drag_start', (event) => {
-                    isDragging = true;
-                    activeSplitter = event.payload.activeSplitter;
-                });
-
-                // 親がドラッグを終了したことを検知
-                window.__TAURI__.event.listen('splitter_drag_end', () => {
-                    isDragging = false;
-                    activeSplitter = null;
-                });
-
-                // ドラッグ中、マウスのグローバル座標を親に伝える
-                window.addEventListener('mousemove', (e) => {
-                    if (isDragging && activeSplitter) {
-                        window.__TAURI__.event.emit('global_mousemove', {
-                            screenX: e.screenX,
-                            screenY: e.screenY
-                        });
-                    }
-                });
-
-                // ドラッグ中にこのペイン上でマウスを離した場合
-                window.addEventListener('mouseup', () => {
-                    if (isDragging) {
-                        window.__TAURI__.event.emit('global_mouseup');
-                    }
-                });
-            }
-        })();
     </script>
 </body>
 </html>

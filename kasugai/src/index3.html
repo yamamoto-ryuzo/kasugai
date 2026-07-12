@@ -252,6 +252,17 @@
             background-color: #fff;
             color: #be123c;
         }
+        .tab-btn.detached {
+            background-color: #cbd5e1;
+            color: #64748b;
+            border-style: dashed;
+            cursor: default;
+        }
+        .tab-btn.detached:hover {
+            background-color: #94a3b8;
+            color: #ffffff;
+            cursor: pointer;
+        }
         /* AI回答用のマークダウンスタイル */
         .message.gemini h1, .message.gemini h2, .message.gemini h3, .message.gemini h4 {
             margin-top: 12px;
@@ -326,7 +337,7 @@
 <body>
     <div class="header-tabs">
         <div class="tabs" id="tabs-container">
-            <button class="tab-btn active" id="tab-default" onclick="switchPane3Tab('default')">
+            <button class="tab-btn active" id="tab-default" onclick="switchPane3Tab('default')" ondblclick="detachTab('default', '✨ Gemini')">
                 <span class="tab-title">✨  Gemini</span>
             </button>
         </div>
@@ -378,6 +389,41 @@
 
     <script>
         let currentTabs = ['default'];
+        let detachedTabs = new Set();
+
+        async function detachTab(tabId, title) {
+            if (detachedTabs.has(tabId)) {
+                if (window.__TAURI__ && window.__TAURI__.core) {
+                    await window.__TAURI__.core.invoke('detach_window', { 
+                        label: tabId, 
+                        url: getTabUrl(tabId),
+                        title: title || 'Kasugai Detached Window'
+                    });
+                }
+                return;
+            }
+
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                const url = getTabUrl(tabId);
+                await window.__TAURI__.core.invoke('detach_window', { 
+                    label: tabId, 
+                    url: url,
+                    title: title || 'Kasugai Detached Window'
+                });
+                
+                detachedTabs.add(tabId);
+                const btn = document.getElementById('tab-' + tabId);
+                if (btn) btn.classList.add('detached');
+            }
+        }
+
+        function getTabUrl(tabId) {
+            if (tabId === 'default') {
+                return window.location.origin + '/index3.html';
+            }
+            const btn = document.getElementById('tab-' + tabId);
+            return btn ? btn.getAttribute('data-url') : window.location.href;
+        }
 
         function switchPane3Tab(tabId) {
             // UIのアクティブ状態の更新
@@ -632,7 +678,9 @@
                     const btn = document.createElement('button');
                     btn.className = 'tab-btn';
                     btn.id = 'tab-' + tabId;
+                    btn.setAttribute('data-url', url);
                     btn.onclick = () => switchPane3Tab(tabId);
+                    btn.ondblclick = () => detachTab(tabId, title);
                     
                     const spanTitle = document.createElement('span');
                     spanTitle.className = 'tab-title';
@@ -666,6 +714,14 @@
                 if (container) {
                     container.style.display = (newActive === 'default' || newActive === '') ? 'flex' : 'none';
                 }
+            });
+
+            // ウィンドウが閉じられた際の復元通知
+            window.__TAURI__.event.listen('window_restored', (event) => {
+                const label = event.payload.label;
+                detachedTabs.delete(label);
+                const btn = document.getElementById('tab-' + label);
+                if (btn) btn.classList.remove('detached');
             });
         }
 
