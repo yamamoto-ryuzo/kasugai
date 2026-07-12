@@ -287,7 +287,10 @@
                 selectionIndicator: false
             });
 
-            // 起動時にアクセストークン不要で表示可能なOpenStreetMapを安全に非同期ロードして追加します
+            // 起動直後にアセット許諾制限などでエラーになりやすいデフォルトのBing Mapsレイヤーを一度すべてクリアします
+            cesiumViewer.imageryLayers.removeAll();
+
+            // その代わりに、アクセストークン不要で表示可能なOpenStreetMapをベースレイヤーとして追加します
             // 万が一ロードエラーが起きてもViewer全体の初期化がクラッシュすることはありません
             Cesium.OpenStreetMapImageryProvider.fromUrl("https://a.tile.openstreetmap.org/").then(function(provider) {
                 if (cesiumViewer) {
