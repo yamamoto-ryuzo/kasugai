@@ -215,6 +215,13 @@
                                 // Google Earth 用に標準のZoom値からカメラ距離(d)へ簡易逆変換
                                 const distance = Math.pow(2, 27 - Number(zoom)).toFixed(2);
                                 targetUrl = `https://earth.google.com/web/@${lat},${lng},0a,${distance}d,35y,0h,0t,0r`;
+                            } else if (url.pathname.includes('index2.html')) {
+                                // CesiumJSへの同期移動（イベント発行）
+                                if (window.__TAURI__ && window.__TAURI__.event) {
+                                    window.__TAURI__.event.emit('move_cesium', { lat: Number(lat), lon: Number(lng), zoom: Number(zoom) });
+                                    statusDiv.style.display = 'none';
+                                    return;
+                                }
                             }
                         }
                     } catch(err) {
