@@ -273,12 +273,8 @@
             currentAppliedToken = cesiumToken;
             Cesium.Ion.defaultAccessToken = cesiumToken;
 
-            // 起動直後に真っ黒になるのを防ぐため、アクセストークン不要で表示可能なOpenStreetMapをデフォルトのベースレイヤーに指定
-            // また、Ionアセット未同意による描画エラーを防ぐため、デフォルトの地形（Terrain）は「なし（楕円体）」に設定します
+            // ビューアーの初期化中にクラッシュするのを防ぐため、標準的な方法でViewerを作成します
             cesiumViewer = new Cesium.Viewer('cesiumContainer', {
-                baseLayer: Cesium.ImageryLayer.fromProviderAsync(
-                    Cesium.OpenStreetMapImageryProvider.fromUrl("https://a.tile.openstreetmap.org/")
-                ),
                 baseLayerPicker: true,
                 geocoder: true,
                 navigationHelpButton: false,
@@ -289,6 +285,16 @@
                 fullscreenButton: false,
                 infoBox: false,
                 selectionIndicator: false
+            });
+
+            // 起動時にアクセストークン不要で表示可能なOpenStreetMapを安全に非同期ロードして追加します
+            // 万が一ロードエラーが起きてもViewer全体の初期化がクラッシュすることはありません
+            Cesium.OpenStreetMapImageryProvider.fromUrl("https://a.tile.openstreetmap.org/").then(function(provider) {
+                if (cesiumViewer) {
+                    cesiumViewer.imageryLayers.addImageryProvider(provider);
+                }
+            }).catch(function(error) {
+                console.error("OpenStreetMapのロードに失敗しました:", error);
             });
 
             // 地図移動時にハッシュパラメータを更新し、Pane 1 (Portal) からの「位置取得」が動くようにする
