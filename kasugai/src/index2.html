@@ -252,6 +252,9 @@
 
         // CesiumJS 初期化関数
         function initCesium() {
+            // CESIUM_BASE_URLの設定（CDNハイブリッド構成。重い静的アセットやWorkersをCDNから直接取得）
+            window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/';
+
             const cesiumToken = document.getElementById("cesium-ion-token-input")?.value || '';
 
             if (cesiumViewer) {
