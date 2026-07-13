@@ -60,19 +60,31 @@
                 }
             }).catch(console.error);
 
-            // 位置同期用のリスナー
+            // カメラ移動の共通ヘルパー関数
+            function moveCamera(payload) {
+                if (cesiumViewer && payload) {
+                    const { lat, lon, zoom } = payload;
+                    const height = Math.pow(2, 27 - zoom);
+                    cesiumViewer.camera.flyTo({
+                        destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
+                        duration: 1.5
+                    });
+                }
+            }
+
+            // 1. Tauriグローバルイベント経由の位置同期 (独立ウィンドウとして開かれた時)
             if (window.__TAURI__ && window.__TAURI__.event) {
                 window.__TAURI__.event.listen('move_cesium', (event) => {
-                    if (cesiumViewer && event.payload) {
-                        const { lat, lon, zoom } = event.payload;
-                        const height = Math.pow(2, 27 - zoom);
-                        cesiumViewer.camera.flyTo({
-                            destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
-                            duration: 1.5
-                        });
-                    }
+                    moveCamera(event.payload);
                 });
             }
+
+            // 2. 親フレームからの postMessage 経由の位置同期 (index2.html の iframe として埋め込まれた時)
+            window.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'move_cesium') {
+                    moveCamera(event.data.payload);
+                }
+            });
         }
 
         window.onload = initCesium;

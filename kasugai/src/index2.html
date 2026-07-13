@@ -683,6 +683,22 @@
 
         // --- イベントリスナー ---
         if (window.__TAURI__ && window.__TAURI__.event) {
+            // 画面1 (Portal) 等からの移動指示を受信し、iframe（cesium.html）に転送する
+            window.__TAURI__.event.listen('move_cesium', (event) => {
+                const cesiumFrame = document.getElementById('cesiumFrame');
+                const activeTab = document.querySelector('.tab-btn.active');
+                
+                // Cesiumタブがアクティブかつ、デタッチされていない場合にiframeに転送
+                if (cesiumFrame && activeTab && activeTab.id === 'tab-cesium' && !detachedTabs.has('cesium')) {
+                    if (cesiumFrame.contentWindow) {
+                        cesiumFrame.contentWindow.postMessage({
+                            type: 'move_cesium',
+                            payload: event.payload
+                        }, '*');
+                    }
+                }
+            });
+
             // ウィンドウが閉じられた際の復元通知
             window.__TAURI__.event.listen('window_restored', (event) => {
                 const label = event.payload.label;
