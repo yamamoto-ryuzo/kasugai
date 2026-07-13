@@ -25,88 +25,138 @@
     <div id="cesiumContainer"></div>
 
     <script>
+        // 起動時、ハッシュパラメータがない場合は即座に東京駅のデフォルト値をURLに付与
+        (function() {
+            if (!window.location.hash) {
+                const defaultHash = "#lat=35.681236&lon=139.767125&zoom=15";
+                window.history.replaceState(null, null, defaultHash);
+            }
+        })();
+
         let cesiumViewer = null;
 
-        async function initCesium() {
-            window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/';
+        // URLハッシュ（位置情報）の解析と適用を行う独立した関数
+        function applyHashLocation(isInitial) {
+            if (!cesiumViewer) return;
 
-            // Rust側から設定（Ionトークン）を取得するためのプレースホルダ
-            let cesiumToken = '';
-            if (window.__TAURI__ && window.__TAURI__.core) {
-                try {
-                    cesiumToken = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai_Cesium', username: 'ion_token' });
-                } catch (e) {}
-            }
+            const hash = window.location.hash;
+            let lat = 35.681236;  // デフォルト: 東京駅
+            let lon = 139.767125; // デフォルト: 東京駅
+            let zoom = 15;        // デフォルト: 東京駅
 
-            Cesium.Ion.defaultAccessToken = cesiumToken;
-
-            cesiumViewer = new Cesium.Viewer('cesiumContainer', {
-                baseLayerPicker: true,
-                geocoder: true,
-                navigationHelpButton: false,
-                homeButton: true,
-                sceneModePicker: true,
-                timeline: false,
-                animation: false,
-                fullscreenButton: false,
-                infoBox: false,
-                selectionIndicator: false
-            });
-
-            cesiumViewer.imageryLayers.removeAll();
-            Cesium.OpenStreetMapImageryProvider.fromUrl("https://a.tile.openstreetmap.org/").then(function(provider) {
-                if (cesiumViewer) {
-                    cesiumViewer.imageryLayers.addImageryProvider(provider);
-                }
-            }).catch(console.error);
-
-            // URLハッシュ（位置情報）の解析と適用
-            function applyHashLocation(isInitial) {
-                const hash = window.location.hash;
-                if (hash) {
-                    const params = new URLSearchParams(hash.substring(1));
-                    const lat = parseFloat(params.get('lat'));
-                    const lon = parseFloat(params.get('lon'));
-                    const zoom = parseFloat(params.get('zoom')) || 15;
-                    if (!isNaN(lat) && !isNaN(lon)) {
-                        const height = Math.pow(2, 27 - zoom);
-                        if (isInitial) {
-                            cesiumViewer.camera.setView({
-                                destination: Cesium.Cartesian3.fromDegrees(lon, lat, height)
-                            });
-                        } else {
-                            cesiumViewer.camera.flyTo({
-                                destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
-                                duration: 1.5
-                            });
-                        }
+            if (hash) {
+                const params = new URLSearchParams(hash.substring(1));
+                const pLat = parseFloat(params.get('lat'));
+                const pLon = parseFloat(params.get('lon'));
+                const pZoom = parseFloat(params.get('zoom'));
+                if (!isNaN(pLat) && !isNaN(pLon)) {
+                    lat = pLat;
+                    lon = pLon;
+                    if (!isNaN(pZoom)) {
+                        zoom = pZoom;
                     }
                 }
             }
 
-            // 初期位置の反映
-            applyHashLocation(true);
+            const height = Math.pow(2, 27 - zoom);
+            try {
+                if (isInitial) {
+                    cesiumViewer.camera.setView({
+                        destination: Cesium.Cartesian3.fromDegrees(lon, lat, height)
+                    });
+                } else {
+                    cesiumViewer.camera.flyTo({
+                        destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
+                        duration: 1.5
+                    });
+                }
+            } catch (err) {
+                console.error("Camera update failed:", err);
+            }
+        }
 
-            // ハッシュ変更時（外部からURLナビゲーションで新しい位置が指定されたとき）のカメラ移動
+        async function initCesium() {
+            window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/';
+
+            // Rust側から設定（Ionトークン）を取得
+            let cesiumToken = '';
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                try {
+                    cesiumToken = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai_Cesium', username: 'ion_token' });
+                } catch (e) {
+                    console.error("Failed to fetch credential via Tauri invoke:", e);
+                }
+            }
+
+            Cesium.Ion.defaultAccessToken = cesiumToken;
+
+            try {
+                cesiumViewer = new Cesium.Viewer('cesiumContainer', {
+                    baseLayerPicker: true,
+                    geocoder: true,
+                    navigationHelpButton: false,
+                    homeButton: true,
+                    sceneModePicker: true,
+                    timeline: false,
+                    animation: false,
+                    fullscreenButton: false,
+                    infoBox: false,
+                    selectionIndicator: false
+                });
+
+                // すぐに一度位置情報をカメラに反映する
+                applyHashLocation(true);
+
+            } catch (e) {
+                console.error("Cesium viewer creation failed:", e);
+                return;
+            }
+
+            // OSM地図プロバイダーの読み込み
+            try {
+                cesiumViewer.imageryLayers.removeAll();
+                Cesium.OpenStreetMapImageryProvider.fromUrl("https://a.tile.openstreetmap.org/").then(function(provider) {
+                    if (cesiumViewer) {
+                        cesiumViewer.imageryLayers.addImageryProvider(provider);
+                        // タイルが読み込まれたタイミングで再度セット（初期化時の上書きを防ぐ）
+                        setTimeout(() => {
+                            applyHashLocation(true);
+                        }, 500);
+                    }
+                }).catch(function(error) {
+                    console.error("OSM Load Error:", error);
+                    applyHashLocation(true);
+                });
+            } catch (layerErr) {
+                console.error("Imagery layer setup failed:", layerErr);
+                applyHashLocation(true);
+            }
+
+            // ハッシュ変更時のイベントリスナー登録
             window.addEventListener('hashchange', () => applyHashLocation(false));
 
             // 地図移動（カメラ移動終了）時にハッシュパラメータを更新し、Portal (Pane 1) からの位置取得を可能にする
             cesiumViewer.camera.moveEnd.addEventListener(() => {
                 if (!cesiumViewer) return;
-                const camera = cesiumViewer.camera;
-                const position = camera.positionCartographic;
-                const lat = Cesium.Math.toDegrees(position.latitude).toFixed(6);
-                const lon = Cesium.Math.toDegrees(position.longitude).toFixed(6);
-                const height = position.height;
-                // 高度から簡易ズームレベルへの逆換算
-                const zoom = Math.max(1, Math.min(20, Number(27 - Math.log2(height || 5000)))).toFixed(4);
+                try {
+                    const camera = cesiumViewer.camera;
+                    const position = camera.positionCartographic;
+                    if (!position) return;
+                    
+                    const lat = Cesium.Math.toDegrees(position.latitude).toFixed(6);
+                    const lon = Cesium.Math.toDegrees(position.longitude).toFixed(6);
+                    const height = position.height;
+                    // 高度から簡易ズームレベルへの逆換算
+                    const zoom = Math.max(1, Math.min(20, Number(27 - Math.log2(height || 5000)))).toFixed(4);
 
-                const newHash = `#lat=${lat}&lon=${lon}&zoom=${zoom}`;
-                
-                // 自分自身のURLハッシュを更新 (独立ウィンドウのハッシュが更新され、Portalはこれを get_pane2_url で直接参照します)
-                window.history.replaceState(null, null, newHash);
+                    const newHash = `#lat=${lat}&lon=${lon}&zoom=${zoom}`;
+                    
+                    // 自分自身のURLハッシュを更新 (独立ウィンドウのハッシュが更新され、Portalはこれを get_pane2_url で直接参照します)
+                    window.history.replaceState(null, null, newHash);
+                } catch (moveErr) {
+                    console.error("MoveEnd listener failed:", moveErr);
+                }
             });
-
         }
 
         window.onload = initCesium;
