@@ -167,11 +167,6 @@
     <div class="container">
         <h1 id="view-title">システム設定</h1>
 
-        <!-- CesiumJS コンテナ (iframe) -->
-        <div id="content-cesium" class="tab-content" style="display: none; flex-grow: 1; height: 100%; min-height: 450px; position: relative;">
-            <iframe id="cesiumFrame" src="about:blank" style="width: 100%; height: 100%; border: none; border-radius: 6px; position: absolute; top: 0; left: 0;"></iframe>
-        </div>
-
         <div id="content-settings" class="tab-content">
             <p>システムの動作に関する設定を行います。変更は即座に反映されます。</p>
             <div class="interactive-section" style="gap: 15px;">
@@ -385,25 +380,10 @@
 
             const container = document.querySelector('.container');
             const title = document.getElementById('view-title');
-            const cesiumFrame = document.getElementById('cesiumFrame');
 
             // ローカルコンテンツの表示切り替え
             const isLocal = (tabName === 'settings' || tabName === 'cesium');
             document.getElementById('content-settings').style.display = tabName === 'settings' ? 'block' : 'none';
-            
-            // Cesiumが独立している場合はメイン側のコンテナを隠す
-            const showCesium = (tabName === 'cesium' && !detachedTabs.has('cesium'));
-            document.getElementById('content-cesium').style.display = showCesium ? 'block' : 'none';
-            
-            if (showCesium) {
-                if (cesiumFrame && (cesiumFrame.src === 'about:blank' || cesiumFrame.src === '')) {
-                    cesiumFrame.src = window.location.origin + '/cesium.html';
-                }
-            } else {
-                if (cesiumFrame && tabName !== 'cesium') {
-                    cesiumFrame.src = 'about:blank';
-                }
-            }
 
             if (tabName === 'settings') {
                 title.textContent = 'システム設定';
@@ -414,17 +394,8 @@
                 container.style.borderRadius = '8px';
                 container.style.backgroundColor = '#ffffff';
                 container.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-            } else if (tabName === 'cesium') {
-                title.textContent = '';
-                title.style.display = 'none';
-                
-                container.style.margin = '0';
-                container.style.padding = '0';
-                container.style.borderRadius = '0';
-                container.style.backgroundColor = 'transparent';
-                container.style.boxShadow = 'none';
             } else {
-                // 画面2側は空白にする
+                // cesium、box、reearth、google などの場合は自分自身（settings）は非表示にする
                 title.textContent = '';
                 title.style.display = 'none';
                 container.style.backgroundColor = 'transparent';
@@ -681,31 +652,8 @@
             }, 3000);
         }
 
-        // 子フレーム（cesium.html）からのハッシュ更新要請を受信し、親自身のハッシュに適用する
-        window.addEventListener('message', (event) => {
-            if (event.data && event.data.type === 'cesium_hash_update') {
-                window.history.replaceState(null, null, event.data.hash);
-            }
-        });
-
         // --- イベントリスナー ---
         if (window.__TAURI__ && window.__TAURI__.event) {
-            // 画面1 (Portal) 等からの移動指示を受信し、iframe（cesium.html）に転送する
-            window.__TAURI__.event.listen('move_cesium', (event) => {
-                const cesiumFrame = document.getElementById('cesiumFrame');
-                const activeTab = document.querySelector('.tab-btn.active');
-                
-                // Cesiumタブがアクティブかつ、デタッチされていない場合にiframeに転送
-                if (cesiumFrame && activeTab && activeTab.id === 'tab-cesium' && !detachedTabs.has('cesium')) {
-                    if (cesiumFrame.contentWindow) {
-                        cesiumFrame.contentWindow.postMessage({
-                            type: 'move_cesium',
-                            payload: event.payload
-                        }, '*');
-                    }
-                }
-            });
-
             // ウィンドウが閉じられた際の復元通知
             window.__TAURI__.event.listen('window_restored', (event) => {
                 const label = event.payload.label;
@@ -714,15 +662,6 @@
                     detachedTabs.delete(tabId);
                     const btn = document.getElementById('tab-' + tabId);
                     if (btn) btn.classList.remove('detached');
-                    
-                    // Cesiumが復元された場合はiframeを再ロード
-                    if (tabId === 'cesium') {
-                        const cesiumFrame = document.getElementById('cesiumFrame');
-                        const activeTab = document.querySelector('.tab-btn.active');
-                        if (cesiumFrame && activeTab && activeTab.id === 'tab-cesium') {
-                            cesiumFrame.src = window.location.origin + '/cesium.html';
-                        }
-                    }
                 }
             });
         }
