@@ -77,19 +77,6 @@
                 window.history.replaceState(null, null, newHash);
             });
 
-            // Tauriグローバルイベント経由の位置同期リッスン
-            if (window.__TAURI__ && window.__TAURI__.event) {
-                window.__TAURI__.event.listen('move_cesium', (event) => {
-                    if (cesiumViewer && event.payload) {
-                        const { lat, lon, zoom } = event.payload;
-                        const height = Math.pow(2, 27 - zoom);
-                        cesiumViewer.camera.flyTo({
-                            destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
-                            duration: 1.5
-                        });
-                    }
-                });
-            }
         }
 
         window.onload = initCesium;

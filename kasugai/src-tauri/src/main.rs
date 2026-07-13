@@ -999,43 +999,6 @@ fn main() {
             detach_window
         ])
         .setup(|app| {
-            // =================================================================
-            // Re:Earth 位置同期イベントリスナー（CORS/二重iframeサンドボックス完全突破）
-            // ポータル（index1.html）や他ペインから 'move_cesium'（共通位置変更）イベントが
-            // 発行された際、裏側のRustバックエンド権限により、Re:Earthを表示しているWebview
-            // に対し、eval 経由で直接 window.reearth.visualizer.camera.flyTo を実行します。
-            // =================================================================
-            let app_handle_for_sync = app.handle().clone();
-            app.listen("move_cesium", move |event| {
-                if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
-                    let lat = payload.get("lat").and_then(|v| v.as_f64()).unwrap_or(35.6812);
-                    let lon = payload.get("lon").and_then(|v| v.as_f64()).unwrap_or(139.7671);
-                    let zoom = payload.get("zoom").and_then(|v| v.as_f64()).unwrap_or(15.0);
-                    // ズームレベルから高度（メートル）への概算換算
-                    let height = 20000000.0 / 2.0_f64.powf(zoom - 1.0);
-
-                    let js_code = format!(
-                        r#"
-                        (function() {{
-                            window.postMessage({{
-                                action: "sync_camera",
-                                payload: {{
-                                    lat: {},
-                                    lon: {},
-                                    height: {}
-                                }}
-                            }}, "*");
-                        }})();
-                        "#,
-                        lat, lon, height
-                    );
-
-                    // 全ウィンドウの全Webviewに対してブロードキャスト（Re:Earth以外にも届くが害はない）
-                    for (_, window) in app_handle_for_sync.webview_windows() {
-                        let _ = window.eval(&js_code);
-                    }
-                }
-            });
 
             let window = WindowBuilder::new(app, "main")
                 .title("Kasugai 3-Split Viewer")
