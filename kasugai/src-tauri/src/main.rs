@@ -1074,10 +1074,6 @@ fn main() {
                 .initialization_script(init_script_pane2)
                 .on_navigation(move |url| {
                     let url_str = url.as_str();
-                    // ベースのタブ画面（index2.html）に cesium.html がロードされるのを絶対に阻止する
-                    if url_str.contains("cesium.html") || url_str.contains("cesium") {
-                        return false;
-                    }
                     if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1") 
                        || url_str.contains("index2.html") || url_str.contains("index3.html") 
                        || url_str.contains("account.box.com") || url_str.contains("app.box.com") || url_str.contains("reearth.io") || url_str.contains("earth.google.com") {

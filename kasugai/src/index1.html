@@ -208,25 +208,25 @@
                     
                     try {
                         if (currentUrlStr) {
-                            const url = new URL(currentUrlStr);
-                            if (url.hostname.includes('yahoo.co.jp')) {
+                            // URLオブジェクトパース前の生文字列（currentUrlStr）によるより確実なサービス判定
+                            if (currentUrlStr.includes('yahoo.co.jp')) {
                                 targetUrl = `https://map.yahoo.co.jp/?lat=${lat}&lon=${lng}&zoom=${zoom}`;
-                            } else if (url.hostname.includes('earth.google.com')) {
+                            } else if (currentUrlStr.includes('earth.google.com')) {
                                 // Google Earth 用に標準のZoom値からカメラ距離(d)へ簡易逆変換
                                 const distance = Math.pow(2, 27 - Number(zoom)).toFixed(2);
                                 targetUrl = `https://earth.google.com/web/@${lat},${lng},0a,${distance}d,35y,0h,0t,0r`;
-                            } else if (url.pathname.includes('index2.html')) {
-                                // index2.htmlの場合は何もしない（設定画面などのため）
-                            } else if (url.pathname.includes('cesium.html')) {
+                            } else if (currentUrlStr.includes('cesium')) {
                                 // CesiumJS専用のハッシュURLを組み立てて遷移させる
                                 targetUrl = `${window.location.origin}/cesium.html#lat=${lat}&lon=${lng}&zoom=${zoom}`;
-                            } else if (url.hostname.includes('reearth.io')) {
+                            } else if (currentUrlStr.includes('reearth.io')) {
                                 // Re:Earthへの同期移動（イベント発行・CORS突破）
                                 if (window.__TAURI__ && window.__TAURI__.event) {
                                     window.__TAURI__.event.emit('move_cesium', { lat: Number(lat), lon: Number(lng), zoom: Number(zoom) });
                                     statusDiv.style.display = 'none';
                                     return;
                                 }
+                            } else if (currentUrlStr.includes('index2.html')) {
+                                // index2.htmlの場合は何もしない（設定画面などのため）
                             }
                         }
                     } catch(err) {
