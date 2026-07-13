@@ -1076,7 +1076,8 @@ fn main() {
                     let url_str = url.as_str();
                     if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1") 
                        || url_str.contains("index2.html") || url_str.contains("index3.html") 
-                       || url_str.contains("account.box.com") || url_str.contains("app.box.com") || url_str.contains("reearth.io") || url_str.contains("earth.google.com") {
+                       || url_str.contains("account.box.com") || url_str.contains("app.box.com") || url_str.contains("reearth.io") || url_str.contains("earth.google.com")
+                       || url_str.contains("google.com") || url_str.contains("google.co.jp") || url_str.contains("yahoo.co.jp") {
                         return true;
                     }
                     let state = app_handle_for_nav2.state::<SplitterState>();
@@ -1108,7 +1109,8 @@ fn main() {
                     let url_str = url.as_str();
                     if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1") 
                        || url_str.contains("index2.html") || url_str.contains("index3.html") 
-                       || url_str.contains("account.box.com") || url_str.contains("app.box.com") || url_str.contains("reearth.io") || url_str.contains("earth.google.com") {
+                       || url_str.contains("account.box.com") || url_str.contains("app.box.com") || url_str.contains("reearth.io") || url_str.contains("earth.google.com")
+                       || url_str.contains("google.com") || url_str.contains("google.co.jp") || url_str.contains("yahoo.co.jp") {
                         return true;
                     }
                     true
