@@ -60,7 +60,7 @@
                 }
             }).catch(console.error);
 
-            // 地図移動（カメラ移動終了）時にハッシュパラメータを更新し、Portal (Pane 1) からの「位置取得」を可能にする
+            // 地図移動（カメラ移動終了）時にハッシュパラメータを更新し、親画面を通じてPortal (Pane 1) からの位置取得を可能にする
             cesiumViewer.camera.moveEnd.addEventListener(() => {
                 if (!cesiumViewer) return;
                 const camera = cesiumViewer.camera;
@@ -73,23 +73,49 @@
 
                 const newHash = `#lat=${lat}&lon=${lon}&zoom=${zoom}`;
                 
-                // 自分自身のURLハッシュを更新 (このWebviewがアクティブな時にget_pane2_urlを叩くとハッシュ込みで返る)
+                // 1. 自分自身のURLハッシュを更新
                 window.history.replaceState(null, null, newHash);
+
+                // 2. 親ウィンドウ（index2.html）が存在する場合は、親のURLハッシュも同期更新する
+                if (window !== window.parent) {
+                    try {
+                        // 同一オリジンのため直接親のハッシュを書き換え
+                        window.parent.history.replaceState(null, null, newHash);
+                    } catch (e) {
+                        // クロスドメイン制限等に備えた安全なpostMessageフォールバック
+                        window.parent.postMessage({
+                            type: 'cesium_hash_update',
+                            hash: newHash
+                        }, '*');
+                    }
+                }
             });
 
-            // 1. Tauriグローバルイベント経由の位置同期
+            // カメラ移動の共通ヘルパー関数
+            function moveCamera(payload) {
+                if (cesiumViewer && payload) {
+                    const { lat, lon, zoom } = payload;
+                    const height = Math.pow(2, 27 - zoom);
+                    cesiumViewer.camera.flyTo({
+                        destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
+                        duration: 1.5
+                    });
+                }
+            }
+
+            // 1. Tauriグローバルイベント経由の位置同期 (独立ウィンドウとして開かれた時)
             if (window.__TAURI__ && window.__TAURI__.event) {
                 window.__TAURI__.event.listen('move_cesium', (event) => {
-                    if (cesiumViewer && event.payload) {
-                        const { lat, lon, zoom } = event.payload;
-                        const height = Math.pow(2, 27 - zoom);
-                        cesiumViewer.camera.flyTo({
-                            destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
-                            duration: 1.5
-                        });
-                    }
+                    moveCamera(event.payload);
                 });
             }
+
+            // 2. 親フレームからの postMessage 経由の位置同期 (index2.html の iframe として埋め込まれた時)
+            window.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'move_cesium') {
+                    moveCamera(event.data.payload);
+                }
+            });
         }
 
         window.onload = initCesium;
