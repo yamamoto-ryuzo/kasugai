@@ -399,6 +399,10 @@ fn open_in_pane3(
             *state.active_pane2.lock().unwrap() = "yahoo".to_string();
             update_splitter_internal(&app_handle, &state);
             "pane2_yahoo"
+        } else if url.contains("cesium.html") {
+            *state.active_pane2.lock().unwrap() = "cesium".to_string();
+            update_splitter_internal(&app_handle, &state);
+            "pane2_cesium"
         } else {
             "pane3"
         };

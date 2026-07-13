@@ -60,20 +60,35 @@
                 }
             }).catch(console.error);
 
-            // URLハッシュから初期位置を読み取って反映
-            const hash = window.location.hash;
-            if (hash) {
-                const params = new URLSearchParams(hash.substring(1));
-                const lat = parseFloat(params.get('lat'));
-                const lon = parseFloat(params.get('lon'));
-                const zoom = parseFloat(params.get('zoom')) || 15;
-                if (!isNaN(lat) && !isNaN(lon)) {
-                    const height = Math.pow(2, 27 - zoom);
-                    cesiumViewer.camera.setView({
-                        destination: Cesium.Cartesian3.fromDegrees(lon, lat, height)
-                    });
+            // URLハッシュ（位置情報）の解析と適用
+            function applyHashLocation(isInitial) {
+                const hash = window.location.hash;
+                if (hash) {
+                    const params = new URLSearchParams(hash.substring(1));
+                    const lat = parseFloat(params.get('lat'));
+                    const lon = parseFloat(params.get('lon'));
+                    const zoom = parseFloat(params.get('zoom')) || 15;
+                    if (!isNaN(lat) && !isNaN(lon)) {
+                        const height = Math.pow(2, 27 - zoom);
+                        if (isInitial) {
+                            cesiumViewer.camera.setView({
+                                destination: Cesium.Cartesian3.fromDegrees(lon, lat, height)
+                            });
+                        } else {
+                            cesiumViewer.camera.flyTo({
+                                destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
+                                duration: 1.5
+                            });
+                        }
+                    }
                 }
             }
+
+            // 初期位置の反映
+            applyHashLocation(true);
+
+            // ハッシュ変更時（外部からURLナビゲーションで新しい位置が指定されたとき）のカメラ移動
+            window.addEventListener('hashchange', () => applyHashLocation(false));
 
             // 地図移動（カメラ移動終了）時にハッシュパラメータを更新し、Portal (Pane 1) からの位置取得を可能にする
             cesiumViewer.camera.moveEnd.addEventListener(() => {
