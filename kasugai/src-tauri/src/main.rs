@@ -788,6 +788,20 @@ async fn detach_window(
         .build()
         .map_err(|e| e.to_string())?;
 
+    // リサイズイベントのハンドラを追加
+    let app_clone_resize = app_handle.clone();
+    let wv_id_resize = wv_id.clone();
+    win.on_window_event(move |event| {
+        if let tauri::WindowEvent::Resized(size) = event {
+            if let Some(wv) = app_clone_resize.get_webview(&wv_id_resize) {
+                let _ = wv.set_bounds(Rect {
+                    position: Position::Physical(PhysicalPosition::new(0, 0)),
+                    size: Size::Physical(*size),
+                });
+            }
+        }
+    });
+
     // Webviewを移動または新規作成
     if let Some(wv) = app_handle.get_webview(&wv_id) {
         // 既存のWebviewを移動
