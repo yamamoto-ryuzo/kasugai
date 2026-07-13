@@ -35,78 +35,19 @@ fn get_system_info() -> String {
 
 // Keyringを利用したセキュアな資格情報の保存・取得・削除
 #[tauri::command]
-async fn detach_window(
-    app_handle: tauri::AppHandle,
-    label: String,
-    _url: String,
-    title: String,
+fn save_credential(
+    state: tauri::State<'_, SplitterState>,
+    service: String, 
+    username: String, 
+    password: String
 ) -> Result<(), String> {
-    let window_label = "dedicated_pane2".to_string();
-    let wv_id = if label.starts_with("pane2") { label.clone() } else { format!("pane2_{}", label) };
-
-    let win = if let Some(existing_win) = app_handle.get_window(&window_label) {
-        existing_win
-    } else {
-        let new_win = WindowBuilder::new(&app_handle, &window_label)
-            .title(&title)
-            .inner_size(800.0, 600.0)
-            .build()
-            .map_err(|e| e.to_string())?;
-
-        let app_resize = app_handle.clone();
-        let win_label_inner = window_label.clone();
-        new_win.on_window_event(move |event| {
-            if let tauri::WindowEvent::Resized(size) = event {
-                for (id, wv) in app_resize.webviews() {
-                    if wv.window().label() == win_label_inner {
-                        let _ = wv.set_bounds(Rect {
-                            position: Position::Physical(PhysicalPosition::new(0, 0)),
-                            size: Size::Physical(*size),
-                        });
-                        if id.contains("cesium") || id.contains("google") || id.contains("yahoo") {
-                             let _ = wv.eval("window.dispatchEvent(new Event('resize'));");
-                        }
-                    }
-                }
-            } else if let tauri::WindowEvent::CloseRequested { .. } = event {
-                if let Some(main_win) = app_resize.get_window("main") {
-                    for (id, wv) in app_resize.webviews() {
-                        if wv.window().label() == win_label_inner {
-                            let _ = wv.reparent(&main_win);
-                            let app_inner = app_resize.clone();
-                            let id_inner = id.clone();
-                            std::thread::spawn(move || {
-                                std::thread::sleep(std::time::Duration::from_millis(150));
-                                let _ = app_inner.run_on_main_thread(move || {
-                                    update_splitter_internal(&app_inner, &app_inner.state::<SplitterState>());
-                                    if let Some(wv_now) = app_inner.get_webview(&id_inner) {
-                                        let _ = wv_now.eval("window.dispatchEvent(new Event('resize'));");
-                                    }
-                                });
-                            });
-                        }
-                    }
-                }
-            }
-        });
-        new_win
-    };
-
-    if let Some(wv) = app_handle.get_webview(&wv_id) {
-        wv.reparent(&win).map_err(|e| e.to_string())?;
-        wv.set_bounds(Rect {
-            position: Position::Physical(PhysicalPosition::new(0, 0)),
-            size: Size::Physical(win.inner_size().unwrap()),
-        }).map_err(|e| e.to_string())?;
-        
-        let app_cleanup = app_handle.clone();
-        let _ = app_handle.run_on_main_thread(move || {
-            update_splitter_internal(&app_cleanup, &app_cleanup.state::<SplitterState>());
-        });
+    if service == "Kasugai_Reearth" {
+        *state.reearth_email.lock().unwrap() = Some(username.clone());
+    } else if service == "Kasugai_Box" {
+        *state.box_email.lock().unwrap() = Some(username.clone());
     }
-
-    let _ = win.set_focus();
-    let _ = win.set_title(&title);
+    let entry = Entry::new(&service, &username).map_err(|e| e.to_string())?;
+    entry.set_password(&password).map_err(|e| e.to_string())?;
     Ok(())
 }
 
