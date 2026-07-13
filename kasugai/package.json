@@ -1,6 +1,6 @@
 {
   "name": "kasugai-tests",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "E2E tests for Kasugai platform using Playwright",
   "devDependencies": {
     "@playwright/test": "^1.45.0",
