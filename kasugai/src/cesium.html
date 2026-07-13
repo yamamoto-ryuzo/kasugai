@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CesiumJS View</title>
+    <!-- CesiumJS Resources -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+        #cesiumContainer {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="cesiumContainer"></div>
+
+    <script>
+        let cesiumViewer = null;
+
+        async function initCesium() {
+            window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/';
+
+            // Rust側から設定（Ionトークン）を取得するためのプレースホルダ
+            let cesiumToken = '';
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                try {
+                    cesiumToken = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai_Cesium', username: 'ion_token' });
+                } catch (e) {}
+            }
+
+            Cesium.Ion.defaultAccessToken = cesiumToken;
+
+            cesiumViewer = new Cesium.Viewer('cesiumContainer', {
+                baseLayerPicker: true,
+                geocoder: true,
+                navigationHelpButton: false,
+                homeButton: true,
+                sceneModePicker: true,
+                timeline: false,
+                animation: false,
+                fullscreenButton: false,
+                infoBox: false,
+                selectionIndicator: false
+            });
+
+            cesiumViewer.imageryLayers.removeAll();
+            Cesium.OpenStreetMapImageryProvider.fromUrl("https://a.tile.openstreetmap.org/").then(function(provider) {
+                if (cesiumViewer) {
+                    cesiumViewer.imageryLayers.addImageryProvider(provider);
+                }
+            }).catch(console.error);
+
+            // 位置同期用のリスナー
+            if (window.__TAURI__ && window.__TAURI__.event) {
+                window.__TAURI__.event.listen('move_cesium', (event) => {
+                    if (cesiumViewer && event.payload) {
+                        const { lat, lon, zoom } = event.payload;
+                        const height = Math.pow(2, 27 - zoom);
+                        cesiumViewer.camera.flyTo({
+                            destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
+                            duration: 1.5
+                        });
+                    }
+                });
+            }
+        }
+
+        window.onload = initCesium;
+    </script>
+</body>
+</html>

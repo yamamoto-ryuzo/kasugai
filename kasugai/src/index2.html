@@ -151,18 +151,19 @@
             color: #ffffff;
             cursor: pointer;
         }
+
     </style>
 </head>
 <body>
     <div class="header-tabs">
         <div class="tabs">
-            <button class="tab-btn active" id="tab-settings" onclick="switchTab('settings')" ondblclick="detachTab('settings', '⚙️ システム設定')">⚙️ システム設定</button>
-            <button class="tab-btn" id="tab-box" onclick="switchTab('box')" ondblclick="detachTab('box', '📦 BOX')">📦 BOX</button>
-            <button class="tab-btn" id="tab-google" onclick="switchTab('google')" ondblclick="detachTab('google', '🗺️ Google Map')">🗺️ Google Map</button>
-            <button class="tab-btn" id="tab-googleearth" onclick="switchTab('googleearth')" ondblclick="detachTab('googleearth', '🌍 Google Earth')">🌍 Google Earth</button>
-            <button class="tab-btn" id="tab-yahoo" onclick="switchTab('yahoo')" ondblclick="detachTab('yahoo', '🗾 Yahoo Map')">🗾 Yahoo Map</button>
-            <button class="tab-btn" id="tab-cesium" onclick="switchTab('cesium')" ondblclick="detachTab('cesium', '🌌 CesiumJS')">🌌 CesiumJS</button>
-            <button class="tab-btn" id="tab-reearth" onclick="switchTab('reearth')" ondblclick="detachTab('reearth', '🌐 Re:Earth')">🌐 Re:Earth</button>
+            <button class="tab-btn active" id="tab-settings" onclick="switchTab('settings')" oncontextmenu="handleTabRightClick(event, 'settings', '⚙️ システム設定')">⚙️ システム設定</button>
+            <button class="tab-btn" id="tab-box" onclick="switchTab('box')" oncontextmenu="handleTabRightClick(event, 'box', '📦 BOX')">📦 BOX</button>
+            <button class="tab-btn" id="tab-google" onclick="switchTab('google')" oncontextmenu="handleTabRightClick(event, 'google', '🗺️ Google Map')">🗺️ Google Map</button>
+            <button class="tab-btn" id="tab-googleearth" onclick="switchTab('googleearth')" oncontextmenu="handleTabRightClick(event, 'googleearth', '🌍 Google Earth')">🌍 Google Earth</button>
+            <button class="tab-btn" id="tab-yahoo" onclick="switchTab('yahoo')" oncontextmenu="handleTabRightClick(event, 'yahoo', '🗾 Yahoo Map')">🗾 Yahoo Map</button>
+            <button class="tab-btn" id="tab-cesium" onclick="switchTab('cesium')" oncontextmenu="handleTabRightClick(event, 'cesium', '🌌 CesiumJS')">🌌 CesiumJS</button>
+            <button class="tab-btn" id="tab-reearth" onclick="switchTab('reearth')" oncontextmenu="handleTabRightClick(event, 'reearth', '🌐 Re:Earth')">🌐 Re:Earth</button>
         </div>
     </div>
 
@@ -261,19 +262,24 @@
         let cesiumViewer = null;
         let currentAppliedToken = null;
         let detachedTabs = new Set();
+        let lastRightClickTime = 0;
+        let lastRightClickTabId = null;
+
+        function handleTabRightClick(e, tabId, title) {
+            e.preventDefault();
+            const now = Date.now();
+            // 500ms以内の同じタブへの右クリックをダブルクリックとみなす
+            if (tabId === lastRightClickTabId && (now - lastRightClickTime) < 500) {
+                detachTab(tabId, title);
+                lastRightClickTime = 0; // リセット
+                lastRightClickTabId = null;
+            } else {
+                lastRightClickTime = now;
+                lastRightClickTabId = tabId;
+            }
+        }
 
         async function detachTab(tabId, title) {
-            if (detachedTabs.has(tabId)) {
-                if (window.__TAURI__ && window.__TAURI__.core) {
-                    await window.__TAURI__.core.invoke('detach_window', { 
-                        label: 'pane2_' + tabId, 
-                        url: await getTabUrl(tabId),
-                        title: title || 'Kasugai Detached Window'
-                    });
-                }
-                return;
-            }
-
             if (window.__TAURI__ && window.__TAURI__.core) {
                 const url = await getTabUrl(tabId);
                 await window.__TAURI__.core.invoke('detach_window', { 
@@ -327,7 +333,7 @@
 
         async function getTabUrl(tabId) {
             if (tabId === 'settings') return window.location.origin + '/index2.html?settings=true';
-            if (tabId === 'cesium') return window.location.origin + '/index2.html?cesium=true';
+            if (tabId === 'cesium') return window.location.origin + '/cesium.html';
             
             // Rust側の状態に合わせてタブ名を解決（box -> pane2_box 等）
             const tabNameToWebviewId = {

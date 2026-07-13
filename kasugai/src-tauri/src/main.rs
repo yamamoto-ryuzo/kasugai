@@ -325,10 +325,6 @@ fn open_in_pane2(
             *state.active_pane2.lock().unwrap() = "yahoo".to_string();
             update_splitter_internal(&app_handle, &state);
             "pane2_yahoo"
-        } else if url.contains("mapion.co.jp") {
-            *state.active_pane2.lock().unwrap() = "mapion".to_string();
-            update_splitter_internal(&app_handle, &state);
-            "pane2_mapion"
         } else {
             *state.active_pane2.lock().unwrap() = "default".to_string();
             update_splitter_internal(&app_handle, &state);
@@ -403,10 +399,6 @@ fn open_in_pane3(
             *state.active_pane2.lock().unwrap() = "yahoo".to_string();
             update_splitter_internal(&app_handle, &state);
             "pane2_yahoo"
-        } else if url.contains("mapion.co.jp") {
-            *state.active_pane2.lock().unwrap() = "mapion".to_string();
-            update_splitter_internal(&app_handle, &state);
-            "pane2_mapion"
         } else {
             "pane3"
         };
@@ -470,6 +462,12 @@ fn pane_dblclick(
     state: tauri::State<'_, SplitterState>,
     pane: String,
 ) {
+    // 独立したWebView(pane2_cesiumなど)からのダブルクリックは無視する
+    if pane.starts_with("pane2_") {
+        println!("[Kasugai Rust] Ignored dblclick from dedicated pane: {}", pane);
+        return;
+    }
+
     let mut saved = state.saved_ratios.lock().unwrap();
     
     if pane == "pane1" {
@@ -617,11 +615,12 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     // update_pane2("pane2", active_pane2 == "default", false); // 上で常に表示にしたので不要
     update_pane2("pane2_box", active_pane2 == "box", true);
     update_pane2("pane2_reearth", active_pane2 == "reearth", true);
-    update_pane2("pane2_google", active_pane2 == "google", true);
-    update_pane2("pane2_googleearth", active_pane2 == "googleearth", true);
-    update_pane2("pane2_yahoo", active_pane2 == "yahoo", true);
+            update_pane2("pane2_google", active_pane2 == "google", true);
+            update_pane2("pane2_googleearth", active_pane2 == "googleearth", true);
+            update_pane2("pane2_yahoo", active_pane2 == "yahoo", true);
+            update_pane2("pane2_cesium", active_pane2 == "cesium", true);
 
-    // pane3 (ベース画面、タブUI領域など用) は常に配置
+            // pane3 (ベース画面、タブUI領域など用) は常に配置
     if let Some(wv3) = window.get_webview("pane3") {
         let _ = wv3.set_bounds(pane3_rect);
     }
@@ -774,15 +773,15 @@ async fn get_pane2_url(
     state: tauri::State<'_, SplitterState>,
 ) -> Result<String, String> {
     let active = state.active_pane2.lock().unwrap().clone();
-    let target_str = match active.as_str() {
-        "box" => "pane2_box",
-        "reearth" => "pane2_reearth",
-        "google" => "pane2_google",
-        "googleearth" => "pane2_googleearth",
-        "yahoo" => "pane2_yahoo",
-        "mapion" => "pane2_mapion",
-        _ => "pane2",
-    };
+        let target_str = match active.as_str() {
+            "box" => "pane2_box",
+            "reearth" => "pane2_reearth",
+            "google" => "pane2_google",
+            "googleearth" => "pane2_googleearth",
+            "yahoo" => "pane2_yahoo",
+            "cesium" => "pane2_cesium",
+            _ => "pane2",
+        };
 
     let (tx, rx) = std::sync::mpsc::channel();
     let app_clone = app_handle.clone();
@@ -1145,9 +1144,30 @@ fn main() {
                     tauri::webview::NewWindowResponse::Deny
                 });
 
+            let webview_cesium = WebviewBuilder::new("pane2_cesium", WebviewUrl::App("cesium.html".into()))
+                .initialization_script(r#"
+                    window.addEventListener('dblclick', function(e) {
+                        if (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke) {
+                            window.__TAURI_INTERNALS__.invoke('pane_dblclick', { pane: 'pane2_cesium' });
+                        } else if (window.__TAURI__ && window.__TAURI__.core) {
+                            window.__TAURI__.core.invoke('pane_dblclick', { pane: 'pane2_cesium' });
+                        }
+                    });
+                "#)
+                .on_navigation(move |url| {
+                    let url_str = url.as_str();
+                    if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1") 
+                       || url_str.contains("index.html") || url_str.contains("index3.html") 
+                       || url_str.contains("cesium.html") {
+                        return true;
+                    }
+                    false
+                });
+
             let _wv_google = window.add_child(webview_google, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv_googleearth = window.add_child(webview_googleearth, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv_yahoo = window.add_child(webview_yahoo, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
+            let _wv_cesium = window.add_child(webview_cesium, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv3 = window.add_child(webview3_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             
             let state = app.state::<SplitterState>();
