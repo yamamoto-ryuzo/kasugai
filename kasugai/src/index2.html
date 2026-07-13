@@ -286,18 +286,18 @@
                 // WebviewのIDを正しく渡す (例: "pane2_box")
                 const wvId = (tabId === 'settings') ? 'pane2' : 'pane2_' + tabId;
                 
-                // 専用画面（dedicated_pane2）として独立ウィンドウを開く/フォーカスする
+                // 専用画面として独立ウィンドウを開く/フォーカスする
                 await window.__TAURI__.core.invoke('detach_window', { 
                     label: wvId, 
                     url: url,
                     title: title || 'Kasugai Dedicated Window'
                 });
                 
-                // Rust側にBounds再計算を促す（ウィンドウが存在することを認識させる）
+                // Rust側にBounds再計算を促す
                 await window.__TAURI__.core.invoke('update_splitter', { ratio1: -1, ratio2: -1 });
 
                 // UI上も独立状態を反映
-                if (tabId !== 'settings' && tabId !== 'cesium') {
+                if (tabId !== 'settings') {
                     detachedTabs.add(tabId);
                     const btn = document.getElementById('tab-' + tabId);
                     if (btn) btn.classList.add('detached');
@@ -381,6 +381,13 @@
 
         // CesiumJS 初期化関数
         function initCesium() {
+            // 独立している場合は初期化（描画）をスキップ
+            if (detachedTabs.has('cesium')) {
+                const container = document.getElementById('cesiumContainer');
+                if (container) container.innerHTML = ''; // 中身を空にする
+                return;
+            }
+
             // CESIUM_BASE_URLの設定（CDNハイブリッド構成。重い静的アセットやWorkersをCDNから直接取得）
             window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/';
 
@@ -463,7 +470,13 @@
             // ローカルコンテンツの表示切り替え
             const isLocal = (tabName === 'settings' || tabName === 'cesium');
             document.getElementById('content-settings').style.display = tabName === 'settings' ? 'block' : 'none';
-            document.getElementById('content-cesium').style.display = tabName === 'cesium' ? 'block' : 'none';
+            
+            // Cesiumが独立している場合はメイン側のコンテナを隠す
+            const showCesium = (tabName === 'cesium' && !detachedTabs.has('cesium'));
+            document.getElementById('content-cesium').style.display = showCesium ? 'block' : 'none';
+            if (!showCesium && tabName === 'cesium') {
+                document.getElementById('cesiumContainer').innerHTML = '';
+            }
 
             if (tabName === 'settings') {
                 title.textContent = 'システム設定';

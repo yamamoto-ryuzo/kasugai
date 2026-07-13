@@ -35,19 +35,78 @@ fn get_system_info() -> String {
 
 // Keyringを利用したセキュアな資格情報の保存・取得・削除
 #[tauri::command]
-fn save_credential(
-    state: tauri::State<'_, SplitterState>,
-    service: String, 
-    username: String, 
-    password: String
+async fn detach_window(
+    app_handle: tauri::AppHandle,
+    label: String,
+    _url: String,
+    title: String,
 ) -> Result<(), String> {
-    if service == "Kasugai_Reearth" {
-        *state.reearth_email.lock().unwrap() = Some(username.clone());
-    } else if service == "Kasugai_Box" {
-        *state.box_email.lock().unwrap() = Some(username.clone());
+    let window_label = "dedicated_pane2".to_string();
+    let wv_id = if label.starts_with("pane2") { label.clone() } else { format!("pane2_{}", label) };
+
+    let win = if let Some(existing_win) = app_handle.get_window(&window_label) {
+        existing_win
+    } else {
+        let new_win = WindowBuilder::new(&app_handle, &window_label)
+            .title(&title)
+            .inner_size(800.0, 600.0)
+            .build()
+            .map_err(|e| e.to_string())?;
+
+        let app_resize = app_handle.clone();
+        let win_label_inner = window_label.clone();
+        new_win.on_window_event(move |event| {
+            if let tauri::WindowEvent::Resized(size) = event {
+                for (id, wv) in app_resize.webviews() {
+                    if wv.window().label() == win_label_inner {
+                        let _ = wv.set_bounds(Rect {
+                            position: Position::Physical(PhysicalPosition::new(0, 0)),
+                            size: Size::Physical(*size),
+                        });
+                        if id.contains("cesium") || id.contains("google") || id.contains("yahoo") {
+                             let _ = wv.eval("window.dispatchEvent(new Event('resize'));");
+                        }
+                    }
+                }
+            } else if let tauri::WindowEvent::CloseRequested { .. } = event {
+                if let Some(main_win) = app_resize.get_window("main") {
+                    for (id, wv) in app_resize.webviews() {
+                        if wv.window().label() == win_label_inner {
+                            let _ = wv.reparent(&main_win);
+                            let app_inner = app_resize.clone();
+                            let id_inner = id.clone();
+                            std::thread::spawn(move || {
+                                std::thread::sleep(std::time::Duration::from_millis(150));
+                                let _ = app_inner.run_on_main_thread(move || {
+                                    update_splitter_internal(&app_inner, &app_inner.state::<SplitterState>());
+                                    if let Some(wv_now) = app_inner.get_webview(&id_inner) {
+                                        let _ = wv_now.eval("window.dispatchEvent(new Event('resize'));");
+                                    }
+                                });
+                            });
+                        }
+                    }
+                }
+            }
+        });
+        new_win
+    };
+
+    if let Some(wv) = app_handle.get_webview(&wv_id) {
+        wv.reparent(&win).map_err(|e| e.to_string())?;
+        wv.set_bounds(Rect {
+            position: Position::Physical(PhysicalPosition::new(0, 0)),
+            size: Size::Physical(win.inner_size().unwrap()),
+        }).map_err(|e| e.to_string())?;
+        
+        let app_cleanup = app_handle.clone();
+        let _ = app_handle.run_on_main_thread(move || {
+            update_splitter_internal(&app_cleanup, &app_cleanup.state::<SplitterState>());
+        });
     }
-    let entry = Entry::new(&service, &username).map_err(|e| e.to_string())?;
-    entry.set_password(&password).map_err(|e| e.to_string())?;
+
+    let _ = win.set_focus();
+    let _ = win.set_title(&title);
     Ok(())
 }
 
@@ -630,7 +689,7 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     update_pane2("pane2_google", active == "google" && !is_detached("google"), true);
     update_pane2("pane2_googleearth", active == "googleearth" && !is_detached("googleearth"), true);
     update_pane2("pane2_yahoo", active == "yahoo" && !is_detached("yahoo"), true);
-    update_pane2("pane2_cesium", active == "cesium", true); 
+    update_pane2("pane2_cesium", active == "cesium" && !is_detached("cesium"), true); 
 
     // pane3 (ベース画面、タブUI領域など用) は常に配置
     if let Some(wv3) = window.get_webview("pane3") {
@@ -755,115 +814,75 @@ fn prefetch_basic_auth(
 async fn detach_window(
     app_handle: tauri::AppHandle,
     label: String,
-    url: String,
+    _url: String,
     title: String,
 ) -> Result<(), String> {
-    let window_label = if label == "dedicated_pane2" { "dedicated_pane2".to_string() } else { format!("detached_{}", label) };
-    
-    // 1. 移動対象のWebviewを取得（既存のものがあれば）
-    // label が "box" なら Webview ID は "pane2_box"
-    let wv_id = if label == "dedicated_pane2" {
-        // dedicated_pane2 の場合は URL やコンテキストから判断する必要があるが、
-        // 現状の index2.html の呼び出し方に合わせるなら label そのものが ID かもしれない
-        label.clone()
-    } else if label.starts_with("pane2_") {
-        label.clone()
+    let window_label = "dedicated_pane2".to_string();
+    let wv_id = if label.starts_with("pane2") { label.clone() } else { format!("pane2_{}", label) };
+
+    let win = if let Some(existing_win) = app_handle.get_window(&window_label) {
+        existing_win
     } else {
-        format!("pane2_{}", label)
+        let new_win = WindowBuilder::new(&app_handle, &window_label)
+            .title(&title)
+            .inner_size(800.0, 600.0)
+            .build()
+            .map_err(|e| e.to_string())?;
+
+        let app_resize = app_handle.clone();
+        let win_label_inner = window_label.clone();
+        new_win.on_window_event(move |event| {
+            if let tauri::WindowEvent::Resized(size) = event {
+                for (id, wv) in app_resize.webviews() {
+                    if wv.window().label() == win_label_inner {
+                        let _ = wv.set_bounds(Rect {
+                            position: Position::Physical(PhysicalPosition::new(0, 0)),
+                            size: Size::Physical(*size),
+                        });
+                        if id.contains("cesium") || id.contains("google") || id.contains("yahoo") {
+                             let _ = wv.eval("window.dispatchEvent(new Event('resize'));");
+                        }
+                    }
+                }
+            } else if let tauri::WindowEvent::CloseRequested { .. } = event {
+                if let Some(main_win) = app_resize.get_window("main") {
+                    for (id, wv) in app_resize.webviews() {
+                        if wv.window().label() == win_label_inner {
+                            let _ = wv.reparent(&main_win);
+                            let app_inner = app_resize.clone();
+                            let id_inner = id.clone();
+                            std::thread::spawn(move || {
+                                std::thread::sleep(std::time::Duration::from_millis(150));
+                                let _ = app_inner.run_on_main_thread(move || {
+                                    update_splitter_internal(&app_inner, &app_inner.state::<SplitterState>());
+                                    if let Some(wv_now) = app_inner.get_webview(&id_inner) {
+                                        let _ = wv_now.eval("window.dispatchEvent(new Event('resize'));");
+                                    }
+                                });
+                            });
+                        }
+                    }
+                }
+            }
+        });
+        new_win
     };
 
-    // すでにウィンドウが開いている場合
-    if let Some(win) = app_handle.get_window(&window_label) {
-        let _ = win.set_focus();
-        
-        // 既存のWebviewが別のところにあるなら移動させる（Reparent）
-        if let Some(wv) = app_handle.get_webview(&wv_id) {
-            let current_win = wv.window();
-            if current_win.label() != window_label {
-                let _ = wv.reparent(&win).map_err(|e| e.to_string())?;
-            }
-            let _ = wv.set_bounds(Rect {
-                position: Position::Physical(PhysicalPosition::new(0, 0)),
-                size: Size::Physical(win.inner_size().unwrap()),
-            }).map_err(|e| e.to_string())?;
-        }
-        return Ok(());
-    }
-
-    // 新しいウィンドウを作成
-    let win = WindowBuilder::new(&app_handle, &window_label)
-        .title(&title)
-        .inner_size(800.0, 600.0)
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    // リサイズイベントのハンドラを追加
-    let app_clone_resize = app_handle.clone();
-    let wv_id_resize = wv_id.clone();
-    win.on_window_event(move |event| {
-        if let tauri::WindowEvent::Resized(size) = event {
-            if let Some(wv) = app_clone_resize.get_webview(&wv_id_resize) {
-                let _ = wv.set_bounds(Rect {
-                    position: Position::Physical(PhysicalPosition::new(0, 0)),
-                    size: Size::Physical(*size),
-                });
-            }
-        }
-    });
-
-    // Webviewを移動または新規作成
     if let Some(wv) = app_handle.get_webview(&wv_id) {
-        // 既存のWebviewを移動
         wv.reparent(&win).map_err(|e| e.to_string())?;
         wv.set_bounds(Rect {
             position: Position::Physical(PhysicalPosition::new(0, 0)),
             size: Size::Physical(win.inner_size().unwrap()),
         }).map_err(|e| e.to_string())?;
-    } else {
-        // なければ新規（通常はここに来ないはず）
-        let wv_builder = WebviewBuilder::new(&wv_id, WebviewUrl::External(tauri::Url::parse(&url).unwrap()));
-        let _ = win.add_child(wv_builder, PhysicalPosition::new(0, 0), win.inner_size().unwrap())
-            .map_err(|e| e.to_string())?;
+        
+        let app_cleanup = app_handle.clone();
+        let _ = app_handle.run_on_main_thread(move || {
+            update_splitter_internal(&app_cleanup, &app_cleanup.state::<SplitterState>());
+        });
     }
 
-    let app_clone = app_handle.clone();
-    let wv_id_clone = wv_id.clone();
-    win.on_window_event(move |event| {
-        if let tauri::WindowEvent::CloseRequested { .. } = event {
-            // ウィンドウが閉じられたらメインウィンドウ（main）に戻す
-            if let Some(main_win) = app_clone.get_window("main") {
-                if let Some(wv) = app_clone.get_webview(&wv_id_clone) {
-                    let _ = wv.reparent(&main_win);
-                    
-                    // Webview2の描画更新を確実にするため、一旦隠蔽領域に飛ばしてから戻す
-                    let _ = wv.set_bounds(Rect {
-                        position: Position::Physical(PhysicalPosition::new(-10000, -10000)),
-                        size: Size::Physical(PhysicalSize::new(1, 1)),
-                    });
-
-                    // 戻した後に少し遅延を置いてBounds再計算をトリガー
-                    let app_handle_inner = app_clone.clone();
-                    let wv_id_inner = wv_id_clone.clone();
-                    std::thread::spawn(move || {
-                        std::thread::sleep(std::time::Duration::from_millis(100));
-                        let app_handle_for_run = app_handle_inner.clone();
-                        let wv_id_for_run = wv_id_inner.clone();
-                        let _ = app_handle_inner.run_on_main_thread(move || {
-                            let state = app_handle_for_run.state::<SplitterState>();
-                            update_splitter_internal(&app_handle_for_run, &state);
-                            
-                            // 強制リロードが必要な場合（描画停止対策）
-                            if let Some(wv_now) = app_handle_for_run.get_webview(&wv_id_for_run) {
-                                let _ = wv_now.eval("window.dispatchEvent(new Event('resize'));");
-                            }
-                        });
-                    });
-                }
-            }
-            let _ = app_clone.emit("window_restored", serde_json::json!({ "label": wv_id_clone }));
-        }
-    });
-
+    let _ = win.set_focus();
+    let _ = win.set_title(&title);
     Ok(())
 }
 
