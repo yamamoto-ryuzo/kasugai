@@ -101,10 +101,10 @@
     <script>
         function parseLocation(urlStr) {
             try {
-                const url = new URL(urlStr);
                 let lat = null, lng = null, zoom = null;
 
-                if (url.hostname.includes('earth.google.com')) {
+                // URLオブジェクトのパースに頼らず、プロトコル（tauri://等）に左右されない生文字列による安定した位置解析
+                if (urlStr.includes('earth.google.com')) {
                     // Google Earth 形式: /@35.68,139.76,10a,5000d,...
                     const matchEarth = urlStr.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?).*?,(\d+(?:\.\d+)?)d/);
                     if (matchEarth) {
@@ -114,13 +114,23 @@
                         // Google Earthのカメラ距離(d)を標準 of Zoom値に簡易変換（詳細な小数値を保持）
                         zoom = Number(27 - Math.log2(distance || 5000)).toFixed(4);
                     }
-                } else if (url.hostname.includes('google.com')) {
+                } else if (urlStr.includes('google.com')) {
                     // Google Maps 形式: /@35.681236,139.767125,15z
                     const matchAt = urlStr.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),(\d+(?:\.\d+)?)z/);
                     if (matchAt) {
                         lat = Number(matchAt[1]).toFixed(6);
                         lng = Number(matchAt[2]).toFixed(6);
                         zoom = Number(matchAt[3]).toFixed(4);
+                    }
+                } else if (urlStr.includes('cesium')) {
+                    // CesiumJS 形式: cesium.html#lat=35.6812&lon=139.7671&zoom=15
+                    const matchLat = urlStr.match(/[#?&]lat=(-?\d+(?:\.\d+)?)/);
+                    const matchLon = urlStr.match(/[#?&]lon=(-?\d+(?:\.\d+)?)/);
+                    const matchZoom = urlStr.match(/[#?&](?:zoom|z)=(\d+(?:\.\d+)?)/);
+                    if (matchLat && matchLon) {
+                        lat = Number(matchLat[1]).toFixed(6);
+                        lng = Number(matchLon[1]).toFixed(6); // 経度(lon)を lng にマッピング
+                        zoom = matchZoom ? Number(matchZoom[1]).toFixed(4) : "15.0000";
                     }
                 } else {
                     // Yahoo Map 形式: ?lat=35.681236&lon=139.767125&zoom=15 (またはハッシュ等の形式)
