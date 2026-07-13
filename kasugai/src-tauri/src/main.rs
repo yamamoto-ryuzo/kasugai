@@ -811,9 +811,30 @@ async fn detach_window(
             if let Some(main_win) = app_clone.get_window("main") {
                 if let Some(wv) = app_clone.get_webview(&wv_id_clone) {
                     let _ = wv.reparent(&main_win);
-                    // 戻した後にBounds再計算をトリガー
-                    let state = app_clone.state::<SplitterState>();
-                    update_splitter_internal(&app_clone, &state);
+                    
+                    // Webview2の描画更新を確実にするため、一旦隠蔽領域に飛ばしてから戻す
+                    let _ = wv.set_bounds(Rect {
+                        position: Position::Physical(PhysicalPosition::new(-10000, -10000)),
+                        size: Size::Physical(PhysicalSize::new(1, 1)),
+                    });
+
+                    // 戻した後に少し遅延を置いてBounds再計算をトリガー
+                    let app_handle_inner = app_clone.clone();
+                    let wv_id_inner = wv_id_clone.clone();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        let app_handle_for_run = app_handle_inner.clone();
+                        let wv_id_for_run = wv_id_inner.clone();
+                        let _ = app_handle_inner.run_on_main_thread(move || {
+                            let state = app_handle_for_run.state::<SplitterState>();
+                            update_splitter_internal(&app_handle_for_run, &state);
+                            
+                            // 強制リロードが必要な場合（描画停止対策）
+                            if let Some(wv_now) = app_handle_for_run.get_webview(&wv_id_for_run) {
+                                let _ = wv_now.eval("window.dispatchEvent(new Event('resize'));");
+                            }
+                        });
+                    });
                 }
             }
             let _ = app_clone.emit("window_restored", serde_json::json!({ "label": wv_id_clone }));
