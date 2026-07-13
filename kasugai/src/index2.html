@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pane 2 - Center View</title>
-    <!-- CesiumJS Resources -->
-    <script src="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Cesium.js"></script>
-    <link href="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -170,9 +167,9 @@
     <div class="container">
         <h1 id="view-title">システム設定</h1>
 
-        <!-- CesiumJS コンテナ -->
+        <!-- CesiumJS コンテナ (iframe) -->
         <div id="content-cesium" class="tab-content" style="display: none; flex-grow: 1; height: 100%; min-height: 450px; position: relative;">
-            <div id="cesiumContainer" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; border-radius: 6px; overflow: hidden;"></div>
+            <iframe id="cesiumFrame" src="about:blank" style="width: 100%; height: 100%; border: none; border-radius: 6px; position: absolute; top: 0; left: 0;"></iframe>
         </div>
 
         <div id="content-settings" class="tab-content">
@@ -259,8 +256,6 @@
     </div>
 
     <script>
-        let cesiumViewer = null;
-        let currentAppliedToken = null;
         let detachedTabs = new Set();
         let lastRightClickTime = 0;
         let lastRightClickTabId = null;
@@ -379,81 +374,6 @@
             return window.location.href;
         }
 
-        // CesiumJS 初期化関数
-        function initCesium() {
-            // 独立している場合は初期化（描画）をスキップ
-            if (detachedTabs.has('cesium')) {
-                const container = document.getElementById('cesiumContainer');
-                if (container) container.innerHTML = ''; // 中身を空にする
-                return;
-            }
-
-            // CESIUM_BASE_URLの設定（CDNハイブリッド構成。重い静的アセットやWorkersをCDNから直接取得）
-            window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/';
-
-            const cesiumToken = document.getElementById("cesium-ion-token-input")?.value || '';
-
-            if (cesiumViewer) {
-                if (currentAppliedToken === cesiumToken) {
-                    // トークンに変更がない場合はサイズ調整のみ
-                    cesiumViewer.resize();
-                    return;
-                } else {
-                    // トークンが変更された場合は、既存のビューアーを破棄して再作成する
-                    try {
-                        cesiumViewer.destroy();
-                    } catch (e) {
-                        console.error("Cesium Viewerの破棄に失敗しました:", e);
-                    }
-                    cesiumViewer = null;
-                }
-            }
-
-            currentAppliedToken = cesiumToken;
-            Cesium.Ion.defaultAccessToken = cesiumToken;
-
-            // ビューアーの初期化中にクラッシュするのを防ぐため、標準的な方法でViewerを作成します
-            cesiumViewer = new Cesium.Viewer('cesiumContainer', {
-                baseLayerPicker: true,
-                geocoder: true,
-                navigationHelpButton: false,
-                homeButton: true,
-                sceneModePicker: true,
-                timeline: false,
-                animation: false,
-                fullscreenButton: false,
-                infoBox: false,
-                selectionIndicator: false
-            });
-
-            // 起動直後にアセット許諾制限などでエラーになりやすいデフォルトのBing Mapsレイヤーを一度すべてクリアします
-            cesiumViewer.imageryLayers.removeAll();
-
-            // その代わりに、アクセストークン不要で表示可能なOpenStreetMapをベースレイヤーとして追加します
-            // 万が一ロードエラーが起きてもViewer全体の初期化がクラッシュすることはありません
-            Cesium.OpenStreetMapImageryProvider.fromUrl("https://a.tile.openstreetmap.org/").then(function(provider) {
-                if (cesiumViewer) {
-                    cesiumViewer.imageryLayers.addImageryProvider(provider);
-                }
-            }).catch(function(error) {
-                console.error("OpenStreetMapのロードに失敗しました:", error);
-            });
-
-            // 地図移動時にハッシュパラメータを更新し、Pane 1 (Portal) からの「位置取得」が動くようにする
-            cesiumViewer.camera.moveEnd.addEventListener(() => {
-                const camera = cesiumViewer.camera;
-                const position = camera.positionCartographic;
-                const lat = Cesium.Math.toDegrees(position.latitude).toFixed(6);
-                const lon = Cesium.Math.toDegrees(position.longitude).toFixed(6);
-                const height = position.height;
-                // 高度から簡易ズームレベルへの逆換算
-                const zoom = Math.max(1, Math.min(20, Number(27 - Math.log2(height || 5000)))).toFixed(4);
-
-                const newHash = `#lat=${lat}&lon=${lon}&zoom=${zoom}`;
-                window.history.replaceState(null, null, newHash);
-            });
-        }
-
         // タブ切り替え処理
         async function switchTab(tabName) {
             // UIのアクティブ状態の更新
@@ -465,7 +385,7 @@
 
             const container = document.querySelector('.container');
             const title = document.getElementById('view-title');
-            const cesiumContainer = document.getElementById('cesiumContainer');
+            const cesiumFrame = document.getElementById('cesiumFrame');
 
             // ローカルコンテンツの表示切り替え
             const isLocal = (tabName === 'settings' || tabName === 'cesium');
@@ -474,8 +394,15 @@
             // Cesiumが独立している場合はメイン側のコンテナを隠す
             const showCesium = (tabName === 'cesium' && !detachedTabs.has('cesium'));
             document.getElementById('content-cesium').style.display = showCesium ? 'block' : 'none';
-            if (!showCesium && tabName === 'cesium') {
-                document.getElementById('cesiumContainer').innerHTML = '';
+            
+            if (showCesium) {
+                if (cesiumFrame && (cesiumFrame.src === 'about:blank' || cesiumFrame.src === '')) {
+                    cesiumFrame.src = window.location.origin + '/cesium.html';
+                }
+            } else {
+                if (cesiumFrame && tabName !== 'cesium') {
+                    cesiumFrame.src = 'about:blank';
+                }
             }
 
             if (tabName === 'settings') {
@@ -496,12 +423,6 @@
                 container.style.borderRadius = '0';
                 container.style.backgroundColor = 'transparent';
                 container.style.boxShadow = 'none';
-                
-                if (cesiumContainer) {
-                    cesiumContainer.style.borderRadius = '0';
-                }
-                
-                setTimeout(initCesium, 50);
             } else {
                 // 画面2側は空白にする
                 title.textContent = '';
@@ -760,20 +681,8 @@
             }, 3000);
         }
 
-        // --- CesiumJS イベントリスナー (Pane 1 からの移動指示を受信) ---
+        // --- イベントリスナー ---
         if (window.__TAURI__ && window.__TAURI__.event) {
-            window.__TAURI__.event.listen('move_cesium', (event) => {
-                if (cesiumViewer && event.payload) {
-                    const { lat, lon, zoom } = event.payload;
-                    // ズームレベルからカメラ高度(m)への簡易換算
-                    const height = Math.pow(2, 27 - zoom);
-                    cesiumViewer.camera.flyTo({
-                        destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
-                        duration: 1.5
-                    });
-                }
-            });
-
             // ウィンドウが閉じられた際の復元通知
             window.__TAURI__.event.listen('window_restored', (event) => {
                 const label = event.payload.label;
@@ -782,6 +691,15 @@
                     detachedTabs.delete(tabId);
                     const btn = document.getElementById('tab-' + tabId);
                     if (btn) btn.classList.remove('detached');
+                    
+                    // Cesiumが復元された場合はiframeを再ロード
+                    if (tabId === 'cesium') {
+                        const cesiumFrame = document.getElementById('cesiumFrame');
+                        const activeTab = document.querySelector('.tab-btn.active');
+                        if (cesiumFrame && activeTab && activeTab.id === 'tab-cesium') {
+                            cesiumFrame.src = window.location.origin + '/cesium.html';
+                        }
+                    }
                 }
             });
         }
