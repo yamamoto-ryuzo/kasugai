@@ -1143,9 +1143,21 @@ fn main() {
                 });
 
             let app_handle_for_google_new = app.handle().clone();
+            let app_handle_for_google_nav = app.handle().clone();
             let webview_google = WebviewBuilder::new("pane2_google", WebviewUrl::External(tauri::Url::parse("https://www.google.com/maps").unwrap()))
                 .initialization_script(init_script_pane2)
                 .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .on_navigation(move |url| {
+                    let url_str = url.as_str();
+                    if url_str.contains("google.com") || url_str.contains("google.co.jp") || url_str.contains("gstatic.com") || url_str.contains("googleusercontent.com") {
+                        return true;
+                    }
+                    if let Ok(target_url) = tauri::Url::parse(url_str) {
+                        add_pane3_tab(app_handle_for_google_nav.clone(), target_url);
+                        return false;
+                    }
+                    true
+                })
                 .on_new_window(move |url, _new_window| {
                     let url_str = url.as_str();
                     if let Ok(target_url) = tauri::Url::parse(url_str) {
@@ -1159,9 +1171,21 @@ fn main() {
             let _wv_box = window.add_child(webview_box, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv_reearth = window.add_child(webview_reearth, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let app_handle_for_googleearth_new = app.handle().clone();
+            let app_handle_for_googleearth_nav = app.handle().clone();
             let webview_googleearth = WebviewBuilder::new("pane2_googleearth", WebviewUrl::External(tauri::Url::parse("https://earth.google.com/web/").unwrap()))
                 .initialization_script(init_script_pane2)
                 .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .on_navigation(move |url| {
+                    let url_str = url.as_str();
+                    if url_str.contains("google.com") || url_str.contains("google.co.jp") || url_str.contains("gstatic.com") || url_str.contains("googleusercontent.com") {
+                        return true;
+                    }
+                    if let Ok(target_url) = tauri::Url::parse(url_str) {
+                        add_pane3_tab(app_handle_for_googleearth_nav.clone(), target_url);
+                        return false;
+                    }
+                    true
+                })
                 .on_new_window(move |url, _new_window| {
                     let url_str = url.as_str();
                     if let Ok(target_url) = tauri::Url::parse(url_str) {
@@ -1171,9 +1195,21 @@ fn main() {
                 });
 
             let app_handle_for_yahoo_new = app.handle().clone();
+            let app_handle_for_yahoo_nav = app.handle().clone();
             let webview_yahoo = WebviewBuilder::new("pane2_yahoo", WebviewUrl::External(tauri::Url::parse("https://map.yahoo.co.jp/").unwrap()))
                 .initialization_script(init_script_pane2)
                 .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .on_navigation(move |url| {
+                    let url_str = url.as_str();
+                    if url_str.contains("yahoo.co.jp") || url_str.contains("yahoo.com") || url_str.contains("yimg.jp") {
+                        return true;
+                    }
+                    if let Ok(target_url) = tauri::Url::parse(url_str) {
+                        add_pane3_tab(app_handle_for_yahoo_nav.clone(), target_url);
+                        return false;
+                    }
+                    true
+                })
                 .on_new_window(move |url, _new_window| {
                     let url_str = url.as_str();
                     if let Ok(target_url) = tauri::Url::parse(url_str) {
