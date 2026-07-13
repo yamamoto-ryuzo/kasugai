@@ -362,7 +362,8 @@
                 const url = document.getElementById("reearth-url-input").value;
                 return url.includes('://') ? url : 'https://' + url;
             }
-            if (tabId === 'google') return 'https://www.google.com/maps';
+            // Google Mapsの初期プリロード時に座標（東京駅）を明示して初期表示の遅延・現在地取得による灰色のままになる不具合を回避
+            if (tabId === 'google') return 'https://www.google.com/maps/@35.681236,139.767125,15z';
             if (tabId === 'googleearth') return 'https://earth.google.com/web/';
             if (tabId === 'yahoo') return 'https://map.yahoo.co.jp/';
             

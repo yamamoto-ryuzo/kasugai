@@ -340,7 +340,8 @@
                 // 1. 各専用WebViewのプリロード開始（初回URLセット）
                 const reearthUrl = localStorage.getItem("reearth_url") || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
                 const boxUrl = "https://account.box.com/login";
-                const googleUrl = "https://www.google.com/maps";
+                // Google Mapsの初期プリロード時に座標（東京駅）を明示して初期表示の遅延・現在地取得による灰色のままになる不具合を回避
+                const googleUrl = "https://www.google.com/maps/@35.681236,139.767125,15z";
 
                 window.__TAURI__.core.invoke('preload_webview', { target: 'pane2_reearth', url: reearthUrl });
                 window.__TAURI__.core.invoke('preload_webview', { target: 'pane2_box', url: boxUrl });
