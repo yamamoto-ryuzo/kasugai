@@ -758,8 +758,8 @@ async fn detach_window(
     _url: String,
     title: String,
 ) -> Result<(), String> {
-    let window_label = "dedicated_pane2".to_string();
     let wv_id = if label.starts_with("pane2") { label.clone() } else { format!("pane2_{}", label) };
+    let window_label = format!("dedicated_window_{}", wv_id);
 
     let win = if let Some(existing_win) = app_handle.get_window(&window_label) {
         existing_win
@@ -794,11 +794,16 @@ async fn detach_window(
                             let id_inner = id.clone();
                             std::thread::spawn(move || {
                                 std::thread::sleep(std::time::Duration::from_millis(150));
+                                let app_main = app_inner.clone();
+                                let id_main = id_inner.clone();
                                 let _ = app_inner.run_on_main_thread(move || {
-                                    update_splitter_internal(&app_inner, &app_inner.state::<SplitterState>());
-                                    if let Some(wv_now) = app_inner.get_webview(&id_inner) {
+                                    update_splitter_internal(&app_main, &app_main.state::<SplitterState>());
+                                    if let Some(wv_now) = app_main.get_webview(&id_main) {
                                         let _ = wv_now.eval("window.dispatchEvent(new Event('resize'));");
                                     }
+                                    let _ = app_main.emit("window_restored", serde_json::json!({
+                                        "label": id_main
+                                    }));
                                 });
                             });
                         }
