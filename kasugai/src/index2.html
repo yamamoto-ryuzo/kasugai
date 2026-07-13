@@ -159,7 +159,7 @@
             <button class="tab-btn" id="tab-google" onclick="switchTab('google')" oncontextmenu="handleTabRightClick(event, 'google', '🗺️ Google Map')">🗺️ Google Map</button>
             <button class="tab-btn" id="tab-googleearth" onclick="switchTab('googleearth')" oncontextmenu="handleTabRightClick(event, 'googleearth', '🌍 Google Earth')">🌍 Google Earth</button>
             <button class="tab-btn" id="tab-yahoo" onclick="switchTab('yahoo')" oncontextmenu="handleTabRightClick(event, 'yahoo', '🗾 Yahoo Map')">🗾 Yahoo Map</button>
-            <button class="tab-btn" id="tab-cesium" onclick="detachTab('cesium', '🌌 CesiumJS')" oncontextmenu="handleTabRightClick(event, 'cesium', '🌌 CesiumJS')">🌌 CesiumJS</button>
+            <button class="tab-btn" id="tab-cesium" onclick="switchTab('cesium')" oncontextmenu="handleTabRightClick(event, 'cesium', '🌌 CesiumJS')">🌌 CesiumJS</button>
             <button class="tab-btn" id="tab-reearth" onclick="switchTab('reearth')" oncontextmenu="handleTabRightClick(event, 'reearth', '🌐 Re:Earth')">🌐 Re:Earth</button>
         </div>
     </div>
@@ -372,15 +372,11 @@
         // タブ切り替え処理
         async function switchTab(tabName) {
             // UIのアクティブ状態の更新
-            const tabs = ['settings', 'box', 'reearth', 'google', 'googleearth', 'yahoo'];
+            const tabs = ['settings', 'box', 'reearth', 'google', 'googleearth', 'yahoo', 'cesium'];
             tabs.forEach(t => {
                 const el = document.getElementById('tab-' + t);
                 if (el) el.classList.toggle('active', tabName === t);
             });
-
-            // cesium のタブボタンは settings とは別制御で active にする
-            const cesiumBtn = document.getElementById('tab-cesium');
-            if (cesiumBtn) cesiumBtn.classList.toggle('active', tabName === 'cesium');
 
             const container = document.querySelector('.container');
             const title = document.getElementById('view-title');
@@ -432,6 +428,8 @@
                     window.__TAURI__.core.invoke('switch_pane2_tab', { tab: 'googleearth' });
                 } else if (tabName === 'yahoo') {
                     window.__TAURI__.core.invoke('switch_pane2_tab', { tab: 'yahoo' });
+                } else if (tabName === 'cesium') {
+                    window.__TAURI__.core.invoke('switch_pane2_tab', { tab: 'cesium' });
                 }
             }
         }
