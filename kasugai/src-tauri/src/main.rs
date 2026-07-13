@@ -711,8 +711,17 @@ fn switch_pane2_tab(
     state: tauri::State<'_, SplitterState>,
     tab: String,
 ) {
-    *state.active_pane2.lock().unwrap() = tab;
+    *state.active_pane2.lock().unwrap() = tab.clone();
     update_splitter_internal(&app_handle, &state);
+
+    // 既に独立ウィンドウに移動している場合、そのウィンドウをフォーカスする
+    let wv_id = if tab == "default" { "pane2".to_string() } else { format!("pane2_{}", tab) };
+    if let Some(wv) = app_handle.get_webview(&wv_id) {
+        let win = wv.window();
+        if win.label() != "main" {
+            let _ = win.set_focus();
+        }
+    }
 }
 
 #[tauri::command]
