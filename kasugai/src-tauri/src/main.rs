@@ -448,9 +448,11 @@ fn update_splitter(
     ratio1: f64,
     ratio2: f64,
 ) {
-    *state.ratio1.lock().unwrap() = ratio1;
-    *state.ratio2.lock().unwrap() = ratio2;
-    *state.saved_ratios.lock().unwrap() = None;
+    if ratio1 >= 0.0 { *state.ratio1.lock().unwrap() = ratio1; }
+    if ratio2 >= 0.0 { *state.ratio2.lock().unwrap() = ratio2; }
+    if ratio1 >= 0.0 || ratio2 >= 0.0 {
+        *state.saved_ratios.lock().unwrap() = None;
+    }
     update_splitter_internal(&app_handle, &state);
 }
 
@@ -598,10 +600,13 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
 
     let update_pane2 = |id: &str, is_active: bool, is_dedicated: bool| {
         if let Some(wv) = window.get_webview(id) {
-            if is_active {
-                let _ = wv.set_bounds(if is_dedicated { pane2_dedicated_rect } else { pane2_rect });
-            } else {
-                let _ = wv.set_bounds(rect_hidden);
+            // Webviewが現在このウィンドウに属している場合のみ Bounds を更新する
+            if wv.window().label() == window.label() {
+                if is_active {
+                    let _ = wv.set_bounds(if is_dedicated { pane2_dedicated_rect } else { pane2_rect });
+                } else {
+                    let _ = wv.set_bounds(rect_hidden);
+                }
             }
         }
     };
@@ -612,15 +617,22 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
         let _ = wv2.set_bounds(pane2_rect);
     }
     
-    // update_pane2("pane2", active_pane2 == "default", false); // 上で常に表示にしたので不要
-    update_pane2("pane2_box", active_pane2 == "box", true);
-    update_pane2("pane2_reearth", active_pane2 == "reearth", true);
-            update_pane2("pane2_google", active_pane2 == "google", true);
-            update_pane2("pane2_googleearth", active_pane2 == "googleearth", true);
-            update_pane2("pane2_yahoo", active_pane2 == "yahoo", true);
-            update_pane2("pane2_cesium", active_pane2 == "cesium", true);
+    // 画面2の専用画面（pane2_...）の配置設定
+    // 通常時はメイン画面内に配置し、detachされた場合のみバウンズ計算から実質的に除外する運用
+    let is_detached = |label: &str| {
+        window.get_window(&format!("detached_pane2_{}", label)).is_some() 
+        || window.get_window("dedicated_pane2").is_some() 
+    };
 
-            // pane3 (ベース画面、タブUI領域など用) は常に配置
+    let active = active_pane2;
+    update_pane2("pane2_box", active == "box" && !is_detached("box"), true);
+    update_pane2("pane2_reearth", active == "reearth" && !is_detached("reearth"), true);
+    update_pane2("pane2_google", active == "google" && !is_detached("google"), true);
+    update_pane2("pane2_googleearth", active == "googleearth" && !is_detached("googleearth"), true);
+    update_pane2("pane2_yahoo", active == "yahoo" && !is_detached("yahoo"), true);
+    update_pane2("pane2_cesium", active == "cesium", true); 
+
+    // pane3 (ベース画面、タブUI領域など用) は常に配置
     if let Some(wv3) = window.get_webview("pane3") {
         let _ = wv3.set_bounds(pane3_rect);
     }
@@ -737,32 +749,76 @@ async fn detach_window(
     url: String,
     title: String,
 ) -> Result<(), String> {
-    let window_label = format!("detached_{}", label);
+    let window_label = if label == "dedicated_pane2" { "dedicated_pane2".to_string() } else { format!("detached_{}", label) };
     
-    // すでに開いている場合はフォーカスするだけ
+    // 1. 移動対象のWebviewを取得（既存のものがあれば）
+    // label が "box" なら Webview ID は "pane2_box"
+    let wv_id = if label == "dedicated_pane2" {
+        // dedicated_pane2 の場合は URL やコンテキストから判断する必要があるが、
+        // 現状の index2.html の呼び出し方に合わせるなら label そのものが ID かもしれない
+        label.clone()
+    } else if label.starts_with("pane2_") {
+        label.clone()
+    } else {
+        format!("pane2_{}", label)
+    };
+
+    // すでにウィンドウが開いている場合
     if let Some(win) = app_handle.get_window(&window_label) {
         let _ = win.set_focus();
+        
+        // 既存のWebviewが別のところにあるなら移動させる（Reparent）
+        if let Some(wv) = app_handle.get_webview(&wv_id) {
+            let current_win = wv.window();
+            if current_win.label() != window_label {
+                let _ = wv.reparent(&win).map_err(|e| e.to_string())?;
+            }
+            let _ = wv.set_bounds(Rect {
+                position: Position::Physical(PhysicalPosition::new(0, 0)),
+                size: Size::Physical(win.inner_size().unwrap()),
+            }).map_err(|e| e.to_string())?;
+        }
         return Ok(());
     }
 
-    let _ = WindowBuilder::new(&app_handle, &window_label)
+    // 新しいウィンドウを作成
+    let win = WindowBuilder::new(&app_handle, &window_label)
         .title(&title)
         .inner_size(800.0, 600.0)
         .build()
         .map_err(|e| e.to_string())?;
 
-    if let Some(win) = app_handle.get_window(&window_label) {
-        let wv_builder = WebviewBuilder::new(&window_label, WebviewUrl::External(tauri::Url::parse(&url).unwrap()));
-        let _ = win.add_child(wv_builder, PhysicalPosition::new(0, 0), win.inner_size().unwrap());
-
-        let app_clone = app_handle.clone();
-        let label_clone = label.clone();
-        win.on_window_event(move |event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
-                let _ = app_clone.emit("window_restored", serde_json::json!({ "label": label_clone }));
-            }
-        });
+    // Webviewを移動または新規作成
+    if let Some(wv) = app_handle.get_webview(&wv_id) {
+        // 既存のWebviewを移動
+        wv.reparent(&win).map_err(|e| e.to_string())?;
+        wv.set_bounds(Rect {
+            position: Position::Physical(PhysicalPosition::new(0, 0)),
+            size: Size::Physical(win.inner_size().unwrap()),
+        }).map_err(|e| e.to_string())?;
+    } else {
+        // なければ新規（通常はここに来ないはず）
+        let wv_builder = WebviewBuilder::new(&wv_id, WebviewUrl::External(tauri::Url::parse(&url).unwrap()));
+        let _ = win.add_child(wv_builder, PhysicalPosition::new(0, 0), win.inner_size().unwrap())
+            .map_err(|e| e.to_string())?;
     }
+
+    let app_clone = app_handle.clone();
+    let wv_id_clone = wv_id.clone();
+    win.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { .. } = event {
+            // ウィンドウが閉じられたらメインウィンドウ（main）に戻す
+            if let Some(main_win) = app_clone.get_window("main") {
+                if let Some(wv) = app_clone.get_webview(&wv_id_clone) {
+                    let _ = wv.reparent(&main_win);
+                    // 戻した後にBounds再計算をトリガー
+                    let state = app_clone.state::<SplitterState>();
+                    update_splitter_internal(&app_clone, &state);
+                }
+            }
+            let _ = app_clone.emit("window_restored", serde_json::json!({ "label": wv_id_clone }));
+        }
+    });
 
     Ok(())
 }

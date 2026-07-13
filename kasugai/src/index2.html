@@ -267,11 +267,12 @@
 
         function handleTabRightClick(e, tabId, title) {
             e.preventDefault();
+            // 右ダブルクリックでなくても、現在は常に専用画面として扱う方針だが、
+            // 互換性のためにイベント自体は残しておく（必要に応じて独立化を即時実行可能）
             const now = Date.now();
-            // 500ms以内の同じタブへの右クリックをダブルクリックとみなす
             if (tabId === lastRightClickTabId && (now - lastRightClickTime) < 500) {
                 detachTab(tabId, title);
-                lastRightClickTime = 0; // リセット
+                lastRightClickTime = 0;
                 lastRightClickTabId = null;
             } else {
                 lastRightClickTime = now;
@@ -282,15 +283,25 @@
         async function detachTab(tabId, title) {
             if (window.__TAURI__ && window.__TAURI__.core) {
                 const url = await getTabUrl(tabId);
+                // WebviewのIDを正しく渡す (例: "pane2_box")
+                const wvId = (tabId === 'settings') ? 'pane2' : 'pane2_' + tabId;
+                
+                // 専用画面（dedicated_pane2）として独立ウィンドウを開く/フォーカスする
                 await window.__TAURI__.core.invoke('detach_window', { 
-                    label: 'pane2_' + tabId, 
+                    label: wvId, 
                     url: url,
-                    title: title || 'Kasugai Detached Window'
+                    title: title || 'Kasugai Dedicated Window'
                 });
                 
-                detachedTabs.add(tabId);
-                const btn = document.getElementById('tab-' + tabId);
-                if (btn) btn.classList.add('detached');
+                // Rust側にBounds再計算を促す（ウィンドウが存在することを認識させる）
+                await window.__TAURI__.core.invoke('update_splitter', { ratio1: -1, ratio2: -1 });
+
+                // UI上も独立状態を反映
+                if (tabId !== 'settings' && tabId !== 'cesium') {
+                    detachedTabs.add(tabId);
+                    const btn = document.getElementById('tab-' + tabId);
+                    if (btn) btn.classList.add('detached');
+                }
             }
         }
 
@@ -458,7 +469,6 @@
                 title.textContent = 'システム設定';
                 title.style.display = 'block';
                 
-                // containerのスタイルをデフォルトに戻す
                 container.style.margin = '10px';
                 container.style.padding = '20px';
                 container.style.borderRadius = '8px';
@@ -468,28 +478,21 @@
                 title.textContent = '';
                 title.style.display = 'none';
                 
-                // containerを画面いっぱいに広げるために余白・角丸・影を排除
                 container.style.margin = '0';
                 container.style.padding = '0';
                 container.style.borderRadius = '0';
                 container.style.backgroundColor = 'transparent';
                 container.style.boxShadow = 'none';
                 
-                // Cesium自体のコンテナの角丸も排除
                 if (cesiumContainer) {
                     cesiumContainer.style.borderRadius = '0';
                 }
                 
-                // タブ切り替え時にCesiumJSを初期化
                 setTimeout(initCesium, 50);
             } else {
-                title.textContent = ''; // 外部ビューの場合はタイトル不要
+                // 画面2側は空白にする
+                title.textContent = '';
                 title.style.display = 'none';
-                
-                // 外部ビューを裏に隠す際などもマウント領域を最大化するためにcontainerを最大化しておく
-                container.style.margin = '0';
-                container.style.padding = '0';
-                container.style.borderRadius = '0';
                 container.style.backgroundColor = 'transparent';
                 container.style.boxShadow = 'none';
             }
