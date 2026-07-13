@@ -60,6 +60,21 @@
                 }
             }).catch(console.error);
 
+            // URLハッシュから初期位置を読み取って反映
+            const hash = window.location.hash;
+            if (hash) {
+                const params = new URLSearchParams(hash.substring(1));
+                const lat = parseFloat(params.get('lat'));
+                const lon = parseFloat(params.get('lon'));
+                const zoom = parseFloat(params.get('zoom')) || 15;
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    const height = Math.pow(2, 27 - zoom);
+                    cesiumViewer.camera.setView({
+                        destination: Cesium.Cartesian3.fromDegrees(lon, lat, height)
+                    });
+                }
+            }
+
             // 地図移動（カメラ移動終了）時にハッシュパラメータを更新し、Portal (Pane 1) からの位置取得を可能にする
             cesiumViewer.camera.moveEnd.addEventListener(() => {
                 if (!cesiumViewer) return;
