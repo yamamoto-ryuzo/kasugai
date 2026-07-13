@@ -1172,7 +1172,7 @@ fn main() {
             let _wv_reearth = window.add_child(webview_reearth, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let app_handle_for_googleearth_new = app.handle().clone();
             let app_handle_for_googleearth_nav = app.handle().clone();
-            let webview_googleearth = WebviewBuilder::new("pane2_googleearth", WebviewUrl::External(tauri::Url::parse("https://earth.google.com/web/").unwrap()))
+            let webview_googleearth = WebviewBuilder::new("pane2_googleearth", WebviewUrl::External(tauri::Url::parse("https://earth.google.com/web/@35.6849969,139.7554625,11.25354372a,4199.46208022d,35y,-9.98947684h,48.78890191t,359.99999999r/data=CgRCAggBOgMKATBCAggASg0I____________ARAA?hl=ja").unwrap()))
                 .initialization_script(init_script_pane2)
                 .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                 .on_navigation(move |url| {
