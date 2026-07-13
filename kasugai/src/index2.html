@@ -681,6 +681,13 @@
             }, 3000);
         }
 
+        // 子フレーム（cesium.html）からのハッシュ更新要請を受信し、親自身のハッシュに適用する
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'cesium_hash_update') {
+                window.history.replaceState(null, null, event.data.hash);
+            }
+        });
+
         // --- イベントリスナー ---
         if (window.__TAURI__ && window.__TAURI__.event) {
             // 画面1 (Portal) 等からの移動指示を受信し、iframe（cesium.html）に転送する
