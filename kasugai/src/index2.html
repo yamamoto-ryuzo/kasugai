@@ -267,24 +267,26 @@
 
         function handleTabRightClick(e, tabId, title) {
             e.preventDefault();
-            // 右ダブルクリックでなくても、現在は常に専用画面として扱う方針だが、
-            // 互換性のためにイベント自体は残しておく（必要に応じて独立化を即時実行可能）
+            if (tabId === 'settings') return; // システム設定は独立ウィンドウ化の対象外
+            
+            // 連続右ダブルクリック（Macなどの2タップ）の検知ロジック
             const now = Date.now();
             if (tabId === lastRightClickTabId && (now - lastRightClickTime) < 500) {
+                // 右ダブルクリックが成立した場合、デタッチを起動
                 detachTab(tabId, title);
                 lastRightClickTime = 0;
-                lastRightClickTabId = null;
             } else {
-                lastRightClickTime = now;
                 lastRightClickTabId = tabId;
+                lastRightClickTime = now;
             }
         }
 
         async function detachTab(tabId, title) {
+            if (tabId === 'settings') return; // システム設定は独立ウィンドウ化の対象外
             if (window.__TAURI__ && window.__TAURI__.core) {
                 const url = await getTabUrl(tabId);
                 // WebviewのIDを正しく渡す (例: "pane2_box")
-                const wvId = (tabId === 'settings') ? 'pane2' : 'pane2_' + tabId;
+                const wvId = 'pane2_' + tabId;
                 
                 // 専用画面として独立ウィンドウを開く/フォーカスする
                 await window.__TAURI__.core.invoke('detach_window', { 
@@ -297,11 +299,9 @@
                 await window.__TAURI__.core.invoke('update_splitter', { ratio1: -1, ratio2: -1 });
 
                 // UI上も独立状態を反映
-                if (tabId !== 'settings') {
-                    detachedTabs.add(tabId);
-                    const btn = document.getElementById('tab-' + tabId);
-                    if (btn) btn.classList.add('detached');
-                }
+                detachedTabs.add(tabId);
+                const btn = document.getElementById('tab-' + tabId);
+                if (btn) btn.classList.add('detached');
             }
         }
 
