@@ -115,12 +115,19 @@
                         zoom = Number(27 - Math.log2(distance || 5000)).toFixed(4);
                     }
                 } else if (urlStr.includes('google.com')) {
-                    // Google Maps 形式: /@35.681236,139.767125,15z
-                    const matchAt = urlStr.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),(\d+(?:\.\d+)?)z/);
+                    // Google Maps 形式: /@35.681236,139.767125,15z または /@35.6295845,139.8820077,1860m/... のようなメートル表記
+                    const matchAt = urlStr.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),([0-9]+(?:\.\d+)?)([zm])/i);
                     if (matchAt) {
                         lat = Number(matchAt[1]).toFixed(6);
                         lng = Number(matchAt[2]).toFixed(6);
-                        zoom = Number(matchAt[3]).toFixed(4);
+                        const val = parseFloat(matchAt[3]);
+                        const unit = matchAt[4].toLowerCase();
+                        if (unit === 'z') {
+                            zoom = Number(val).toFixed(4);
+                        } else if (unit === 'm') {
+                            // メートル表記を簡易的にズーム値へ変換
+                            zoom = Number(27 - Math.log2(val || 5000)).toFixed(4);
+                        }
                     }
                 } else if (urlStr.includes('cesium')) {
                     // CesiumJS 形式: cesium.html#lat=35.6812&lon=139.7671&zoom=15
