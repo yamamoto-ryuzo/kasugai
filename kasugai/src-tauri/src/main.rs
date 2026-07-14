@@ -4,7 +4,7 @@
 use std::sync::Mutex;
 use tauri::{
     Manager, Position, Rect, Size, WebviewBuilder, WebviewUrl, WindowBuilder,
-    PhysicalPosition, PhysicalSize, Listener
+    PhysicalPosition, PhysicalSize
 };
 
 use enigo::{Enigo, KeyboardControllable, Key};
