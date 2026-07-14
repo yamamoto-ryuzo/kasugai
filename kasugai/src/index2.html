@@ -169,9 +169,26 @@
 
         <div id="content-settings" class="tab-content">
             <p>システムの動作に関する設定を行います。変更は即座に反映されます。</p>
+
+            <!-- 保存/初期化ボタン（タブの上に配置） -->
+            <div style="display:flex; gap:10px; margin:10px 0 15px 0;">
+                <button class="btn" onclick="saveAllSettings()" style="flex: 0 0 auto;">設定をすべて保存</button>
+                <button class="btn btn-danger" onclick="resetAllSettings()" style="flex: 0 0 auto;">設定を初期化</button>
+                <div id="settings-status" class="status-msg" style="margin-left:12px; align-self:center;"></div>
+            </div>
+
+            <!-- 内部タブ（設定カテゴリ） -->
+            <div class="settings-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
+                <button class="tab-btn active" id="settings-tab-box" onclick="switchSettingsTab('box')">📦 BOX</button>
+                <button class="tab-btn" id="settings-tab-reearth-url" onclick="switchSettingsTab('reearth-url')">🌐 Re:Earth URL</button>
+                <button class="tab-btn" id="settings-tab-reearth-login" onclick="switchSettingsTab('reearth-login')">🔑 Re:Earth ログイン</button>
+                <button class="tab-btn" id="settings-tab-gemini" onclick="switchSettingsTab('gemini')">✨ Gemini</button>
+                <button class="tab-btn" id="settings-tab-cesium" onclick="switchSettingsTab('cesium')">🌌 Cesium</button>
+            </div>
+
             <div class="interactive-section" style="gap: 15px;">
-                <!-- BOX 設定セクション -->
-                <div>
+                <!-- BOX 設定 -->
+                <div id="settings-panel-box" class="settings-panel">
                     <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">📦 BOX 代理オートログイン設定</h3>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div>
@@ -185,39 +202,32 @@
                     </div>
                 </div>
 
-                <!-- 区切り線 -->
-                <hr style="border: 0; border-top: 2px solid #22c55e; margin: 10px 0; opacity: 0.3;">
+                <!-- Re:Earth URL 設定 -->
+                <div id="settings-panel-reearth-url" class="settings-panel" style="display:none;">
+                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🌐 Re:Earth 接続URL</h3>
+                    <div>
+                        <label for="reearth-url-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">Re:Earth 接続URL</label>
+                        <input type="text" id="reearth-url-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="https://example.visualizer.reearth.io/">
+                    </div>
+                </div>
 
-                <!-- Re:Earth 設定セクション -->
-                <div>
-                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🌐 Re:Earth 設定</h3>
-                    <div style="display: flex; flex-direction: column; gap: 15px;">
+                <!-- Re:Earth ログイン設定 -->
+                <div id="settings-panel-reearth-login" class="settings-panel" style="display:none;">
+                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🌐 Re:Earth 代理オートログイン設定</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div>
-                            <label for="reearth-url-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">Re:Earth 接続URL</label>
-                            <input type="text" id="reearth-url-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="https://example.visualizer.reearth.io/">
+                            <label for="reearth-email-input" style="font-weight: bold; font-size: 13px; color: #15803d; margin-bottom: 5px; display: block;">メールアドレス (ログインID)</label>
+                            <input type="email" id="reearth-email-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="reearth-user@example.com">
                         </div>
-
                         <div>
-                            <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">Re:Earth 代理オートログイン設定</label>
-                            <div style="display: flex; flex-direction: column; gap: 10px; padding-left: 10px; border-left: 2px solid #f0fdf4;">
-                                <div>
-                                    <label for="reearth-email-input" style="font-weight: bold; font-size: 13px; color: #15803d; margin-bottom: 5px; display: block;">メールアドレス (ログインID)</label>
-                                    <input type="email" id="reearth-email-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="reearth-user@example.com">
-                                </div>
-                                <div>
-                                    <label for="reearth-password-input" style="font-weight: bold; font-size: 13px; color: #15803d; margin-bottom: 5px; display: block;">パスワード</label>
-                                    <input type="password" id="reearth-password-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="パスワードを入力">
-                                </div>
-                            </div>
+                            <label for="reearth-password-input" style="font-weight: bold; font-size: 13px; color: #15803d; margin-bottom: 5px; display: block;">パスワード</label>
+                            <input type="password" id="reearth-password-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="パスワードを入力">
                         </div>
                     </div>
                 </div>
 
-                <!-- 区切り線 -->
-                <hr style="border: 0; border-top: 2px solid #22c55e; margin: 10px 0; opacity: 0.3;">
-
-                <!-- Gemini 設定セクション -->
-                <div>
+                <!-- Gemini 設定 -->
+                <div id="settings-panel-gemini" class="settings-panel" style="display:none;">
                     <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">✨ Gemini AI 設定</h3>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div>
@@ -227,11 +237,8 @@
                     </div>
                 </div>
 
-                <!-- 区切り線 -->
-                <hr style="border: 0; border-top: 2px solid #22c55e; margin: 10px 0; opacity: 0.3;">
-
-                <!-- Cesium 設定セクション -->
-                <div>
+                <!-- Cesium 設定 -->
+                <div id="settings-panel-cesium" class="settings-panel" style="display:none;">
                     <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🌌 Cesium 設定</h3>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div>
@@ -241,11 +248,6 @@
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button class="btn" onclick="saveAllSettings()" style="flex: 1;">設定をすべて保存</button>
-                    <button class="btn btn-danger" onclick="resetAllSettings()" style="flex: 1;">設定を初期化</button>
-                </div>
-                <div id="settings-status" class="status-msg"></div>
             </div>
         </div>
     </div>
@@ -435,6 +437,17 @@
             }
         }
 
+        // 設定画面内の内部タブ切替
+        function switchSettingsTab(tabName) {
+            const tabs = ['box','reearth-url','reearth-login','gemini','cesium'];
+            tabs.forEach(t => {
+                const panel = document.getElementById('settings-panel-' + t);
+                const btn = document.getElementById('settings-tab-' + t);
+                if (panel) panel.style.display = (t === tabName) ? 'block' : 'none';
+                if (btn) btn.classList.toggle('active', t === tabName);
+            });
+        }
+
         // ロード時の初期化処理
         window.onload = async function() {
             // Re:Earth URLの復元
@@ -489,6 +502,8 @@
 
             // デフォルトでシステム設定タブをアクティブにする
             switchTab('settings');
+            // 内部の設定タブをデフォルトで BOX にする
+            if (typeof switchSettingsTab === 'function') switchSettingsTab('box');
         };
 
         async function saveAllSettings() {
