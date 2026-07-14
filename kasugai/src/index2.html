@@ -181,7 +181,6 @@
             <div class="settings-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
                 <button class="tab-btn active" id="settings-tab-box" onclick="switchSettingsTab('box')">📦 BOX</button>
                 <button class="tab-btn" id="settings-tab-reearth-url" onclick="switchSettingsTab('reearth-url')">🌐 Re:Earth URL</button>
-                <button class="tab-btn" id="settings-tab-reearth-login" onclick="switchSettingsTab('reearth-login')">🔑 Re:Earth ログイン</button>
                 <button class="tab-btn" id="settings-tab-gemini" onclick="switchSettingsTab('gemini')">✨ Gemini</button>
                 <button class="tab-btn" id="settings-tab-cesium" onclick="switchSettingsTab('cesium')">🌌 Cesium</button>
             </div>
@@ -202,17 +201,24 @@
                     </div>
                 </div>
 
-                <!-- Re:Earth URL 設定 -->
+                <!-- Cesium 設定 -->
+                <div id="settings-panel-cesium" class="settings-panel" style="display:none;">
+                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🌌 Cesium 設定</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div>
+                            <label for="cesium-ion-token-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">Cesium Ion Access Token</label>
+                            <input type="password" id="cesium-ion-token-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="eyJhbGciOi...">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Re:Earth 設定 -->
                 <div id="settings-panel-reearth-url" class="settings-panel" style="display:none;">
                     <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🌐 Re:Earth 接続URL</h3>
                     <div>
                         <label for="reearth-url-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">Re:Earth 接続URL</label>
                         <input type="text" id="reearth-url-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="https://example.visualizer.reearth.io/">
                     </div>
-                </div>
-
-                <!-- Re:Earth ログイン設定 -->
-                <div id="settings-panel-reearth-login" class="settings-panel" style="display:none;">
                     <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🌐 Re:Earth 代理オートログイン設定</h3>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div>
@@ -225,7 +231,7 @@
                         </div>
                     </div>
                 </div>
-
+                
                 <!-- Gemini 設定 -->
                 <div id="settings-panel-gemini" class="settings-panel" style="display:none;">
                     <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">✨ Gemini AI 設定</h3>
@@ -233,17 +239,6 @@
                         <div>
                             <label for="gemini-api-key-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">Gemini APIキー</label>
                             <input type="password" id="gemini-api-key-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="AIzaSy...">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Cesium 設定 -->
-                <div id="settings-panel-cesium" class="settings-panel" style="display:none;">
-                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🌌 Cesium 設定</h3>
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <div>
-                            <label for="cesium-ion-token-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">Cesium Ion Access Token</label>
-                            <input type="password" id="cesium-ion-token-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="eyJhbGciOi...">
                         </div>
                     </div>
                 </div>
@@ -439,7 +434,7 @@
 
         // 設定画面内の内部タブ切替
         function switchSettingsTab(tabName) {
-            const tabs = ['box','reearth-url','reearth-login','gemini','cesium'];
+            const tabs = ['box','reearth-url','gemini','cesium'];
             tabs.forEach(t => {
                 const panel = document.getElementById('settings-panel-' + t);
                 const btn = document.getElementById('settings-tab-' + t);
