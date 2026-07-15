@@ -103,62 +103,69 @@
             try {
                 let lat = null, lng = null, zoom = null;
 
-                // URLオブジェクトのパースに頼らず、プロトコル（tauri://等）に左右されない生文字列による安定した位置解析
-                if (urlStr.includes('earth.google.com')) {
-                    // Google Earth 形式: /@35.68,139.76,10a,5000d,...
-                    const matchEarth = urlStr.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?).*?,(\d+(?:\.\d+)?)d/);
-                    if (matchEarth) {
-                        lat = Number(matchEarth[1]).toFixed(6);
-                        lng = Number(matchEarth[2]).toFixed(6);
-                        const distance = parseFloat(matchEarth[3]);
-                        // Google Earthのカメラ距離(d)を標準 of Zoom値に簡易変換（詳細な小数値を保持）
-                        zoom = Number(27 - Math.log2(distance || 5000)).toFixed(4);
-                    }
-                } else if (urlStr.includes('google.com')) {
-                    // Google Maps 形式: /@35.681236,139.767125,15z または /@35.6295845,139.8820077,1860m/... のようなメートル表記
-                    const matchAt = urlStr.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),([0-9]+(?:\.\d+)?)([zm])/i);
-                    if (matchAt) {
-                        lat = Number(matchAt[1]).toFixed(6);
-                        lng = Number(matchAt[2]).toFixed(6);
-                        const val = parseFloat(matchAt[3]);
-                        const unit = matchAt[4].toLowerCase();
-                        if (unit === 'z') {
-                            zoom = Number(val).toFixed(4);
-                        } else if (unit === 'm') {
-                            // メートル表記を簡易的にズーム値へ変換
-                            zoom = Number(27 - Math.log2(val || 5000)).toFixed(4);
-                        }
-                    }
-                } else if (urlStr.includes('cesium')) {
-                    // CesiumJS 形式: cesium.html#lat=35.6812&lon=139.7671&zoom=15
-                    const matchLat = urlStr.match(/[#?&]lat=(-?\d+(?:\.\d+)?)/);
-                    const matchLon = urlStr.match(/[#?&]lon=(-?\d+(?:\.\d+)?)/);
-                    const matchZoom = urlStr.match(/[#?&](?:zoom|z)=(\d+(?:\.\d+)?)/);
-                    if (matchLat && matchLon) {
-                        lat = Number(matchLat[1]).toFixed(6);
-                        lng = Number(matchLon[1]).toFixed(6); // 経度(lon)を lng にマッピング
-                        zoom = matchZoom ? Number(matchZoom[1]).toFixed(4) : "15.0000";
-                    }
-                } else {
-                    // Yahoo Map 形式: ?lat=35.681236&lon=139.767125&zoom=15 (またはハッシュ等の形式)
-                    const matchLat = urlStr.match(/[?&#]lat=(-?\d+(?:\.\d+)?)/);
-                    const matchLon = urlStr.match(/[?&#]lon=(-?\d+(?:\.\d+)?)/);
-                    const matchZoom = urlStr.match(/[?&#](?:zoom|z)=(\d+(?:\.\d+)?)/);
-
-                    if (matchLat && matchLon) {
-                        lat = Number(matchLat[1]).toFixed(6);
-                        lng = Number(matchLon[1]).toFixed(6);
-                        if (matchZoom) {
-                            zoom = Number(matchZoom[1]).toFixed(4);
-                        } else {
-                            zoom = "15.0000";
-                        }
-                    }
-                }
-
-                if (lat && lng) {
+                // 1) Google Earth 形式: /@lat,lng,...,<distance>d
+                const matchEarth = urlStr.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?).*?,(\d+(?:\.\d+)?)d/);
+                if (matchEarth) {
+                    lat = Number(matchEarth[1]).toFixed(6);
+                    lng = Number(matchEarth[2]).toFixed(6);
+                    const distance = parseFloat(matchEarth[3]);
+                    zoom = Number(27 - Math.log2(distance || 5000)).toFixed(4);
                     return { lat, lng, zoom, originalUrl: urlStr };
                 }
+
+                // 2) 汎用 @ セグメント解析（Google Maps の多くの変種に対応）
+                const atIndex = urlStr.indexOf('@');
+                if (atIndex >= 0) {
+                    // @ の直後から / または ? までを切り出す
+                    const afterAt = urlStr.substring(atIndex + 1);
+                    let cutPos = afterAt.search(/[/?#]/);
+                    if (cutPos === -1) cutPos = afterAt.length;
+                    const coordsPart = afterAt.substring(0, cutPos);
+                    const parts = coordsPart.split(',');
+                    if (parts.length >= 3) {
+                        const maybeLat = parseFloat(parts[0]);
+                        const maybeLng = parseFloat(parts[1]);
+                        const maybeZoomOrMeters = parts[2];
+                        if (!isNaN(maybeLat) && !isNaN(maybeLng)) {
+                            lat = maybeLat.toFixed(6);
+                            lng = maybeLng.toFixed(6);
+                            const m = maybeZoomOrMeters.match(/^([0-9]+(?:\.\d+)?)([a-zA-Z]?)$/);
+                            if (m) {
+                                const val = parseFloat(m[1]);
+                                const unit = (m[2] || '').toLowerCase();
+                                if (unit === 'z' || unit === '') {
+                                    zoom = Number(val).toFixed(4);
+                                } else if (unit === 'm') {
+                                    zoom = Number(27 - Math.log2(val || 5000)).toFixed(4);
+                                }
+                            }
+                            return { lat, lng, zoom, originalUrl: urlStr };
+                        }
+                    }
+                }
+
+                // 3) Cesium ハッシュ形式: #lat=...&lon=...&zoom=...
+                const matchLat = urlStr.match(/[#?&]lat=(-?\d+(?:\.\d+)?)/);
+                const matchLon = urlStr.match(/[#?&]lon=(-?\d+(?:\.\d+)?)/);
+                const matchZoom = urlStr.match(/[#?&](?:zoom|z)=(\d+(?:\.\d+)?)/);
+                if (matchLat && matchLon) {
+                    lat = Number(matchLat[1]).toFixed(6);
+                    lng = Number(matchLon[1]).toFixed(6);
+                    zoom = matchZoom ? Number(matchZoom[1]).toFixed(4) : "15.0000";
+                    return { lat, lng, zoom, originalUrl: urlStr };
+                }
+
+                // 4) クエリパラメータ形式: ?lat=...&lon=...&zoom=...
+                const qLat = urlStr.match(/[?&#]lat=(-?\d+(?:\.\d+)?)/);
+                const qLon = urlStr.match(/[?&#]lon=(-?\d+(?:\.\d+)?)/);
+                const qZoom = urlStr.match(/[?&#](?:zoom|z)=(\d+(?:\.\d+)?)/);
+                if (qLat && qLon) {
+                    lat = Number(qLat[1]).toFixed(6);
+                    lng = Number(qLon[1]).toFixed(6);
+                    zoom = qZoom ? Number(qZoom[1]).toFixed(4) : "15.0000";
+                    return { lat, lng, zoom, originalUrl: urlStr };
+                }
+
                 return null;
             } catch (e) {
                 return null;

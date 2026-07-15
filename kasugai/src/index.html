@@ -70,7 +70,7 @@
         }
 
         updateSplitterElements();
-        window.addEventListener('resize', updateSplitterElements);
+        window.addEventListener('resize', updateSplitterElements, { passive: true });
 
         let activeSplitter = null;
 
@@ -164,7 +164,7 @@
         window.addEventListener('mousemove', (e) => {
             if (!activeSplitter) return;
             handleMove(e.clientX, e.clientY);
-        });
+        }, { passive: true });
 
         // ドラッグ終了処理
         function endDrag() {
@@ -178,7 +178,7 @@
             notifyDragEnd();
         }
 
-        window.addEventListener('mouseup', endDrag);
+        window.addEventListener('mouseup', endDrag, { passive: true });
 
         // --- Tauri イベントシステムによる他Webviewからのマウスクリップの中継 ---
         if (window.__TAURI__ && window.__TAURI__.event) {

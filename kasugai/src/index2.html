@@ -379,14 +379,14 @@
                             screenY: e.screenY
                         });
                     }
-                });
+                }, { passive: true });
 
                 // ドラッグ中にこのペイン上でマウスを離した場合
                 window.addEventListener('mouseup', () => {
                     if (isDragging) {
                         window.__TAURI__.event.emit('global_mouseup');
                     }
-                });
+                }, { passive: true });
             }
         })();
 
