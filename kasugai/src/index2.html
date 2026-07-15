@@ -226,8 +226,8 @@
 
             <!-- 内部タブ（設定カテゴリ） -->
             <div class="settings-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
-                <button class="tab-btn" id="settings-tab-platform" onclick="switchSettingsTab('platform')">🔧 プラットフォーム設定</button>
-                <button class="tab-btn active" id="settings-tab-box" onclick="switchSettingsTab('box')">📦 BOX</button>
+                <button class="tab-btn active" id="settings-tab-platform" onclick="switchSettingsTab('platform')">🔧 プラットフォーム設定</button>
+                <button class="tab-btn" id="settings-tab-box" onclick="switchSettingsTab('box')">📦 BOX</button>
                 <button class="tab-btn" id="settings-tab-cesium" onclick="switchSettingsTab('cesium')">🌌 CesiumJS</button>
                 <button class="tab-btn" id="settings-tab-reearth-url" onclick="switchSettingsTab('reearth-url')">🌐 Re:Earth</button>
                 <button class="tab-btn" id="settings-tab-gemini" onclick="switchSettingsTab('gemini')">✨ Gemini</button>
@@ -565,8 +565,8 @@
 
             // デフォルトでシステム設定タブをアクティブにする
             switchTab('settings');
-            // 内部の設定タブをデフォルトで BOX にする
-            if (typeof switchSettingsTab === 'function') switchSettingsTab('box');
+            // 内部の設定タブをデフォルトで プラットフォーム にする
+            if (typeof switchSettingsTab === 'function') switchSettingsTab('platform');
 
             // 初回の Re:Earth URL 表示更新
             try { updateReearthUrlDisplay(); } catch(e){}
