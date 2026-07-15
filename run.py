@@ -48,6 +48,54 @@ def main():
     try:
         # コマンドの実行 (標準入出力を引き継ぐ)
         result = subprocess.run(tauri_cmd, shell=True, check=True)
+        # ビルドモードの場合、生成された EXE を download フォルダへコピーする
+        if mode == "build":
+            try:
+                # プロジェクト名は src-tauri/Cargo.toml の [package].name を参照
+                cargo_toml = os.path.join(target_dir, 'src-tauri', 'Cargo.toml')
+                pkg_name = None
+                if os.path.exists(cargo_toml):
+                    with open(cargo_toml, 'r', encoding='utf-8') as f:
+                        for line in f:
+                            if line.strip().startswith('name') and '=' in line:
+                                # name = "kasugai"
+                                parts = line.split('=', 1)
+                                if len(parts) > 1:
+                                    pkg_name = parts[1].strip().strip('"').strip("' ")
+                                    break
+
+                # 検索ベースは src-tauri/target 以下
+                search_root = os.path.join(target_dir, 'src-tauri', 'target')
+                found = []
+                if os.path.exists(search_root):
+                    for root, dirs, files in os.walk(search_root):
+                        for fn in files:
+                            if fn.lower().endswith('.exe'):
+                                full = os.path.join(root, fn)
+                                found.append(full)
+
+                # 優先: <pkg_name>.exe があればそれ、無ければ最終更新が新しい exe を選択
+                chosen = None
+                if pkg_name:
+                    for p in found:
+                        if os.path.basename(p).lower() == (pkg_name.lower() + '.exe'):
+                            chosen = p
+                            break
+                if not chosen and found:
+                    found.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+                    chosen = found[0]
+
+                if chosen:
+                    download_dir = os.path.join(script_dir, 'download')
+                    os.makedirs(download_dir, exist_ok=True)
+                    dest = os.path.join(download_dir, os.path.basename(chosen))
+                    shutil.copy2(chosen, dest)
+                    print(f"[Kasugai] ビルド生成物をコピーしました: {dest}")
+                else:
+                    print("[Kasugai] 警告: ビルド生成の exe を見つけられませんでした。(検索パス: {} )".format(search_root))
+            except Exception as e:
+                print(f"[Kasugai] EXE コピー中にエラー: {e}")
+
         sys.exit(result.returncode)
     except subprocess.CalledProcessError as e:
         print(f"\n[Kasugai] エラー: コマンドの実行に失敗しました。終了コード: {e.returncode}")
