@@ -74,13 +74,16 @@
         }
         textarea {
             width: 100%;
-            flex-grow: 1;
             padding: 10px;
             border: 1px solid #cbd5e1;
             border-radius: 6px;
             font-family: monospace;
             font-size: 14px;
-            resize: none;
+            /* 初期表示はおよそ10行分、必要に応じて縦方向にリサイズ可能にする */
+            resize: vertical;
+            min-height: calc(1.4em * 10);
+            max-height: 60vh;
+            overflow: auto;
             box-sizing: border-box;
         }
         textarea:focus {
@@ -211,7 +214,7 @@
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">プラットフォーム固有の設定</label>
-                            <input type="text" id="platform-setting-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="値を入力">
+                            <textarea id="platform-setting-input" rows="10" placeholder="値を入力" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;"></textarea>
                         </div>
                     </div>
                 </div>
@@ -527,6 +530,11 @@
                 }
             }
 
+            // プラットフォーム固有設定の復元（複数行対応）
+            const savedPlatform = localStorage.getItem('platform_setting') || '';
+            const platformEl = document.getElementById('platform-setting-input');
+            if (platformEl) platformEl.value = savedPlatform;
+
             // デフォルトでシステム設定タブをアクティブにする
             switchTab('settings');
             // 内部の設定タブをデフォルトで BOX にする
@@ -603,6 +611,12 @@
                 }
             }
 
+                // 6. プラットフォーム固有設定の保存（複数行）
+                try {
+                    const platformVal = document.getElementById('platform-setting-input').value || '';
+                    localStorage.setItem('platform_setting', platformVal);
+                } catch (e) { console.warn('platform_setting 保存に失敗:', e); }
+
             if (window.__TAURI__ && window.__TAURI__.event) {
                 window.__TAURI__.event.emit('reearth_url_changed', { url: url });
                 window.__TAURI__.event.emit('box_credentials_changed', { email: email, password: password });
@@ -670,6 +684,7 @@
             localStorage.removeItem("reearth_url");
             localStorage.removeItem("box_email");
             localStorage.removeItem("reearth_email");
+            localStorage.removeItem("platform_setting");
 
             // 3. 入力項目の初期化
             document.getElementById("reearth-url-input").value = defaultReearthUrl;
@@ -679,6 +694,7 @@
             document.getElementById("reearth-password-input").value = "";
             document.getElementById("gemini-api-key-input").value = "";
             document.getElementById("cesium-ion-token-input").value = "";
+            document.getElementById("platform-setting-input").value = "";
 
             // 4. 他のウィンドウ/コンポーネントへの変更イベント通知
             if (window.__TAURI__ && window.__TAURI__.event) {
