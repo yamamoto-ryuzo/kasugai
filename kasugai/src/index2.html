@@ -197,6 +197,7 @@
 
             <!-- 内部タブ（設定カテゴリ） -->
             <div class="settings-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
+                <button class="tab-btn" id="settings-tab-platform" onclick="switchSettingsTab('platform')">🔧 プラットフォーム設定</button>
                 <button class="tab-btn active" id="settings-tab-box" onclick="switchSettingsTab('box')">📦 BOX</button>
                 <button class="tab-btn" id="settings-tab-cesium" onclick="switchSettingsTab('cesium')">🌌 CesiumJS</button>
                 <button class="tab-btn" id="settings-tab-reearth-url" onclick="switchSettingsTab('reearth-url')">🌐 Re:Earth</button>
@@ -204,6 +205,17 @@
             </div>
 
             <div class="interactive-section" style="gap: 15px;">
+                <!-- プラットフォーム設定 -->
+                <div id="settings-panel-platform" class="settings-panel" style="display:none;">
+                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🔧 プラットフォーム設定</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div>
+                            <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">プラットフォーム固有の設定</label>
+                            <input type="text" id="platform-setting-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="値を入力">
+                        </div>
+                    </div>
+                </div>
+
                 <!-- BOX 設定 -->
                 <div id="settings-panel-box" class="settings-panel">
                     <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">📦 BOX 代理オートログイン設定</h3>
@@ -454,7 +466,7 @@
 
         // 設定画面内の内部タブ切替
         function switchSettingsTab(tabName) {
-            const tabs = ['box','reearth-url','gemini','cesium'];
+            const tabs = ['platform','box','reearth-url','gemini','cesium'];
             tabs.forEach(t => {
                 const panel = document.getElementById('settings-panel-' + t);
                 const btn = document.getElementById('settings-tab-' + t);

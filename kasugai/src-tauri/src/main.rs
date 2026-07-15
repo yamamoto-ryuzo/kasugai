@@ -319,7 +319,7 @@ fn open_in_pane2(
             *state.active_pane2.lock().unwrap() = "googleearth".to_string();
             update_splitter_internal(&app_handle, &state);
             "pane2_googleearth"
-        } else if url.contains("google.com/maps") {
+        } else if url.contains("google.com/maps") || url.contains("google.co.jp/maps") {
             *state.active_pane2.lock().unwrap() = "google".to_string();
             update_splitter_internal(&app_handle, &state);
             "pane2_google"
@@ -397,7 +397,7 @@ fn open_in_pane3(
             *state.active_pane2.lock().unwrap() = "googleearth".to_string();
             update_splitter_internal(&app_handle, &state);
             "pane2_googleearth"
-        } else if url.contains("google.com/maps") {
+        } else if url.contains("google.com/maps") || url.contains("google.co.jp/maps") {
             *state.active_pane2.lock().unwrap() = "google".to_string();
             update_splitter_internal(&app_handle, &state);
             "pane2_google"
@@ -644,6 +644,11 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
             if wv.window().label() == window.label() {
                 if is_active {
                     let _ = wv.set_bounds(if is_dedicated { pane2_dedicated_rect } else { pane2_rect });
+                    // 画面を再表示した際に Google Maps / Cesium 等が正しく再描画されない問題を回避するため
+                    // restore 時に resize イベントを発火して再描画を促す
+                    if id.contains("google") || id.contains("cesium") || id.contains("googleearth") {
+                        let _ = wv.eval("window.dispatchEvent(new Event('resize')); ");
+                    }
                 } else {
                     let _ = wv.set_bounds(rect_hidden);
                 }
@@ -1182,7 +1187,7 @@ fn main() {
 
             let app_handle_for_google_new = app.handle().clone();
             let app_handle_for_google_nav = app.handle().clone();
-            let webview_google = WebviewBuilder::new("pane2_google", WebviewUrl::External(tauri::Url::parse("https://www.google.com/maps").unwrap()))
+            let webview_google = WebviewBuilder::new("pane2_google", WebviewUrl::External(tauri::Url::parse("https://www.google.co.jp/maps/").unwrap()))
                 .initialization_script(init_script_pane2)
                 .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                 .on_navigation(move |url| {
