@@ -117,8 +117,21 @@
         });
 
         // マウス位置に基づくスプリッター比率の更新ロジック
-        function handleMove(clientX) {
+        function handleMove(clientX, clientY) {
             if (!activeSplitter) return;
+
+            // 水平スプリッター(画面2下部 pane4) の場合は Y 座標で比率を計算
+            if (activeSplitter === 'hsplit') {
+                const h = window.innerHeight;
+                let newRatio = (h - clientY) / h;
+                if (newRatio < 0.05) newRatio = 0.05;
+                if (newRatio > 0.6) newRatio = 0.6;
+                // Rust 側の pane4 比率更新コマンドを呼ぶ
+                if (window.__TAURI__ && window.__TAURI__.core) {
+                    window.__TAURI__.core.invoke('update_pane4_ratio', { ratio: newRatio });
+                }
+                return;
+            }
 
             const w = window.innerWidth;
             let newRatio = clientX / w;
@@ -150,7 +163,7 @@
         // 自身のWebview上での動き
         window.addEventListener('mousemove', (e) => {
             if (!activeSplitter) return;
-            handleMove(e.clientX);
+            handleMove(e.clientX, e.clientY);
         });
 
         // ドラッグ終了処理
@@ -178,13 +191,13 @@
                 }
             });
 
-            // 他のWebviewで検知されたmousemoveを受け取る（絶対座標 screenX を クライアント座標に変換）
+            // 他のWebviewで検知されたmousemoveを受け取る（絶対座標 screenX/screenY を クライアント座標に変換）
             window.__TAURI__.event.listen('global_mousemove', (event) => {
                 if (!activeSplitter) return;
                 
-                // screenXからウィンドウ自体のデスクトップ上の左端位置を引くことで、このWebview内のクライアント座標を割り出す
                 const clientX = event.payload.screenX - window.screenX;
-                handleMove(clientX);
+                const clientY = event.payload.screenY - window.screenY;
+                handleMove(clientX, clientY);
             });
 
             // 他のWebviewでマウスボタンが離された場合

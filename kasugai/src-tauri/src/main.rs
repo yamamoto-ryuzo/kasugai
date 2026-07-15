@@ -22,8 +22,17 @@ struct SplitterState {
     active_pane2: Mutex<String>,
     pane3_active_tab: Mutex<String>,
     pane3_tabs: Mutex<Vec<String>>,
+    pane4_ratio: Mutex<f64>,
     tab_counter: Mutex<u64>,
 }
+
+#[tauri::command]
+fn update_pane4_ratio(app_handle: tauri::AppHandle, state: tauri::State<'_, SplitterState>, ratio: f64) {
+    let clamped = if ratio < 0.05 { 0.05 } else if ratio > 0.6 { 0.6 } else { ratio };
+    *state.pane4_ratio.lock().unwrap() = clamped;
+    update_splitter_internal(&app_handle, &state);
+}
+
 
 use keyring::Entry;
 
@@ -561,6 +570,8 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     let x1 = if ratio1 == 0.0 { 0.0 } else { 80.0 + sh };
     let x2 = w * ratio2;
     let tab_height = 50.0; // 画面2上部のタブ領域の高さ
+    let pane4_ratio = *state.pane4_ratio.lock().unwrap();
+    let pane4_height = (h * pane4_ratio).max(0.0); // 中央ペイン下に追加する画面4の高さ（px）
 
     let rect_hidden = Rect {
         position: Position::Physical(PhysicalPosition::new(-10000, -10000)),
@@ -584,13 +595,19 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
         }
     }
 
-    let rect_center = Rect {
+    // 中央領域を上下に分割: 上部が pane2、下部が pane4
+    let center_width = ((x2 - sh) - (x1 + sh)).max(0.0);
+    let rect_center_top = Rect {
         position: Position::Physical(PhysicalPosition::new((x1 + sh) as i32, 0)),
-        size: Size::Physical(PhysicalSize::new(((x2 - sh) - (x1 + sh)).max(0.0) as u32, h as u32)),
+        size: Size::Physical(PhysicalSize::new(center_width as u32, (h - pane4_height).max(0.0) as u32)),
     };
-    let rect_center_dedicated = Rect {
+    let rect_center_top_dedicated = Rect {
         position: Position::Physical(PhysicalPosition::new((x1 + sh) as i32, tab_height as i32)),
-        size: Size::Physical(PhysicalSize::new(((x2 - sh) - (x1 + sh)).max(0.0) as u32, (h - tab_height).max(0.0) as u32)),
+        size: Size::Physical(PhysicalSize::new(center_width as u32, (h - tab_height - pane4_height).max(0.0) as u32)),
+    };
+    let rect_center_bottom = Rect {
+        position: Position::Physical(PhysicalPosition::new((x1 + sh) as i32, (h - pane4_height) as i32)),
+        size: Size::Physical(PhysicalSize::new(center_width as u32, pane4_height as u32)),
     };
     let rect_right = Rect {
         position: Position::Physical(PhysicalPosition::new((x2 + sh) as i32, 0)),
@@ -601,8 +618,9 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
         size: Size::Physical(PhysicalSize::new((w - (x2 + sh)).max(0.0) as u32, (h - tab_height).max(0.0) as u32)),
     };
 
-    let pane2_rect = rect_center;
-    let pane2_dedicated_rect = rect_center_dedicated;
+    let pane2_rect = rect_center_top;
+    let pane2_dedicated_rect = rect_center_top_dedicated;
+    let pane4_rect = rect_center_bottom;
     let pane3_rect = rect_right;
     let pane3_dedicated_rect = rect_right_dedicated;
 
@@ -640,6 +658,10 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     update_pane2("pane2_yahoo", active == "yahoo" && !is_detached("yahoo"), true);
     update_pane2("pane2_cesium", active == "cesium" && !is_detached("cesium"), true); 
 
+    // pane4 を配置（常に表示）
+    if let Some(wv4) = window.get_webview("pane4") {
+        let _ = wv4.set_bounds(pane4_rect);
+    }
     // pane3 (ベース画面、タブUI領域など用) は常に配置
     if let Some(wv3) = window.get_webview("pane3") {
         let _ = wv3.set_bounds(pane3_rect);
@@ -983,11 +1005,13 @@ fn main() {
             active_pane2: Mutex::new("default".to_string()),
             pane3_active_tab: Mutex::new("default".to_string()),
             pane3_tabs: Mutex::new(Vec::new()),
+            pane4_ratio: Mutex::new(0.2),
             tab_counter: Mutex::new(0),
         })
         .invoke_handler(tauri::generate_handler![
             get_system_info,
             update_splitter,
+            update_pane4_ratio,
             pane_dblclick,
             open_in_pane2,
             open_in_pane3,
@@ -1238,10 +1262,24 @@ fn main() {
                     false
                 });
 
+            // pane4: 中央ペイン下の汎用HTML表示領域
+            let app_handle_for_webview4 = app.handle().clone();
+            let webview4 = WebviewBuilder::new("pane4", WebviewUrl::App("index4.html".into()))
+                .initialization_script(init_script_pane2)
+                .on_navigation(move |_url| { true })
+                .on_new_window(move |url, _new_window| {
+                    let url_str = url.as_str();
+                    if let Ok(target_url) = tauri::Url::parse(url_str) {
+                        add_pane3_tab(app_handle_for_webview4.clone(), target_url);
+                    }
+                    tauri::webview::NewWindowResponse::Deny
+                });
+
             let _wv_google = window.add_child(webview_google, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv_googleearth = window.add_child(webview_googleearth, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv_yahoo = window.add_child(webview_yahoo, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv_cesium = window.add_child(webview_cesium, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
+            let _wv4 = window.add_child(webview4, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv3 = window.add_child(webview3_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             
             let state = app.state::<SplitterState>();

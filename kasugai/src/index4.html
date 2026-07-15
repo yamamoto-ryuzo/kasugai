@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Pane 4 - HTML Viewer</title>
+    <style>
+        html, body { height: 100%; margin: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f8fafc; }
+        .bar { height: 36px; display:flex; gap:6px; padding:6px; box-sizing:border-box; align-items:center; background:#ffffff; border-bottom:1px solid #e2e8f0; }
+        input[type="text"] { flex:1; padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; }
+        button { padding:6px 10px; border-radius:6px; border:none; background:#3b82f6; color:white; cursor:pointer; }
+        #frame { width: 100%; height: calc(100% - 48px); border: none; }
+        .small { font-size:12px; color:#64748b }
+    </style>
+</head>
+<body>
+    <div class="bar">
+        <input id="url" type="text" placeholder="HTML文字列 または https://example.com" />
+        <button id="open">表示</button>
+        <button id="loadHtml">HTML貼付け</button>
+    </div>
+    <div id="content" style="height: calc(100% - 48px); overflow:auto; background:white; padding:12px; box-sizing:border-box;
+        border-top:1px solid #e6eef8;">
+        <div class="small">ここに HTML が表示されます。スクリプトは実行されません（セキュリティ上の制約）。</div>
+    </div>
+
+    <script>
+        const input = document.getElementById('url');
+        const content = document.getElementById('content');
+
+        async function setHtml(html) {
+            // 最小限のサニタイズを行い、表示する
+            try {
+                content.innerHTML = html;
+            } catch (e) {
+                content.textContent = String(html);
+            }
+        }
+
+        document.getElementById('open').addEventListener('click', async () => {
+            const v = input.value.trim();
+            if (!v) return;
+            if (v.startsWith('<')) {
+                setHtml(v);
+                return;
+            }
+            if (v.startsWith('data:text/html,')) {
+                const decoded = decodeURIComponent(v.split(',')[1] || '');
+                setHtml(decoded);
+                return;
+            }
+            if (v.startsWith('http://') || v.startsWith('https://')) {
+                try {
+                    const resp = await fetch(v);
+                    const text = await resp.text();
+                    setHtml(text);
+                } catch (err) {
+                    content.textContent = '取得に失敗しました: ' + String(err);
+                }
+                return;
+            }
+            // その他は生のHTMLとして扱う
+            setHtml(v);
+        });
+
+        document.getElementById('loadHtml').addEventListener('click', async () => {
+            const html = prompt('貼り付けるHTMLを入力してください（短い確認用）');
+            if (html !== null) setHtml(html);
+        });
+
+        // 親からのナビゲート命令を受ける（必要なら使う）
+        window.addEventListener('message', (e) => {
+            if (!e.data) return;
+            if (e.data.type === 'navigate' && e.data.url) {
+                input.value = e.data.url;
+                document.getElementById('open').click();
+            } else if (e.data.type === 'html' && e.data.html) {
+                setHtml(e.data.html);
+            }
+        });
+
+        // リサイズ時の軽い処理
+        window.addEventListener('resize', () => {
+            // noop for now; kept for parity with other panes
+        });
+    </script>
+</body>
+</html>

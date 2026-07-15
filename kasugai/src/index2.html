@@ -149,6 +149,24 @@
             cursor: pointer;
         }
 
+        /* 水平スプリッター（pane2 / pane4 間） — 垂直スプリッターと同じ見た目に整える */
+        #hsplit {
+            height: 8px;
+            background-color: #334155;
+            cursor: row-resize;
+            margin: 0 10px;
+            border-radius: 4px;
+            z-index: 9999;
+            transition: background-color 0.15s;
+            box-sizing: border-box;
+            display: block;
+        }
+        #hsplit:hover,
+        #hsplit.dragging {
+            background-color: #3b82f6; /* ホバー・ドラッグ時に青く光らせる */
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
+        }
+
     </style>
 </head>
 <body>
@@ -246,6 +264,8 @@
             </div>
         </div>
     </div>
+
+    <div id="hsplit" title="Drag to resize pane4"></div>
 
     <script>
         let detachedTabs = new Set();
@@ -677,6 +697,104 @@
                 }
             });
         }
+
+        // pane4 用の水平スプリッター処理
+        (function() {
+            const header = document.querySelector('.header-tabs');
+            const container = document.querySelector('.container');
+            const hsplit = document.getElementById('hsplit');
+            const headerH = header ? header.offsetHeight : 50;
+
+            function applyPane4Ratio(ratio, notify=true) {
+                const clamped = Math.min(Math.max(ratio, 0.05), 0.6);
+                localStorage.setItem('pane4_ratio', String(clamped));
+                const pane4_h = Math.round(window.innerHeight * clamped);
+                // container の高さを調整（マージンとヘッダ領域を差し引く）
+                const containerHeight = Math.max(window.innerHeight - pane4_h - headerH - 20, 120);
+                if (container) container.style.height = containerHeight + 'px';
+                if (notify && window.__TAURI__ && window.__TAURI__.core) {
+                    try { window.__TAURI__.core.invoke('update_pane4_ratio', { ratio: clamped }); } catch(e){}
+                }
+            }
+
+            // 初期値の復元
+            window.addEventListener('DOMContentLoaded', () => {
+                const stored = parseFloat(localStorage.getItem('pane4_ratio') || '0.2');
+                applyPane4Ratio(isNaN(stored) ? 0.2 : stored, true);
+            });
+
+            // リサイズ時の再計算
+            window.addEventListener('resize', () => {
+                const stored = parseFloat(localStorage.getItem('pane4_ratio') || '0.2');
+                applyPane4Ratio(isNaN(stored) ? 0.2 : stored, false);
+            });
+
+            // ドラッグ処理（pointer API + オーバーレイ + ゴースト線）：移動中は見た目だけ追従し、最終で高さを確定
+            let dragging = false;
+            let dragOverlay = null;
+            let dragGhost = null;
+
+            hsplit.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                dragging = true;
+                document.body.style.userSelect = 'none';
+                document.body.style.cursor = 'row-resize';
+                if (hsplit) hsplit.classList.add('dragging');
+                // 全画面オーバーレイを置いて iframe 等からイベントを奪う
+                dragOverlay = document.createElement('div');
+                Object.assign(dragOverlay.style, {
+                    position: 'fixed', top: '0', left: '0', right: '0', bottom: '0',
+                    cursor: 'row-resize', zIndex: '9998', background: 'transparent'
+                });
+                document.body.appendChild(dragOverlay);
+
+                // ゴースト線（視覚フィードバック）
+                dragGhost = document.createElement('div');
+                Object.assign(dragGhost.style, {
+                    position: 'fixed', left: '0', right: '0', height: '4px',
+                    background: 'rgba(59,130,246,0.9)', zIndex: '9999', pointerEvents: 'none',
+                    transform: 'translateY(0px)'
+                });
+                document.body.appendChild(dragGhost);
+
+                try { hsplit.setPointerCapture(e.pointerId); } catch(_) {}
+                if (window.__TAURI__ && window.__TAURI__.event) {
+                    window.__TAURI__.event.emit('splitter_drag_start', { activeSplitter: 'hsplit', ratio1: 0.0, ratio2: 0.0 });
+                }
+            });
+
+            let lastEmit = 0;
+            const emitInterval = 30; // ms
+            document.addEventListener('pointermove', (e) => {
+                if (!dragging) return;
+                const y = e.clientY;
+                // ゴースト線を移動させるだけ（頻繁なレイアウト変更を避ける）
+                if (dragGhost) dragGhost.style.transform = `translateY(${y - 2}px)`;
+                const now = performance.now();
+                if (window.__TAURI__ && window.__TAURI__.event && (now - lastEmit) > emitInterval) {
+                    lastEmit = now;
+                    window.__TAURI__.event.emit('global_mousemove', { screenX: e.screenX, screenY: e.screenY });
+                }
+            }, { passive: true });
+
+            document.addEventListener('pointerup', (e) => {
+                if (!dragging) return;
+                dragging = false;
+                document.body.style.userSelect = '';
+                document.body.style.cursor = '';
+                if (hsplit) hsplit.classList.remove('dragging');
+                try { hsplit.releasePointerCapture && hsplit.releasePointerCapture(e.pointerId); } catch(_) {}
+                if (dragOverlay && dragOverlay.parentNode) dragOverlay.parentNode.removeChild(dragOverlay);
+                if (dragGhost && dragGhost.parentNode) dragGhost.parentNode.removeChild(dragGhost);
+                const y = e.clientY;
+                const ratio = (window.innerHeight - y) / window.innerHeight;
+                applyPane4Ratio(ratio, true);
+                if (window.__TAURI__ && window.__TAURI__.event) {
+                    window.__TAURI__.event.emit('splitter_drag_end');
+                    window.__TAURI__.event.emit('global_mouseup');
+                }
+            });
+        })();
 
     </script>
 </body>
