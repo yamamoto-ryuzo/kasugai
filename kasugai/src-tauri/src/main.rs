@@ -566,6 +566,13 @@ fn update_splitter_internal(app_handle: &tauri::AppHandle, state: &tauri::State<
             let r2 = *state.ratio2.lock().unwrap();
             let active = state.active_pane2.lock().unwrap().clone();
             recalculate_webview_bounds(&window, w, h, r1, r2, &active, state);
+            // notify UI threads of the updated ratios including pane4
+            let p4 = *state.pane4_ratio.lock().unwrap();
+            let _ = app_handle.emit("update_splitter_ui", serde_json::json!({
+                "ratio1": r1,
+                "ratio2": r2,
+                "pane4_ratio": p4
+            }));
         }
     }
 }

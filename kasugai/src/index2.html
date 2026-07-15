@@ -723,6 +723,19 @@
                 applyPane4Ratio(isNaN(stored) ? 0.2 : stored, true);
             });
 
+            // Rust 側からの比率更新を受け取って UI を復元する
+            if (window.__TAURI__ && window.__TAURI__.event) {
+                window.__TAURI__.event.listen('update_splitter_ui', (event) => {
+                    try {
+                        if (event.payload && typeof event.payload.pane4_ratio !== 'undefined') {
+                            const p4 = Number(event.payload.pane4_ratio) || 0.0;
+                            // フロント側の表示を更新（notify=false で Rust への再通知を防ぐ）
+                            applyPane4Ratio(Math.min(Math.max(p4, 0.0), 1.0), false);
+                        }
+                    } catch (e) { /* ignore malformed payloads */ }
+                });
+            }
+
             // リサイズ時の再計算
             window.addEventListener('resize', () => {
                 const stored = parseFloat(localStorage.getItem('pane4_ratio') || '0.2');
