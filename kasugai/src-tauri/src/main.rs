@@ -15,7 +15,8 @@ use std::time::Duration;
 struct SplitterState {
     ratio1: Mutex<f64>,
     ratio2: Mutex<f64>,
-    saved_ratios: Mutex<Option<(f64, f64)>>,
+    // saved_ratios now stores (ratio1, ratio2, pane4_ratio) for restore
+    saved_ratios: Mutex<Option<(f64, f64, f64)>>,
     pane2_current_host: Mutex<Option<String>>,
     reearth_email: Mutex<Option<String>>,
     box_email: Mutex<Option<String>>,
@@ -501,7 +502,7 @@ fn pane_dblclick(
 
         if width1 < 120.0 {
             // すでに閉じている（スプリットだけ）の場合は、通常表示に戻す
-            let target_r = if let Some((saved_r1, _)) = *saved {
+            let target_r = if let Some((saved_r1, _, _)) = *saved {
                 if saved_r1 >= 120.0 / w { saved_r1 } else { 0.1 }
             } else {
                 0.1
@@ -510,26 +511,32 @@ fn pane_dblclick(
             *saved = None;
         } else {
             // 通常表示されている場合は、閉じる（スプリットだけ、比率 0.0にする）
-            *saved = Some((r1, r2));
+            let p4 = *state.pane4_ratio.lock().unwrap();
+            *saved = Some((r1, r2, p4));
             *state.ratio1.lock().unwrap() = 0.0;
+            // also hide pane4 when closing pane1? keep pane4 as-is for now
         }
     } else {
         if saved.is_some() {
             // 復元
-            let (r1, r2) = saved.unwrap();
+            let (r1, r2, p4) = saved.unwrap();
             *state.ratio1.lock().unwrap() = r1;
             *state.ratio2.lock().unwrap() = r2;
+            *state.pane4_ratio.lock().unwrap() = p4;
             *saved = None;
         } else {
             // 現在の比率を保存して最大化
             let r1 = *state.ratio1.lock().unwrap();
             let r2 = *state.ratio2.lock().unwrap();
-            *saved = Some((r1, r2));
+            let p4 = *state.pane4_ratio.lock().unwrap();
+            *saved = Some((r1, r2, p4));
 
             match pane.as_str() {
                 "pane2" => {
                     *state.ratio1.lock().unwrap() = 0.0;
                     *state.ratio2.lock().unwrap() = 1.0;
+                    // hide pane4 when maximizing pane2
+                    *state.pane4_ratio.lock().unwrap() = 0.0;
                 }
                 "pane3" => {
                     *state.ratio1.lock().unwrap() = 0.0;
