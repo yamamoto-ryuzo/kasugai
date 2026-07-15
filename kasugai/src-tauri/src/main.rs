@@ -345,6 +345,9 @@ fn open_in_pane2(
             "pane2"
         };
 
+        // タブごとに再描画方法を分岐する:
+        // - pane2_google: 軽い resize トリガのみ（Google Maps は visibility トグルで問題を起こす場合があるため）
+        // - pane2_googleearth / cesium: 強い再描画（visibility トグル＋遅延 resize）
         if target_str == "pane3" {
             add_pane3_tab(app_handle.clone(), target_url);
         } else {
@@ -355,26 +358,21 @@ fn open_in_pane2(
                     let mut is_googleearth_smooth = false;
                     let should_navigate = if let Ok(current_url) = wv.url() {
                         if target_str == "pane2_googleearth" && current_url.host_str() == Some("earth.google.com") {
+                            // 同一ホスト内であれば pushState による滑らかな移動を行う（フォールバックは行わない）
                             is_googleearth_smooth = true;
                             false
                         } else {
-                            // 現在のURLと異なる場合（位置情報などのパラメータ変更含む）は必ずナビゲートする
                             current_url.as_str() != target_url.as_str() && current_url.as_str() != format!("{}/", target_url.as_str())
                         }
                     } else {
                         true
                     };
-                    
+
                     if should_navigate {
                         let _ = wv.navigate(target_url);
                     } else if is_googleearth_smooth {
                         let js = format!(
-                            r#"
-                            (function() {{
-                                window.history.pushState(null, null, "{}");
-                                window.dispatchEvent(new PopStateEvent('popstate', {{ state: null }}));
-                            }})();
-                            "#,
+                            r#"(function(){{try{{window.history.pushState(null,null,"{}");window.dispatchEvent(new PopStateEvent('popstate',{{state:null}}));}}catch(e){{}}}})();"#,
                             target_url.as_str()
                         );
                         let _ = wv.eval(&js);
@@ -437,17 +435,12 @@ fn open_in_pane3(
                     } else {
                         true
                     };
-                    
+
                     if should_navigate {
                         let _ = wv.navigate(target_url);
                     } else if is_googleearth_smooth {
                         let js = format!(
-                            r#"
-                            (function() {{
-                                window.history.pushState(null, null, "{}");
-                                window.dispatchEvent(new PopStateEvent('popstate', {{ state: null }}));
-                            }})();
-                            "#,
+                            r#"(function(){{try{{window.history.pushState(null,null,"{}");window.dispatchEvent(new PopStateEvent('popstate',{{state:null}}));}}catch(e){{}}}})();"#,
                             target_url.as_str()
                         );
                         let _ = wv.eval(&js);
@@ -641,13 +634,51 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     let update_pane2 = |id: &str, is_active: bool, is_dedicated: bool| {
         if let Some(wv) = window.get_webview(id) {
             // Webviewが現在このウィンドウに属している場合のみ Bounds を更新する
-            if wv.window().label() == window.label() {
+                    if wv.window().label() == window.label() {
                 if is_active {
                     let _ = wv.set_bounds(if is_dedicated { pane2_dedicated_rect } else { pane2_rect });
-                    // 画面を再表示した際に Google Maps / Cesium 等が正しく再描画されない問題を回避するため
-                    // restore 時に resize イベントを発火して再描画を促す
-                    if id.contains("google") || id.contains("cesium") || id.contains("googleearth") {
-                        let _ = wv.eval("window.dispatchEvent(new Event('resize')); ");
+                    // 画面を再表示した際に正しく再描画されない問題を回避するため、タブごとに異なる方法で再描画を促す
+                    if id == "pane2_google" {
+                        // Google Maps 用の再描画: visibility トグルを避けつつ canvas を一時的に隠して強制リフローさせる
+                        let google_repaint = r#"
+                            (function(){
+                                try{
+                                    window.dispatchEvent(new Event('resize'));
+                                    try{ document.body.style.backgroundColor = '#ffffff'; }catch(e){}
+                                    // タイル/イメージが描画されているかポーリングで確認し、未描画なら確実にリロードする
+                                    var attempts = 0;
+                                    function checkAndMaybeReload(){
+                                        attempts++;
+                                        var imgs = Array.prototype.slice.call(document.querySelectorAll('img'));
+                                        var visibleImgs = imgs.filter(function(i){ try{ return i.offsetParent !== null; }catch(e){return false;} });
+                                        var ok = visibleImgs.some(function(i){ try{ return (i.naturalWidth || 0) > 1; }catch(e){return false;} });
+                                        if(ok) return;
+                                        if(attempts >= 6){ try{ location.reload(); }catch(e){}; return; }
+                                        setTimeout(checkAndMaybeReload, 200);
+                                    }
+                                    checkAndMaybeReload();
+                                }catch(e){}
+                            })();
+                        "#;
+                        let _ = wv.eval(google_repaint);
+                    } else if id == "pane2_googleearth" || id.contains("cesium") {
+                        // Google Earth / Cesium はより強い再描画を試みる
+                        let repaint_script = r#"
+                            (function(){
+                                try{
+                                    window.dispatchEvent(new Event('resize'));
+                                    var el = document.documentElement || document.body;
+                                    if (el) {
+                                        var prev = el.style.visibility;
+                                        el.style.visibility = 'hidden';
+                                        void el.offsetHeight;
+                                        el.style.visibility = prev || '';
+                                    }
+                                    setTimeout(function(){ try{ window.dispatchEvent(new Event('resize')); }catch(e){} }, 60);
+                                }catch(e){}
+                            })();
+                        "#;
+                        let _ = wv.eval(repaint_script);
                     }
                 } else {
                     let _ = wv.set_bounds(rect_hidden);
