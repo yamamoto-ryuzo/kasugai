@@ -1052,7 +1052,7 @@ fn main() {
         .setup(|app| {
 
             let window = WindowBuilder::new(app, "main")
-                .title("Kasugai 3-Split Viewer")
+                .title("Kasugai Split Viewer")
                 .inner_size(1200.0, 800.0)
                 .resizable(true)
                 .maximized(true)
