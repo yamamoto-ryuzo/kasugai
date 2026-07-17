@@ -683,18 +683,18 @@
             if (!filename.toLowerCase().startsWith('kasugai')) filename = 'kasugai_' + filename;
             if (!filename.toLowerCase().endsWith('.ini')) filename = filename + '.ini';
 
-            // collect settings (exclude inputs with type=password)
+            // collect settings (exclude inputs with type=password) -- include empty values
             const kv = [];
             try {
-                const reearth = document.getElementById('reearth-url-input')?.value || '';
-                if (reearth) kv.push(['reearth_url', reearth]);
-                const boxEmail = document.getElementById('box-email-input')?.value || '';
-                if (boxEmail) kv.push(['box_email', boxEmail]);
-                const reearthEmail = document.getElementById('reearth-email-input')?.value || '';
-                if (reearthEmail) kv.push(['reearth_email', reearthEmail]);
-                // Gemini API key is password-type input; skip per requirement
-                const platform = document.getElementById('platform-setting-input')?.value || '';
-                if (platform) kv.push(['platform_setting', platform.replace(/\r?\n/g,'\\n')]);
+                const reearth = document.getElementById('reearth-url-input')?.value ?? '';
+                kv.push(['reearth_url', reearth]);
+                const boxEmail = document.getElementById('box-email-input')?.value ?? '';
+                kv.push(['box_email', boxEmail]);
+                const reearthEmail = document.getElementById('reearth-email-input')?.value ?? '';
+                kv.push(['reearth_email', reearthEmail]);
+                // skip password-type fields (box-password-input, reearth-password-input, gemini-api-key-input, cesium-ion-token-input)
+                const platform = document.getElementById('platform-setting-input')?.value ?? '';
+                kv.push(['platform_setting', platform.replace(/\r?\n/g,'\\n')]);
             } catch (e) { console.warn('collect settings error', e); }
 
             // build INI content
