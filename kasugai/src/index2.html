@@ -936,6 +936,30 @@
         }
 
         async function resetAllSettings() {
+            // If an INI is selected, offer to use it as the settings instead of clearing
+            const selectedIni = document.getElementById('ini-default')?.value || '';
+            if (selectedIni) {
+                const useIni = confirm("INI が選択されています: " + selectedIni + "\nこのINIの内容を設定として読み込みますか？\n[OK]=読み込む / [キャンセル]=通常の初期化を続行");
+                if (useIni) {
+                    if (!(window.__TAURI__ && window.__TAURI__.core)) {
+                        alert('INIの読み込みはアプリ内でのみ利用可能です。');
+                        return;
+                    }
+                    try {
+                        const text = await window.__TAURI__.core.invoke('read_ini_file', { filename: selectedIni });
+                        const parsed = parseIni(text);
+                        await applyIniSettings(parsed);
+                        const status = document.getElementById('settings-status');
+                        if (status) { status.textContent = 'INI を適用しました: ' + selectedIni; setTimeout(()=> status.textContent = '', 3000); }
+                    } catch (e) {
+                        console.error('INI 読み込み失敗', e);
+                        alert('INIの読み込みに失敗しました: ' + selectedIni);
+                    }
+                    return;
+                }
+                // else: fall through to normal reset
+            }
+
             if (!confirm("すべてのシステム設定を初期化し、セキュアストア(Keyring)からパスワードを完全に削除しますか？\nこの操作は取り消せません。")) {
                 return;
             }
