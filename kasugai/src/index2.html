@@ -704,8 +704,15 @@
                 kv.push(['platform_setting', platform.replace(/\r?\n/g,'\\n')]);
             } catch (e) { console.warn('collect settings error', e); }
 
-            // build INI content
-            let content = '[kasugai]\n';
+            // build INI content with explanatory comments
+            let content = '';
+            content += '; Kasugai INI file\n';
+            content += '; 注: セキュリティ上の取り扱いについて\n';
+            content += '; - アプリの「INIに保存」機能はパスワード類を空文字として出力します。\n';
+            content += '; - ユーザーが手動でパスワード等の項目（box_password, reearth_password, gemini_api_key, cesium_token など）をこのINIに追記した場合、\n';
+            content += ';   アプリがそのINIを読み込む際に検出し、OSのセキュアストア(Keyring)へ保存します。\n';
+            content += '; - パスワードをINIに直接書く場合は自己責任で行ってください（暗号化は行われません）。\n\n';
+            content += '[kasugai]\n';
             for (const [k,v] of kv) {
                 // escape any existing newlines
                 const safe = String(v).replace(/\n/g, '\\n');
