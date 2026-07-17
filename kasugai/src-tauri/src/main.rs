@@ -43,6 +43,44 @@ fn get_system_info() -> String {
     "ステータス: 正常稼働中\nエンジン: Tauri v2 (Rust)\nWebview: Microsoft WebView2\n応答時間: リアルタイム".to_string()
 }
 
+// EXEと同じフォルダにある kasugai*.ini を列挙して返す
+#[tauri::command]
+fn list_ini_files() -> Result<Vec<String>, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let dir = exe.parent().ok_or_else(|| "実行ファイルのディレクトリが取得できません".to_string())?;
+    let mut out: Vec<String> = Vec::new();
+    let read = std::fs::read_dir(dir).map_err(|e| e.to_string())?;
+    for entry in read {
+        if let Ok(entry) = entry {
+            if let Ok(name_os) = entry.file_name().into_string() {
+                let name = name_os;
+                let name_lc = name.to_lowercase();
+                if name_lc.starts_with("kasugai") && name_lc.ends_with(".ini") {
+                    out.push(name);
+                }
+            }
+        }
+    }
+    out.sort();
+    Ok(out)
+}
+
+// 指定されたファイル名（exeフォルダ内）を読み込んで内容を返す
+#[tauri::command]
+fn read_ini_file(filename: String) -> Result<String, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let dir = exe.parent().ok_or_else(|| "実行ファイルのディレクトリが取得できません".to_string())?;
+    let path = dir.join(&filename);
+    // 安全のため、path が dir の直下にあるか確認
+    let canonical_dir = std::fs::canonicalize(dir).map_err(|e| e.to_string())?;
+    let canonical_path = std::fs::canonicalize(&path).map_err(|e| e.to_string())?;
+    if !canonical_path.starts_with(&canonical_dir) {
+        return Err("不正なファイル指定です".to_string());
+    }
+    let s = std::fs::read_to_string(&canonical_path).map_err(|e| e.to_string())?;
+    Ok(s)
+}
+
 // Keyringを利用したセキュアな資格情報の保存・取得・削除
 #[tauri::command]
 fn save_credential(
@@ -1070,6 +1108,8 @@ fn main() {
             save_credential,
             get_credential,
             delete_credential,
+            list_ini_files,
+            read_ini_file,
             prefetch_basic_auth,
             type_credentials,
             preload_webview,
