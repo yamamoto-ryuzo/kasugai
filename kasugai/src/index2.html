@@ -692,7 +692,14 @@
                 kv.push(['box_email', boxEmail]);
                 const reearthEmail = document.getElementById('reearth-email-input')?.value ?? '';
                 kv.push(['reearth_email', reearthEmail]);
-                // skip password-type fields (box-password-input, reearth-password-input, gemini-api-key-input, cesium-ion-token-input)
+                // include password keys as empty strings per request (do NOT read existing system values)
+                // skip reading actual password inputs; save as empty string ""
+                
+                // add password keys with empty values
+                kv.push(['box_password', '']);
+                kv.push(['reearth_password', '']);
+                kv.push(['gemini_api_key', '']);
+                kv.push(['cesium_token', '']);
                 const platform = document.getElementById('platform-setting-input')?.value ?? '';
                 kv.push(['platform_setting', platform.replace(/\r?\n/g,'\\n')]);
             } catch (e) { console.warn('collect settings error', e); }
