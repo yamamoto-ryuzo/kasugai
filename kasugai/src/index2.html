@@ -760,6 +760,7 @@
 
         async function applyIniSettings(parsed) {
             try {
+                console.debug('applyIniSettings parsed:', parsed);
                 if (parsed.reearth_url) {
                     localStorage.setItem('reearth_url', parsed.reearth_url);
                     document.getElementById('reearth-url-input').value = parsed.reearth_url;
@@ -826,7 +827,9 @@
             localStorage.setItem('ini_default', f);
             try {
                 const text = await window.__TAURI__.core.invoke('read_ini_file', { filename: f });
+                console.debug('Loaded INI text (first 1000 chars):', (text || '').slice(0,1000));
                 const parsed = parseIni(text);
+                console.debug('Parsed INI object:', parsed);
                 await applyIniSettings(parsed);
             } catch (e) {
                 console.warn('INI読み取り失敗:', f, e);
