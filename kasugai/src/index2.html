@@ -769,33 +769,41 @@
                     localStorage.setItem('box_email', parsed.box_email);
                     document.getElementById('box-email-input').value = parsed.box_email;
                 }
-                if (parsed.box_password && parsed.box_email) {
-                    if (window.__TAURI__ && window.__TAURI__.core) {
-                        await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai', username: parsed.box_email, password: parsed.box_password });
+                // If box_password key exists in INI (even empty), set the UI to that value.
+                // Only save to Keyring when a non-empty password is provided.
+                if (Object.prototype.hasOwnProperty.call(parsed, 'box_password')) {
+                    document.getElementById('box-password-input').value = parsed.box_password || '';
+                    if (parsed.box_email && parsed.box_password) {
+                        if (window.__TAURI__ && window.__TAURI__.core) {
+                            await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai', username: parsed.box_email, password: parsed.box_password });
+                        }
                     }
                 }
                 if (parsed.reearth_email) {
                     localStorage.setItem('reearth_email', parsed.reearth_email);
                     document.getElementById('reearth-email-input').value = parsed.reearth_email;
                 }
-                if (parsed.reearth_password && parsed.reearth_email) {
-                    if (window.__TAURI__ && window.__TAURI__.core) {
-                        await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai_Reearth', username: parsed.reearth_email, password: parsed.reearth_password });
+                if (Object.prototype.hasOwnProperty.call(parsed, 'reearth_password')) {
+                    document.getElementById('reearth-password-input').value = parsed.reearth_password || '';
+                    if (parsed.reearth_email && parsed.reearth_password) {
+                        if (window.__TAURI__ && window.__TAURI__.core) {
+                            await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai_Reearth', username: parsed.reearth_email, password: parsed.reearth_password });
+                        }
                     }
                 }
-                if (parsed.gemini_api_key) {
-                    document.getElementById('gemini-api-key-input').value = parsed.gemini_api_key;
-                    if (window.__TAURI__ && window.__TAURI__.core) {
+                if (Object.prototype.hasOwnProperty.call(parsed, 'gemini_api_key')) {
+                    document.getElementById('gemini-api-key-input').value = parsed.gemini_api_key || '';
+                    if (parsed.gemini_api_key && window.__TAURI__ && window.__TAURI__.core) {
                         await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai_Gemini', username: 'apikey', password: parsed.gemini_api_key });
                     }
-                    if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('gemini_api_key_changed', { apiKey: parsed.gemini_api_key });
+                    if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('gemini_api_key_changed', { apiKey: parsed.gemini_api_key || '' });
                 }
-                if (parsed.cesium_token) {
-                    document.getElementById('cesium-ion-token-input').value = parsed.cesium_token;
-                    if (window.__TAURI__ && window.__TAURI__.core) {
+                if (Object.prototype.hasOwnProperty.call(parsed, 'cesium_token')) {
+                    document.getElementById('cesium-ion-token-input').value = parsed.cesium_token || '';
+                    if (parsed.cesium_token && window.__TAURI__ && window.__TAURI__.core) {
                         await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai_Cesium', username: 'ion_token', password: parsed.cesium_token });
                     }
-                    if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('cesium_token_changed', { token: parsed.cesium_token });
+                    if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('cesium_token_changed', { token: parsed.cesium_token || '' });
                 }
                 if (parsed.platform_setting) {
                     localStorage.setItem('platform_setting', parsed.platform_setting);
