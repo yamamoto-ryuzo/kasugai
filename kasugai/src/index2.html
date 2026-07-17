@@ -760,18 +760,18 @@
 
         async function applyIniSettings(parsed) {
             try {
-                console.debug('applyIniSettings parsed:', parsed);
-                if (parsed.reearth_url) {
-                    localStorage.setItem('reearth_url', parsed.reearth_url);
-                    document.getElementById('reearth-url-input').value = parsed.reearth_url;
-                    if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('reearth_url_changed', { url: parsed.reearth_url });
+                // Ensure keys explicitly present in INI are applied even when empty (""
+                if (Object.prototype.hasOwnProperty.call(parsed, 'reearth_url')) {
+                    localStorage.setItem('reearth_url', parsed.reearth_url || '');
+                    document.getElementById('reearth-url-input').value = parsed.reearth_url || '';
+                    if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('reearth_url_changed', { url: parsed.reearth_url || '' });
                 }
-                if (parsed.box_email) {
-                    localStorage.setItem('box_email', parsed.box_email);
-                    document.getElementById('box-email-input').value = parsed.box_email;
+
+                if (Object.prototype.hasOwnProperty.call(parsed, 'box_email')) {
+                    localStorage.setItem('box_email', parsed.box_email || '');
+                    document.getElementById('box-email-input').value = parsed.box_email || '';
                 }
-                // If box_password key exists in INI (even empty), set the UI to that value.
-                // Only save to Keyring when a non-empty password is provided.
+                // Apply password field to UI when key exists in INI; only save to Keyring if non-empty
                 if (Object.prototype.hasOwnProperty.call(parsed, 'box_password')) {
                     document.getElementById('box-password-input').value = parsed.box_password || '';
                     if (parsed.box_email && parsed.box_password) {
@@ -780,9 +780,10 @@
                         }
                     }
                 }
-                if (parsed.reearth_email) {
-                    localStorage.setItem('reearth_email', parsed.reearth_email);
-                    document.getElementById('reearth-email-input').value = parsed.reearth_email;
+
+                if (Object.prototype.hasOwnProperty.call(parsed, 'reearth_email')) {
+                    localStorage.setItem('reearth_email', parsed.reearth_email || '');
+                    document.getElementById('reearth-email-input').value = parsed.reearth_email || '';
                 }
                 if (Object.prototype.hasOwnProperty.call(parsed, 'reearth_password')) {
                     document.getElementById('reearth-password-input').value = parsed.reearth_password || '';
@@ -792,6 +793,7 @@
                         }
                     }
                 }
+
                 if (Object.prototype.hasOwnProperty.call(parsed, 'gemini_api_key')) {
                     document.getElementById('gemini-api-key-input').value = parsed.gemini_api_key || '';
                     if (parsed.gemini_api_key && window.__TAURI__ && window.__TAURI__.core) {
@@ -799,6 +801,7 @@
                     }
                     if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('gemini_api_key_changed', { apiKey: parsed.gemini_api_key || '' });
                 }
+
                 if (Object.prototype.hasOwnProperty.call(parsed, 'cesium_token')) {
                     document.getElementById('cesium-ion-token-input').value = parsed.cesium_token || '';
                     if (parsed.cesium_token && window.__TAURI__ && window.__TAURI__.core) {
@@ -806,9 +809,10 @@
                     }
                     if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('cesium_token_changed', { token: parsed.cesium_token || '' });
                 }
-                if (parsed.platform_setting) {
-                    localStorage.setItem('platform_setting', parsed.platform_setting);
-                    document.getElementById('platform-setting-input').value = parsed.platform_setting;
+
+                if (Object.prototype.hasOwnProperty.call(parsed, 'platform_setting')) {
+                    localStorage.setItem('platform_setting', parsed.platform_setting || '');
+                    document.getElementById('platform-setting-input').value = parsed.platform_setting || '';
                 }
             } catch (e) {
                 console.warn('INI適用中にエラー:', e);
@@ -827,9 +831,7 @@
             localStorage.setItem('ini_default', f);
             try {
                 const text = await window.__TAURI__.core.invoke('read_ini_file', { filename: f });
-                console.debug('Loaded INI text (first 1000 chars):', (text || '').slice(0,1000));
                 const parsed = parseIni(text);
-                console.debug('Parsed INI object:', parsed);
                 await applyIniSettings(parsed);
             } catch (e) {
                 console.warn('INI読み取り失敗:', f, e);
