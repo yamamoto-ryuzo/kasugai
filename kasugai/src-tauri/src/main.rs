@@ -81,6 +81,25 @@ fn read_ini_file(filename: String) -> Result<String, String> {
     Ok(s)
 }
 
+// 指定されたファイル名（exeフォルダ内）へ内容を書き込む
+#[tauri::command]
+fn write_ini_file(filename: String, content: String) -> Result<(), String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let dir = exe.parent().ok_or_else(|| "実行ファイルのディレクトリが取得できません".to_string())?;
+    let path = dir.join(&filename);
+    // 安全のため、path が dir の直下にあるか確認
+    let canonical_dir = std::fs::canonicalize(dir).map_err(|e| e.to_string())?;
+    let canonical_path_parent = match path.parent() {
+        Some(p) => std::fs::canonicalize(p).map_err(|e| e.to_string())?,
+        None => return Err("不正なファイル指定です".to_string()),
+    };
+    if canonical_path_parent != canonical_dir {
+        return Err("ファイルは実行ファイルのディレクトリ内に作成してください".to_string());
+    }
+    std::fs::write(&path, content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 // Keyringを利用したセキュアな資格情報の保存・取得・削除
 #[tauri::command]
 fn save_credential(
@@ -1110,6 +1129,7 @@ fn main() {
             delete_credential,
             list_ini_files,
             read_ini_file,
+            write_ini_file,
             prefetch_basic_auth,
             type_credentials,
             preload_webview,

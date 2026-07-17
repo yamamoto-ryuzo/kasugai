@@ -219,11 +219,12 @@
 
             <!-- 保存/初期化ボタン（タブの上に配置） -->
             <div style="display:flex; gap:10px; margin:10px 0 15px 0; align-items:center;">
-                <button class="btn" onclick="saveAllSettings()" style="flex: 0 0 auto;">設定をすべて保存</button>
+                <button class="btn" onclick="saveAllSettings()" style="flex: 0 0 auto;">設定をシステムに保存</button>
                 <button class="btn btn-danger" onclick="resetAllSettings()" style="flex: 0 0 auto;">設定を初期化</button>
                 <select id="ini-default" style="min-width:320px; margin-left:8px;" onchange="onIniSelected(this.value)">
                     <option value="">(選択してください)</option>
                 </select>
+                <button class="btn" id="ini-save-btn" style="margin-left:8px;" onclick="saveCurrentToIni()">INIに保存</button>
                 <div id="settings-status" class="status-msg" style="margin-left:12px; align-self:center;"></div>
             </div>
 
@@ -664,6 +665,63 @@
             // 選択値をデフォルトとして保存しつつ読み込む
             localStorage.setItem('ini_default', value);
             try { loadSelectedInis(); } catch (e) { console.warn('onIniSelected error', e); }
+        }
+
+        // 現在の設定（パスワード等のpasswordタイプは除く）をINIに保存
+        async function saveCurrentToIni() {
+            const def = document.getElementById('ini-default');
+            if (!def) return;
+            let filename = def.value;
+            // まだ選択がなければ新規ファイル名を問い合わせ
+            if (!filename) {
+                const defaultName = 'kasugai_' + new Date().toISOString().replace(/[:.]/g,'-') + '.ini';
+                const input = prompt('保存するINIファイル名を入力してください (例: ' + defaultName + ')', defaultName);
+                if (!input) return;
+                filename = input;
+            }
+            // ensure filename starts with kasugai
+            if (!filename.toLowerCase().startsWith('kasugai')) filename = 'kasugai_' + filename;
+            if (!filename.toLowerCase().endsWith('.ini')) filename = filename + '.ini';
+
+            // collect settings (exclude inputs with type=password)
+            const kv = [];
+            try {
+                const reearth = document.getElementById('reearth-url-input')?.value || '';
+                if (reearth) kv.push(['reearth_url', reearth]);
+                const boxEmail = document.getElementById('box-email-input')?.value || '';
+                if (boxEmail) kv.push(['box_email', boxEmail]);
+                const reearthEmail = document.getElementById('reearth-email-input')?.value || '';
+                if (reearthEmail) kv.push(['reearth_email', reearthEmail]);
+                // Gemini API key is password-type input; skip per requirement
+                const platform = document.getElementById('platform-setting-input')?.value || '';
+                if (platform) kv.push(['platform_setting', platform.replace(/\r?\n/g,'\\n')]);
+            } catch (e) { console.warn('collect settings error', e); }
+
+            // build INI content
+            let content = '[kasugai]\n';
+            for (const [k,v] of kv) {
+                // escape any existing newlines
+                const safe = String(v).replace(/\n/g, '\\n');
+                content += k + ' = "' + safe + '"\n';
+            }
+
+            if (!(window.__TAURI__ && window.__TAURI__.core)) {
+                alert('Tauri コマンドが利用できません。アプリでのみ保存可能です。');
+                return;
+            }
+
+            try {
+                await window.__TAURI__.core.invoke('write_ini_file', { filename: filename, content: content });
+                // refresh list
+                try { populateIniList(); } catch(e){}
+                def.value = filename;
+                localStorage.setItem('ini_default', filename);
+                const status = document.getElementById('settings-status');
+                if (status) { status.textContent = 'INIを保存しました: ' + filename; setTimeout(()=> status.textContent = '', 3000); }
+            } catch (e) {
+                console.error('INI書き込み失敗', e);
+                alert('INIの書き込みに失敗しました: ' + e);
+            }
         }
 
         function parseIni(text) {
