@@ -628,6 +628,14 @@ fn update_splitter_internal(app_handle: &tauri::AppHandle, state: &tauri::State<
     }
 }
 
+// 修正: 非表示用Rectを生成するヘルパー関数
+fn get_hidden_rect(w: f64, h: f64) -> Rect {
+    Rect {
+                        position: Position::Physical(PhysicalPosition::new((w - 1.0) as i32, (h - 1.0) as i32)),
+                        size: Size::Physical(PhysicalSize::new(1, 1)),
+    }
+}
+
 fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f64, ratio2: f64, active_pane2: &str, state: &SplitterState) {
     let splitter_width = 8.0;
     let sh = splitter_width / 2.0;
@@ -638,12 +646,7 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     let pane4_ratio = *state.pane4_ratio.lock().unwrap();
     let pane4_height = (h * pane4_ratio).max(0.0); // 中央ペイン下に追加する画面4の高さ（px）
 
-                    // 修正: 右下隅に 1x1px で配置し、レンダリングを維持する
-                    let rect_hidden = Rect {
-                        position: Position::Physical(PhysicalPosition::new((w - 1.0) as i32, (h - 1.0) as i32)),
-                        size: Size::Physical(PhysicalSize::new(1, 1)),
-                    };
-
+    let rect_hidden = get_hidden_rect(w, h);
     if let Some(base_wv) = window.get_webview("main_webview") {
         let _ = base_wv.set_bounds(Rect {
                             position: Position::Physical(PhysicalPosition::new(0, 0)),
@@ -719,11 +722,6 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
                         let _ = wv.eval(repaint_script);
                     }
                 } else {
-                    // 修正: 右下隅に 1x1px で配置し、レンダリングを維持する
-                    let rect_hidden = Rect {
-                        position: Position::Physical(PhysicalPosition::new((w - 1.0) as i32, (h - 1.0) as i32)),
-                        size: Size::Physical(PhysicalSize::new(1, 1)),
-                    };
                     let _ = wv.set_bounds(rect_hidden);
                 }
             }
