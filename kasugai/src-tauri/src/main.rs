@@ -638,24 +638,24 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     let pane4_ratio = *state.pane4_ratio.lock().unwrap();
     let pane4_height = (h * pane4_ratio).max(0.0); // 中央ペイン下に追加する画面4の高さ（px）
 
-        // 修正: 画面外に飛ばすが、サイズはウィンドウのサイズを維持する
-    let rect_hidden = Rect {
-        position: Position::Physical(PhysicalPosition::new(-5000, 0)),
-        size: Size::Physical(PhysicalSize::new(w as u32, h as u32)),
-    };
+                    // 修正: 右下隅に 1x1px で配置し、レンダリングを維持する
+                    let rect_hidden = Rect {
+                        position: Position::Physical(PhysicalPosition::new((w - 1.0) as i32, (h - 1.0) as i32)),
+                        size: Size::Physical(PhysicalSize::new(1, 1)),
+                    };
 
     if let Some(base_wv) = window.get_webview("main_webview") {
         let _ = base_wv.set_bounds(Rect {
-            position: Position::Physical(PhysicalPosition::new(0, 0)),
+                            position: Position::Physical(PhysicalPosition::new(0, 0)),
             size: Size::Physical(PhysicalSize::new(w as u32, h as u32)),
-        });
-    }
+    });
+                        }
     if let Some(wv1) = window.get_webview("pane1") {
         if ratio1 == 0.0 {
             let _ = wv1.set_bounds(rect_hidden);
         } else {
             let _ = wv1.set_bounds(Rect {
-                position: Position::Physical(PhysicalPosition::new(0, 0)),
+            position: Position::Physical(PhysicalPosition::new(0, 0)),
                 size: Size::Physical(PhysicalSize::new(80, h as u32)),
             });
         }
@@ -666,7 +666,7 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     let rect_center_top = Rect {
         position: Position::Physical(PhysicalPosition::new((x1 + sh) as i32, 0)),
         size: Size::Physical(PhysicalSize::new(center_width as u32, (h - pane4_height).max(0.0) as u32)),
-    };
+        };
     let rect_center_top_dedicated = Rect {
         position: Position::Physical(PhysicalPosition::new((x1 + sh) as i32, tab_height as i32)),
         size: Size::Physical(PhysicalSize::new(center_width as u32, (h - tab_height - pane4_height).max(0.0) as u32)),
@@ -705,7 +705,7 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
                                     window.dispatchEvent(new Event('resize'));
                                 }catch(e){}
                             })();
-                        "#;
+            "#;
                         let _ = wv.eval(google_repaint);
                     } else if id == "pane2_googleearth" || id.contains("cesium") {
                         // Google Earth / Cesium はより強い再描画を試みる
@@ -715,7 +715,7 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
                                     window.dispatchEvent(new Event('resize'));
                                 }catch(e){}
                             })();
-                        "#;
+            "#;
                         let _ = wv.eval(repaint_script);
                     }
                 } else {
@@ -725,16 +725,10 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
                         size: Size::Physical(PhysicalSize::new(1, 1)),
                     };
                     let _ = wv.set_bounds(rect_hidden);
-                    let rect_hidden = Rect {
-                        position: Position::Physical(PhysicalPosition::new((w - 1.0) as i32, (h - 1.0) as i32)),
-                        size: Size::Physical(PhysicalSize::new(1, 1)),
-                    };
-                let _ = wv.set_bounds(rect_hidden);
+                }
             }
         }
-    }
-    };
-
+                    };
     // pane2 (ベース画面) は、常に表示しておく（アクティブかどうかに関わらず、背面またはタブ領域として表示する）
     // ただし、完全に非表示にするのではなく、pane2 は常に配置しておくことでタブ部分が見えるようにする
     if let Some(wv2) = window.get_webview("pane2") {
@@ -801,16 +795,15 @@ fn close_pane3_tab(
     let mut tabs = state.pane3_tabs.lock().unwrap();
     if let Some(pos) = tabs.iter().position(|x| *x == tab) {
         tabs.remove(pos);
-
         let app_clone = app_handle.clone();
         let tab_id = tab.clone();
         let _ = app_handle.run_on_main_thread(move || {
             if let Some(window) = app_clone.get_window("main") {
                 if let Some(wv) = window.get_webview(&tab_id) {
                     let _ = wv.close();
-                }
+                    }
             }
-        });
+                });
 
         // 削除したタブがアクティブだった場合、別のタブをアクティブにする
         let mut active = state.pane3_active_tab.lock().unwrap();
@@ -897,7 +890,6 @@ async fn detach_window(
             .inner_size(800.0, 600.0)
             .build()
             .map_err(|e| e.to_string())?;
-
         let app_resize = app_handle.clone();
         let win_label_inner = window_label.clone();
         new_win.on_window_event(move |event| {
@@ -948,7 +940,6 @@ async fn detach_window(
             position: Position::Physical(PhysicalPosition::new(0, 0)),
             size: Size::Physical(win.inner_size().unwrap()),
         }).map_err(|e| e.to_string())?;
-
         let app_cleanup = app_handle.clone();
         let _ = app_handle.run_on_main_thread(move || {
             update_splitter_internal(&app_cleanup, &app_cleanup.state::<SplitterState>());
@@ -1461,5 +1452,4 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
 
