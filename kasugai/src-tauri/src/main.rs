@@ -700,15 +700,21 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
                     if wv.window().label() == window.label() {
                 if is_active {
                     let _ = wv.set_bounds(if is_dedicated { pane2_dedicated_rect } else { pane2_rect });
-                                        // Google Maps 用の再描画: 強制リロードを外し、リサイズイベントのみで対応
+
+                    // Google Maps 用の再描画: 非表示から表示へ切り替わった場合、強制リロードが必要
                     if id == "pane2_google" {
                         let google_repaint = r#"
                             (function(){
                                 try{
+                                    // 画面サイズ変化を通知
                                     window.dispatchEvent(new Event('resize'));
+                                    // 描画要素のチェックを行い、欠落している場合は再読み込みする
+                                    if (!document.querySelector('canvas') && !document.querySelector('.app-canvas')) {
+                                        window.location.reload();
+                    }
                                 }catch(e){}
                             })();
-            "#;
+                        "#;
                         let _ = wv.eval(google_repaint);
                     } else if id == "pane2_googleearth" || id.contains("cesium") {
                         // Google Earth / Cesium はより強い再描画を試みる
@@ -726,7 +732,7 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
                 }
             }
         }
-                    };
+    };
     // pane2 (ベース画面) は、常に表示しておく（アクティブかどうかに関わらず、背面またはタブ領域として表示する）
     // ただし、完全に非表示にするのではなく、pane2 は常に配置しておくことでタブ部分が見えるようにする
     if let Some(wv2) = window.get_webview("pane2") {
@@ -1450,4 +1456,5 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
 
