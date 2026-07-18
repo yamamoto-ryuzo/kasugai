@@ -352,6 +352,7 @@
                 <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
                 <option value="gemini-3-flash">Gemini 3 Flash</option>
                 <option value="gemini-3.1-pro">Gemini 3.1 Pro</option>
+                <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (OpenRouter)</option>
                 <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
             </select>
         </h1>
@@ -536,6 +537,38 @@
                 modelSelect.value = savedModel;
             }
         });
+
+        // 設定画面からのモデル変更を受け取り、選択肢を同期する
+        if (window.__TAURI__ && window.__TAURI__.event) {
+            window.__TAURI__.event.listen('gemini_model_changed', (ev) => {
+                try {
+                    const model = ev.payload.model;
+                    const sel = document.getElementById('gemini-model-select');
+                    if (sel && model) {
+                        sel.value = model;
+                        localStorage.setItem('gemini_selected_model', model);
+                    }
+                } catch(e) {}
+            });
+            // 設定画面からプロバイダ変更が来た場合、OpenRouter向けのモデルを候補に追加する
+            window.__TAURI__.event.listen('gemini_provider_changed', (ev) => {
+                try {
+                    const provider = ev.payload.provider;
+                    const sel = document.getElementById('gemini-model-select');
+                    if (!sel) return;
+                    // ensure OpenRouter-friendly option exists
+                    if (provider === 'openrouter') {
+                        const exists = Array.from(sel.options).some(o => o.value === 'gemini-3.1-flash-lite');
+                        if (!exists) {
+                            const opt = document.createElement('option');
+                            opt.value = 'gemini-3.1-flash-lite';
+                            opt.text = 'Gemini 3.1 Flash Lite (OpenRouter)';
+                            sel.appendChild(opt);
+                        }
+                    }
+                } catch(e) {}
+            });
+        }
 
         async function sendMessage() {
             const inputEl = document.getElementById('chat-input');

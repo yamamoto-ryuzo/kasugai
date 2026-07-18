@@ -10,6 +10,7 @@ use tauri::{
 use enigo::{Enigo, KeyboardControllable, Key};
 use std::thread;
 use std::time::Duration;
+use std::error::Error;
 
 // スプリッターの比率を保持するグローバルステート
 struct SplitterState {
@@ -1039,13 +1040,85 @@ async fn call_gemini(prompt: String, model: Option<String>) -> Result<GeminiResp
         return Err("Gemini APIキーが設定されていません。システム設定画面でAPIキーを登録してください。".to_string());
     }
 
-    let model_name = model.unwrap_or_else(|| "gemini-1.5-flash".to_string());
+    let model_name = model.clone().unwrap_or_else(|| "gemini-1.5-flash".to_string());
     let model_name = if model_name.trim().is_empty() {
         "gemini-1.5-flash".to_string()
     } else {
         model_name
     };
 
+    // OpenRouter 経由で呼ぶ場合は、APIキー入力の先頭に `openrouter:` を付けてください。
+    // 例: openrouter:YOUR_OPENROUTER_API_KEY
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("HTTPクライアントの初期化に失敗しました: {}", e))?;
+    if let Some(raw_or_key) = api_key.strip_prefix("openrouter:") {
+        let or_key = raw_or_key.trim();
+        let mut or_model = model.clone().unwrap_or_else(|| "google/gemini-3.1-flash-lite".to_string());
+        if or_model.trim().is_empty() {
+            or_model = "google/gemini-3.1-flash-lite".to_string();
+        }
+        // OpenRouter expects provider prefix in model id (e.g. "google/gemini-3.1-flash-lite")
+        if !or_model.contains('/') {
+            or_model = format!("google/{}", or_model);
+        }
+
+        let url = "https://openrouter.ai/api/v1/chat/completions";
+        let body = serde_json::json!({
+            "model": or_model,
+            "messages": [{ "role": "user", "content": prompt }],
+        });
+
+        let response = client
+            .post(url)
+            .bearer_auth(or_key)
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| {
+                // 詳細なエラー情報を返す（ネットワーク/TLS/プロキシ等の診断に役立つ）
+                let cause = e.source().map(|s| s.to_string()).unwrap_or_default();
+                format!("OpenRouter APIリクエスト送信に失敗しました: {} (原因: {})", e, cause)
+            })?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_body = response.text().await.unwrap_or_default();
+            return Err(format!("OpenRouter APIエラー (ステータス: {}): {}", status, error_body));
+        }
+
+        let json_resp: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| format!("OpenRouter応答の解析に失敗しました: {}", e))?;
+
+        let text = json_resp
+            .pointer("/choices/0/message/content")
+            .and_then(|v| v.as_str())
+            .or_else(|| json_resp.pointer("/choices/0/text").and_then(|v| v.as_str()))
+            .ok_or_else(|| {
+                format!(
+                    "OpenRouterの応答形式が想定と異なります: {}",
+                    serde_json::to_string_pretty(&json_resp).unwrap_or_default()
+                )
+            })?;
+
+        let total_tokens = json_resp
+            .pointer("/usage/total_tokens")
+            .and_then(|v| v.as_i64())
+            .or_else(|| json_resp.pointer("/usage/totalTokens").and_then(|v| v.as_i64()));
+
+        return Ok(GeminiResponse {
+            text: text.to_string(),
+            prompt_tokens: None,
+            candidates_tokens: None,
+            total_tokens,
+        });
+    }
+
+    // デフォルト: Google Generative Language API への既存呼び出し
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
         model_name,
@@ -1058,7 +1131,6 @@ async fn call_gemini(prompt: String, model: Option<String>) -> Result<GeminiResp
         }]
     });
 
-    let client = reqwest::Client::new();
     let response = client
         .post(&url)
         .header("Content-Type", "application/json")

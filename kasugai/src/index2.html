@@ -303,6 +303,15 @@
                             <label for="gemini-api-key-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">Gemini APIキー</label>
                             <input type="password" id="gemini-api-key-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="AIzaSy...">
                         </div>
+                                <div>
+                                    <label for="gemini-provider-select" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">プロバイダ</label>
+                                    <select id="gemini-provider-select" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+                                        <option value="google">Google Gemini (デフォルト)</option>
+                                        <option value="openrouter">OpenRouter (openrouter API)</option>
+                                    </select>
+                                    <div class="status-msg">OpenRouter を利用する場合はここで選択し、APIキー欄に OpenRouter のキーを入力してください（接頭辞は不要）。</div>
+                                </div>
+                                <!-- モデル選択は画面3で管理します（pane3 に一本化） -->
                     </div>
                 </div>
 
@@ -545,8 +554,20 @@
             // Gemini APIキーの復元 (PasswordはKeyringからセキュアに取得)
             if (window.__TAURI__ && window.__TAURI__.core) {
                 try {
-                    const apiKey = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai_Gemini', username: 'apikey' });
+                    let apiKey = await window.__TAURI__.core.invoke('get_credential', { service: 'Kasugai_Gemini', username: 'apikey' });
+                    // If stored value contains openrouter: prefix, treat as OpenRouter and strip for display
+                    try {
+                        const providerEl = document.getElementById('gemini-provider-select');
+                        if (typeof apiKey === 'string' && apiKey.startsWith('openrouter:')) {
+                            if (providerEl) providerEl.value = 'openrouter';
+                            apiKey = apiKey.substring('openrouter:'.length);
+                        } else {
+                            const savedProvider = localStorage.getItem('gemini_provider') || 'google';
+                            if (providerEl) providerEl.value = savedProvider;
+                        }
+                    } catch (_) {}
                     document.getElementById("gemini-api-key-input").value = apiKey;
+                    // モデル選択は画面3で管理されます（ここでは復元しません）
                 } catch (e) {
                     console.warn("KeyringからのGemini APIキー取得に失敗しました。:", e);
                 }
@@ -699,6 +720,10 @@
                 kv.push(['box_password', '']);
                 kv.push(['reearth_password', '']);
                 kv.push(['gemini_api_key', '']);
+                // include gemini provider selection (google | openrouter)
+                const geminiProviderForIni = document.getElementById('gemini-provider-select')?.value ?? localStorage.getItem('gemini_provider') ?? 'google';
+                kv.push(['gemini_provider', geminiProviderForIni]);
+                // model selection is kept in pane3; do not include in INI from settings panel
                 kv.push(['cesium_token', '']);
                 const platform = document.getElementById('platform-setting-input')?.value ?? '';
                 kv.push(['platform_setting', platform.replace(/\r?\n/g,'\\n')]);
@@ -797,10 +822,21 @@
                 if (Object.prototype.hasOwnProperty.call(parsed, 'gemini_api_key')) {
                     document.getElementById('gemini-api-key-input').value = parsed.gemini_api_key || '';
                     if (parsed.gemini_api_key && window.__TAURI__ && window.__TAURI__.core) {
-                        await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai_Gemini', username: 'apikey', password: parsed.gemini_api_key });
+                        // If INI specified provider=openrouter, ensure stored key has the expected prefix
+                        const maybePrefixed = (parsed.gemini_provider === 'openrouter' && !parsed.gemini_api_key.startsWith('openrouter:')) ? ('openrouter:' + parsed.gemini_api_key) : parsed.gemini_api_key;
+                        await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai_Gemini', username: 'apikey', password: maybePrefixed });
                     }
                     if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('gemini_api_key_changed', { apiKey: parsed.gemini_api_key || '' });
                 }
+
+                if (Object.prototype.hasOwnProperty.call(parsed, 'gemini_provider')) {
+                    const prov = parsed.gemini_provider || 'google';
+                    const sel = document.getElementById('gemini-provider-select');
+                    if (sel) sel.value = prov;
+                    try { localStorage.setItem('gemini_provider', prov); } catch(_) {}
+                    if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('gemini_provider_changed', { provider: prov });
+                }
+                // モデル選択（gemini_selected_model）は pane3 側で管理するためここでは適用しません
 
                 if (Object.prototype.hasOwnProperty.call(parsed, 'cesium_token')) {
                     document.getElementById('cesium-ion-token-input').value = parsed.cesium_token || '';
@@ -907,14 +943,31 @@
 
             // 4. Gemini APIキーの保存 (Keyringを使用)
             const gApiKey = document.getElementById("gemini-api-key-input").value;
+            const gProvider = document.getElementById('gemini-provider-select')?.value || 'google';
+            // When using OpenRouter, store with the expected 'openrouter:' prefix so backend main.rs can detect it.
+            const storedGeminiKey = (gProvider === 'openrouter' && gApiKey && !gApiKey.startsWith('openrouter:')) ? ('openrouter:' + gApiKey) : gApiKey;
             if (window.__TAURI__ && window.__TAURI__.core) {
                 try {
-                    await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai_Gemini', username: 'apikey', password: gApiKey });
+                    await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai_Gemini', username: 'apikey', password: storedGeminiKey });
                     console.log("Gemini APIキーをKeyringにセキュアに保存しました。");
                 } catch (e) {
                     console.error("Gemini APIキーのKeyring保存に失敗しました:", e);
                 }
             }
+            // Save provider selection
+            try {
+                const gProviderSave = document.getElementById('gemini-provider-select')?.value || 'google';
+                localStorage.setItem('gemini_provider', gProviderSave);
+                if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('gemini_provider_changed', { provider: gProviderSave });
+            } catch (_) {}
+
+            // モデル選択は画面3(pane3)で保存されます
+            // Save provider selection
+            try {
+                const gProvider = document.getElementById('gemini-provider-select')?.value || 'google';
+                localStorage.setItem('gemini_provider', gProvider);
+                if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('gemini_provider_changed', { provider: gProvider });
+            } catch (_) {}
 
             // 5. Cesium Ionトークンの保存 (Keyringを使用)
             const cToken = document.getElementById("cesium-ion-token-input").value;
@@ -1033,6 +1086,9 @@
             document.getElementById("reearth-email-input").value = "";
             document.getElementById("reearth-password-input").value = "";
             document.getElementById("gemini-api-key-input").value = "";
+            try { const sel = document.getElementById('gemini-provider-select'); if (sel) sel.value = 'google'; } catch(_) {}
+            try { /* model selection reset is handled in pane3 */ } catch(_) {}
+            try { const sel = document.getElementById('gemini-provider-select'); if (sel) sel.value = 'google'; } catch(_) {}
             document.getElementById("cesium-ion-token-input").value = "";
             document.getElementById("platform-setting-input").value = "";
 
@@ -1042,6 +1098,9 @@
                 window.__TAURI__.event.emit('box_credentials_changed', { email: "", password: "" });
                 window.__TAURI__.event.emit('reearth_credentials_changed', { email: "", password: "" });
                 window.__TAURI__.event.emit('gemini_api_key_changed', { apiKey: "" });
+                if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('gemini_provider_changed', { provider: 'google' });
+                // no model change event from settings; pane3 manages its own model
+                if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('gemini_provider_changed', { provider: 'google' });
                 window.__TAURI__.event.emit('cesium_token_changed', { token: "" });
             }
 
