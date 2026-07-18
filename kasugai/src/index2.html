@@ -198,6 +198,7 @@
         <div class="tabs">
             <button class="tab-btn active" id="tab-settings" onclick="switchTab('settings')" oncontextmenu="handleTabRightClick(event, 'settings', '⚙️ システム設定')">⚙️ システム設定</button>
             <button class="tab-btn" id="tab-box" onclick="switchTab('box')" oncontextmenu="handleTabRightClick(event, 'box', '📦 BOX')">📦 BOX</button>
+            <button class="tab-btn" onclick="reloadGoogleMap()" style="padding: 6px 8px; font-size: 13px;" title="Google Mapを再読み込み">🔄</button>
             <button class="tab-btn" id="tab-google" onclick="switchTab('google')" oncontextmenu="handleTabRightClick(event, 'google', '🗺️ Google Map')">🗺️ Google Map</button>
             <button class="tab-btn" id="tab-googleearth" onclick="switchTab('googleearth')" oncontextmenu="handleTabRightClick(event, 'googleearth', '🌍 Google Earth')">🌍 Google Earth</button>
             <button class="tab-btn" id="tab-yahoo" onclick="switchTab('yahoo')" oncontextmenu="handleTabRightClick(event, 'yahoo', '🗾 Yahoo Map')">🗾 Yahoo Map</button>
@@ -216,17 +217,16 @@
 
         <div id="content-settings" class="tab-content">
             <p>システムの動作に関する設定を行います。変更は即座に反映されます。</p>
-
             <!-- 保存/初期化ボタン（タブの上に配置） -->
             <div style="display:flex; gap:10px; margin:10px 0 15px 0; align-items:center;">
                 <button class="btn" onclick="saveAllSettings()" style="flex: 0 0 auto;">設定をシステムに保存</button>
                 <button class="btn btn-danger" onclick="resetAllSettings()" style="flex: 0 0 auto;">設定を初期化</button>
                 <select id="ini-default" style="min-width:320px; margin-left:8px;" onchange="onIniSelected(this.value)">
                     <option value="">(選択してください)</option>
-                </select>
+                                    </select>
                 <button class="btn" id="ini-save-btn" style="margin-left:8px;" onclick="saveCurrentToIni()">INIに保存</button>
                 <div id="settings-status" class="status-msg" style="margin-left:12px; align-self:center;"></div>
-            </div>
+                                </div>
 
             <!-- 内部タブ（設定カテゴリ） -->
             <div class="settings-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
@@ -235,7 +235,7 @@
                 <button class="tab-btn" id="settings-tab-cesium" onclick="switchSettingsTab('cesium')">🌌 CesiumJS</button>
                 <button class="tab-btn" id="settings-tab-reearth-url" onclick="switchSettingsTab('reearth-url')">🌐 Re:Earth</button>
                 <button class="tab-btn" id="settings-tab-gemini" onclick="switchSettingsTab('gemini')">✨ Gemini</button>
-            </div>
+                    </div>
 
             <div class="interactive-section" style="gap: 15px;">
                 <!-- プラットフォーム設定 -->
@@ -245,9 +245,9 @@
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">プラットフォーム固有の設定</label>
                             <textarea id="platform-setting-input" rows="10" placeholder="値を入力" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;"></textarea>
-                        </div>
-                    </div>
-                </div>
+            </div>
+        </div>
+    </div>
 
                 <!-- BOX 設定 -->
                 <div id="settings-panel-box" class="settings-panel">
@@ -294,7 +294,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Gemini 設定 -->
                 <div id="settings-panel-gemini" class="settings-panel" style="display:none;">
                     <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">✨ Gemini AI 設定</h3>
@@ -599,17 +599,25 @@
             try { setupReearthUrlControls(); } catch(e){}
         };
 
+        // Google Map 再読み込み関数
+        async function reloadGoogleMap() {
+                if (window.__TAURI__ && window.__TAURI__.core) {
+                // Rust 側の webview が再読み込みする処理を呼び出す
+                await window.__TAURI__.core.invoke('reload_pane2_google');
+                }
+        }
+
         // Re:Earth タブ横に表示する URL を取得して反映する
         async function updateReearthUrlDisplay() {
             const el = document.getElementById('reearth-url-display');
             if (!el) return;
-            try {
+                    try {
                 let url = '';
-                if (window.__TAURI__ && window.__TAURI__.core) {
+                        if (window.__TAURI__ && window.__TAURI__.core) {
                     url = await window.__TAURI__.core.invoke('get_pane2_url');
                 } else {
                     url = await getTabUrl('reearth');
-                }
+                    }
                 const inner = document.getElementById('reearth-url-inner');
                 if (!inner) return;
                 if (!url || url === 'about:blank' || url === 'https://tauri.localhost/') {
@@ -654,7 +662,7 @@
                     e.stopPropagation();
                     const url = inner?.textContent || '';
                     if (!url) return;
-                    try {
+            try {
                         window.open(url, '_blank');
                     } catch(e) {}
                 });
@@ -676,7 +684,7 @@
                     opt.textContent = f;
                     if (savedDefault === f) opt.selected = true;
                     def.appendChild(opt);
-                }
+            }
             } catch (e) { console.warn('INIリストの取得に失敗:', e); }
         }
 
@@ -706,7 +714,7 @@
 
             // collect settings (exclude inputs with type=password) -- include empty values
             const kv = [];
-            try {
+                try {
                 const reearth = document.getElementById('reearth-url-input')?.value ?? '';
                 kv.push(['reearth_url', reearth]);
                 const boxEmail = document.getElementById('box-email-input')?.value ?? '';
@@ -715,7 +723,7 @@
                 kv.push(['reearth_email', reearthEmail]);
                 // include password keys as empty strings per request (do NOT read existing system values)
                 // skip reading actual password inputs; save as empty string ""
-                
+
                 // add password keys with empty values
                 kv.push(['box_password', '']);
                 kv.push(['reearth_password', '']);
@@ -743,25 +751,24 @@
                 const safe = String(v).replace(/\n/g, '\\n');
                 content += k + ' = "' + safe + '"\n';
             }
-
-            if (!(window.__TAURI__ && window.__TAURI__.core)) {
+                    if (!(window.__TAURI__ && window.__TAURI__.core)) {
                 alert('Tauri コマンドが利用できません。アプリでのみ保存可能です。');
-                return;
-            }
+                        return;
+                    }
 
-            try {
+                    try {
                 await window.__TAURI__.core.invoke('write_ini_file', { filename: filename, content: content });
                 // refresh list
                 try { populateIniList(); } catch(e){}
                 def.value = filename;
                 localStorage.setItem('ini_default', filename);
-                const status = document.getElementById('settings-status');
+                        const status = document.getElementById('settings-status');
                 if (status) { status.textContent = 'INIを保存しました: ' + filename; setTimeout(()=> status.textContent = '', 3000); }
-            } catch (e) {
+                    } catch (e) {
                 console.error('INI書き込み失敗', e);
                 alert('INIの書き込みに失敗しました: ' + e);
-            }
-        }
+                    }
+                }
 
         function parseIni(text) {
             const lines = text.split(/\r?\n/);
@@ -777,20 +784,20 @@
                 let v = l.slice(idx+1).trim();
                 if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
                     v = v.slice(1, -1);
-                }
+            }
                 out[k] = v;
             }
             return out;
         }
 
         async function applyIniSettings(parsed) {
-            try {
+                    try {
                 // Ensure keys explicitly present in INI are applied even when empty (""
                 if (Object.prototype.hasOwnProperty.call(parsed, 'reearth_url')) {
                     localStorage.setItem('reearth_url', parsed.reearth_url || '');
                     document.getElementById('reearth-url-input').value = parsed.reearth_url || '';
                     if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('reearth_url_changed', { url: parsed.reearth_url || '' });
-                }
+                    }
 
                 if (Object.prototype.hasOwnProperty.call(parsed, 'box_email')) {
                     localStorage.setItem('box_email', parsed.box_email || '');
@@ -815,8 +822,8 @@
                     if (parsed.reearth_email && parsed.reearth_password) {
                         if (window.__TAURI__ && window.__TAURI__.core) {
                             await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai_Reearth', username: parsed.reearth_email, password: parsed.reearth_password });
-                        }
                     }
+                }
                 }
 
                 if (Object.prototype.hasOwnProperty.call(parsed, 'gemini_api_key')) {
@@ -825,7 +832,7 @@
                         // If INI specified provider=openrouter, ensure stored key has the expected prefix
                         const maybePrefixed = (parsed.gemini_provider === 'openrouter' && !parsed.gemini_api_key.startsWith('openrouter:')) ? ('openrouter:' + parsed.gemini_api_key) : parsed.gemini_api_key;
                         await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai_Gemini', username: 'apikey', password: maybePrefixed });
-                    }
+                }
                     if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('gemini_api_key_changed', { apiKey: parsed.gemini_api_key || '' });
                 }
 
@@ -842,9 +849,9 @@
                     document.getElementById('cesium-ion-token-input').value = parsed.cesium_token || '';
                     if (parsed.cesium_token && window.__TAURI__ && window.__TAURI__.core) {
                         await window.__TAURI__.core.invoke('save_credential', { service: 'Kasugai_Cesium', username: 'ion_token', password: parsed.cesium_token });
-                    }
-                    if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('cesium_token_changed', { token: parsed.cesium_token || '' });
                 }
+                    if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('cesium_token_changed', { token: parsed.cesium_token || '' });
+            }
 
                 if (Object.prototype.hasOwnProperty.call(parsed, 'platform_setting')) {
                     localStorage.setItem('platform_setting', parsed.platform_setting || '');
@@ -865,19 +872,19 @@
             }
             // 保存しておく（デフォルト候補として）
             localStorage.setItem('ini_default', f);
-            try {
+                    try {
                 const text = await window.__TAURI__.core.invoke('read_ini_file', { filename: f });
                 const parsed = parseIni(text);
                 await applyIniSettings(parsed);
             } catch (e) {
                 console.warn('INI読み取り失敗:', f, e);
                 alert('INIの読み取りに失敗しました: ' + f);
-            }
+                        }
             const status = document.getElementById('settings-status');
             if (status) { status.textContent = 'INIを読み込みました。'; setTimeout(()=> status.textContent = '', 3000); }
             // 反映後にUIの表示更新
             try { updateReearthUrlDisplay(); } catch(e){}
-        }
+            }
 
         function setDefaultIni() {
             const def = document.getElementById('ini-default');
@@ -913,7 +920,7 @@
             // 2. BOX資格情報の保存 (Keyringを使用)
             const email = document.getElementById("box-email-input").value.trim();
             const password = document.getElementById("box-password-input").value;
-            
+
             localStorage.setItem("box_email", email);
 
             if (window.__TAURI__ && window.__TAURI__.core) {
@@ -1087,8 +1094,6 @@
             document.getElementById("reearth-password-input").value = "";
             document.getElementById("gemini-api-key-input").value = "";
             try { const sel = document.getElementById('gemini-provider-select'); if (sel) sel.value = 'google'; } catch(_) {}
-            try { /* model selection reset is handled in pane3 */ } catch(_) {}
-            try { const sel = document.getElementById('gemini-provider-select'); if (sel) sel.value = 'google'; } catch(_) {}
             document.getElementById("cesium-ion-token-input").value = "";
             document.getElementById("platform-setting-input").value = "";
 
@@ -1098,8 +1103,6 @@
                 window.__TAURI__.event.emit('box_credentials_changed', { email: "", password: "" });
                 window.__TAURI__.event.emit('reearth_credentials_changed', { email: "", password: "" });
                 window.__TAURI__.event.emit('gemini_api_key_changed', { apiKey: "" });
-                if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('gemini_provider_changed', { provider: 'google' });
-                // no model change event from settings; pane3 manages its own model
                 if (window.__TAURI__ && window.__TAURI__.event) window.__TAURI__.event.emit('gemini_provider_changed', { provider: 'google' });
                 window.__TAURI__.event.emit('cesium_token_changed', { token: "" });
             }
@@ -1243,3 +1246,4 @@
     </script>
 </body>
 </html>
+
