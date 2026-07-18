@@ -638,9 +638,10 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     let pane4_ratio = *state.pane4_ratio.lock().unwrap();
     let pane4_height = (h * pane4_ratio).max(0.0); // 中央ペイン下に追加する画面4の高さ（px）
 
+        // 修正: 画面外に飛ばすが、サイズはウィンドウのサイズを維持する
     let rect_hidden = Rect {
-        position: Position::Physical(PhysicalPosition::new(-10000, -10000)),
-        size: Size::Physical(PhysicalSize::new(1, 1)),
+        position: Position::Physical(PhysicalPosition::new(-5000, 0)),
+        size: Size::Physical(PhysicalSize::new(w as u32, h as u32)),
     };
 
     if let Some(base_wv) = window.get_webview("main_webview") {
@@ -695,26 +696,12 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
                     if wv.window().label() == window.label() {
                 if is_active {
                     let _ = wv.set_bounds(if is_dedicated { pane2_dedicated_rect } else { pane2_rect });
-                    // 画面を再表示した際に正しく再描画されない問題を回避するため、タブごとに異なる方法で再描画を促す
+                                        // Google Maps 用の再描画: 強制リロードを外し、リサイズイベントのみで対応
                     if id == "pane2_google" {
-                        // Google Maps 用の再描画: visibility トグルを避けつつ canvas を一時的に隠して強制リフローさせる
                         let google_repaint = r#"
                             (function(){
                                 try{
                                     window.dispatchEvent(new Event('resize'));
-                                    try{ document.body.style.backgroundColor = '#ffffff'; }catch(e){}
-                                    // タイル/イメージが描画されているかポーリングで確認し、未描画なら確実にリロードする
-                                    var attempts = 0;
-                                    function checkAndMaybeReload(){
-                                        attempts++;
-                                        var imgs = Array.prototype.slice.call(document.querySelectorAll('img'));
-                                        var visibleImgs = imgs.filter(function(i){ try{ return i.offsetParent !== null; }catch(e){return false;} });
-                                        var ok = visibleImgs.some(function(i){ try{ return (i.naturalWidth || 0) > 1; }catch(e){return false;} });
-                                        if(ok) return;
-                                        if(attempts >= 6){ try{ location.reload(); }catch(e){}; return; }
-                                        setTimeout(checkAndMaybeReload, 200);
-                                    }
-                                    checkAndMaybeReload();
                                 }catch(e){}
                             })();
                         "#;
@@ -725,20 +712,13 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
                             (function(){
                                 try{
                                     window.dispatchEvent(new Event('resize'));
-                                    var el = document.documentElement || document.body;
-                                    if (el) {
-                                        var prev = el.style.visibility;
-                                        el.style.visibility = 'hidden';
-                                        void el.offsetHeight;
-                                        el.style.visibility = prev || '';
-                                    }
-                                    setTimeout(function(){ try{ window.dispatchEvent(new Event('resize')); }catch(e){} }, 60);
                                 }catch(e){}
                             })();
                         "#;
                         let _ = wv.eval(repaint_script);
                     }
                 } else {
+                    // 修正: 非表示時は座標のみ画面外へ移動し、サイズは維持する
                     let _ = wv.set_bounds(rect_hidden);
                 }
             }
