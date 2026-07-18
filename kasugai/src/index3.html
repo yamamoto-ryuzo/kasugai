@@ -529,12 +529,75 @@
             }
         }
 
-        // ロード時にモデルの選択状態を復元
+        // モデル一覧をプロバイダに応じてフィルタする
+        const OPENROUTER_ONLY = new Set(['gemini-3.1-flash-lite']);
+        // ALL_MODELS は Google 側で表示する標準モデル一覧（OpenRouter専用モデルは含めない）
+        const ALL_MODELS = [
+            { value: 'gemini-2.0-flash', text: 'Gemini 2 Flash' },
+            { value: 'gemini-2.5-flash', text: 'Gemini 2.5 Flash' },
+            { value: 'gemini-2.5-pro', text: 'Gemini 2.5 Pro' },
+            { value: 'gemini-3-flash', text: 'Gemini 3 Flash' },
+            { value: 'gemini-3.1-pro', text: 'Gemini 3.1 Pro' },
+            { value: 'gemini-3.5-flash', text: 'Gemini 3.5 Flash' }
+        ];
+
+        function ensureModelOptionsPresent(sel) {
+            // add any missing standard options (keeps order at end)
+            for (const m of ALL_MODELS) {
+                if (!Array.from(sel.options).some(o => o.value === m.value)) {
+                    const opt = document.createElement('option');
+                    opt.value = m.value;
+                    opt.text = m.text;
+                    sel.appendChild(opt);
+                }
+            }
+        }
+
+        function filterModelsByProvider(provider) {
+            const sel = document.getElementById('gemini-model-select');
+            if (!sel) return;
+
+            // normalize existing set
+            if (provider === 'openrouter') {
+                // remove all options not allowed for OpenRouter
+                Array.from(sel.options).forEach(o => {
+                    if (!OPENROUTER_ONLY.has(o.value)) o.remove();
+                });
+                // ensure OpenRouter-friendly option exists
+                if (!Array.from(sel.options).some(o => OPENROUTER_ONLY.has(o.value))) {
+                    const opt = document.createElement('option');
+                    opt.value = 'gemini-3.1-flash-lite';
+                    opt.text = 'Gemini 3.1 Flash Lite (OpenRouter)';
+                    sel.appendChild(opt);
+                }
+            } else {
+                // google (default) - remove OpenRouter-only options and ensure standard options exist
+                Array.from(sel.options).forEach(o => { if (OPENROUTER_ONLY.has(o.value)) o.remove(); });
+                ensureModelOptionsPresent(sel);
+            }
+
+            // 選択されているモデルが現在の選択肢に含まれていなければ先頭を選択して保存
+            if (!Array.from(sel.options).some(o => o.value === sel.value)) {
+                if (sel.options.length > 0) sel.selectedIndex = 0;
+                saveSelectedModel();
+            }
+        }
+
+        // ロード時にモデルの選択状態を復元（ただしまずプロバイダでフィルタ）
         window.addEventListener('DOMContentLoaded', () => {
+            const provider = localStorage.getItem('gemini_provider') || 'google';
+            filterModelsByProvider(provider);
+
             const savedModel = localStorage.getItem('gemini_selected_model');
             const modelSelect = document.getElementById('gemini-model-select');
             if (savedModel && modelSelect) {
-                modelSelect.value = savedModel;
+                if (Array.from(modelSelect.options).some(o => o.value === savedModel)) {
+                    modelSelect.value = savedModel;
+                } else {
+                    // saved model is not available for current provider
+                    if (modelSelect.options.length > 0) modelSelect.selectedIndex = 0;
+                    saveSelectedModel();
+                }
             }
         });
 
@@ -553,19 +616,8 @@
             // 設定画面からプロバイダ変更が来た場合、OpenRouter向けのモデルを候補に追加する
             window.__TAURI__.event.listen('gemini_provider_changed', (ev) => {
                 try {
-                    const provider = ev.payload.provider;
-                    const sel = document.getElementById('gemini-model-select');
-                    if (!sel) return;
-                    // ensure OpenRouter-friendly option exists
-                    if (provider === 'openrouter') {
-                        const exists = Array.from(sel.options).some(o => o.value === 'gemini-3.1-flash-lite');
-                        if (!exists) {
-                            const opt = document.createElement('option');
-                            opt.value = 'gemini-3.1-flash-lite';
-                            opt.text = 'Gemini 3.1 Flash Lite (OpenRouter)';
-                            sel.appendChild(opt);
-                        }
-                    }
+                    const provider = ev.payload.provider || localStorage.getItem('gemini_provider') || 'google';
+                    filterModelsByProvider(provider);
                 } catch(e) {}
             });
         }
