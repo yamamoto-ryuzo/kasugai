@@ -691,8 +691,7 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     let pane3_dedicated_rect = rect_right_dedicated;
 
     // 画面1の下部（待機エリア）の管理用カウンター
-    let mut hidden_count = 0;
-    let mut update_pane2 = |id: &str, is_active: bool, is_dedicated: bool| {
+    let update_pane2 = |id: &str, is_active: bool, is_dedicated: bool| {
         if let Some(wv) = window.get_webview(id) {
             // Webviewが現在このウィンドウに属している場合のみ Bounds を更新する
                     if wv.window().label() == window.label() {
