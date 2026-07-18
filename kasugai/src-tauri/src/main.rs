@@ -724,6 +724,11 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
                         position: Position::Physical(PhysicalPosition::new((w - 1.0) as i32, (h - 1.0) as i32)),
                         size: Size::Physical(PhysicalSize::new(1, 1)),
                     };
+                    let _ = wv.set_bounds(rect_hidden);
+                    let rect_hidden = Rect {
+                        position: Position::Physical(PhysicalPosition::new((w - 1.0) as i32, (h - 1.0) as i32)),
+                        size: Size::Physical(PhysicalSize::new(1, 1)),
+                    };
                 let _ = wv.set_bounds(rect_hidden);
             }
         }
@@ -1456,4 +1461,5 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
 
