@@ -690,7 +690,9 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     let pane3_rect = rect_right;
     let pane3_dedicated_rect = rect_right_dedicated;
 
-    let update_pane2 = |id: &str, is_active: bool, is_dedicated: bool| {
+    // 画面1の下部（待機エリア）の管理用カウンター
+    let mut hidden_count = 0;
+    let mut update_pane2 = |id: &str, is_active: bool, is_dedicated: bool| {
         if let Some(wv) = window.get_webview(id) {
             // Webviewが現在このウィンドウに属している場合のみ Bounds を更新する
                     if wv.window().label() == window.label() {
@@ -718,11 +720,15 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
                         let _ = wv.eval(repaint_script);
                     }
                 } else {
-                    // 修正: 非表示時は座標のみ画面外へ移動し、サイズは維持する
-                    let _ = wv.set_bounds(rect_hidden);
-                }
+                    // 修正: 右下隅に 1x1px で配置し、レンダリングを維持する
+                    let rect_hidden = Rect {
+                        position: Position::Physical(PhysicalPosition::new((w - 1.0) as i32, (h - 1.0) as i32)),
+                        size: Size::Physical(PhysicalSize::new(1, 1)),
+                    };
+                let _ = wv.set_bounds(rect_hidden);
             }
         }
+    }
     };
 
     // pane2 (ベース画面) は、常に表示しておく（アクティブかどうかに関わらず、背面またはタブ領域として表示する）
@@ -730,13 +736,13 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     if let Some(wv2) = window.get_webview("pane2") {
         let _ = wv2.set_bounds(pane2_rect);
     }
-    
+
     // 画面2の専用画面（pane2_...）の配置設定
     // 通常時はメイン画面内に配置し、detachされた場合のみバウンズ計算から実質的に除外する運用
     let is_detached = |label: &str| {
-        window.get_window(&format!("detached_pane2_{}", label)).is_some() 
-        || window.get_window("dedicated_pane2").is_some() 
-    };
+        window.get_window(&format!("detached_pane2_{}", label)).is_some()
+        || window.get_window("dedicated_pane2").is_some()
+        };
 
     let active = active_pane2;
     update_pane2("pane2_box", active == "box" && !is_detached("box"), true);
@@ -744,7 +750,7 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     update_pane2("pane2_google", active == "google" && !is_detached("google"), true);
     update_pane2("pane2_googleearth", active == "googleearth" && !is_detached("googleearth"), true);
     update_pane2("pane2_yahoo", active == "yahoo" && !is_detached("yahoo"), true);
-    update_pane2("pane2_cesium", active == "cesium" && !is_detached("cesium"), true); 
+    update_pane2("pane2_cesium", active == "cesium" && !is_detached("cesium"), true);
 
     // pane4 を配置（常に表示）
     if let Some(wv4) = window.get_webview("pane4") {
@@ -758,12 +764,12 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     // 動的に追加された pane3 の各タブWebviewのBounds更新
     let pane3_active = state.pane3_active_tab.lock().unwrap().clone();
     let pane3_tabs_vec = state.pane3_tabs.lock().unwrap().clone();
-    
+
     for tab_id in pane3_tabs_vec {
         if let Some(wv) = window.get_webview(&tab_id) {
             if tab_id == pane3_active {
                 let _ = wv.set_bounds(pane3_dedicated_rect); // タブ領域(50px)の下に配置
-            } else {
+    } else {
                 let _ = wv.set_bounds(rect_hidden);
             }
         }
@@ -791,7 +797,7 @@ fn close_pane3_tab(
     let mut tabs = state.pane3_tabs.lock().unwrap();
     if let Some(pos) = tabs.iter().position(|x| *x == tab) {
         tabs.remove(pos);
-        
+
         let app_clone = app_handle.clone();
         let tab_id = tab.clone();
         let _ = app_handle.run_on_main_thread(move || {
@@ -812,7 +818,7 @@ fn close_pane3_tab(
             } else {
                 *active = "default".to_string(); // すべてのタブが消えたらdefaultに戻る
             }
-            
+
             // UIに新しいアクティブタブを通知
             let _ = app_handle.emit("pane3_active_changed", serde_json::json!({
                 "id": *active
@@ -857,7 +863,7 @@ fn prefetch_basic_auth(
                 await fetch("{}", {{ method: "GET", headers: {{ "Authorization": basicAuthHeader }}, mode: 'no-cors' }});
             }})();"#,
             creds.email, creds.password, url
-        );
+    );
         if let Some(wv) = window.get_webview("pane2_reearth") {
             // Re:Earthの自動タイピングが意図しない画面で発火するのを防ぐため、
             // 初回クリック時（open_reearth_in_pane）までナビゲーションを遅延させます。
@@ -897,7 +903,7 @@ async fn detach_window(
                         let _ = wv.set_bounds(Rect {
                             position: Position::Physical(PhysicalPosition::new(0, 0)),
                             size: Size::Physical(*size),
-                        });
+    });
                         if id.contains("cesium") || id.contains("google") || id.contains("yahoo") {
                              let _ = wv.eval("window.dispatchEvent(new Event('resize'));");
                         }
@@ -938,7 +944,7 @@ async fn detach_window(
             position: Position::Physical(PhysicalPosition::new(0, 0)),
             size: Size::Physical(win.inner_size().unwrap()),
         }).map_err(|e| e.to_string())?;
-        
+
         let app_cleanup = app_handle.clone();
         let _ = app_handle.run_on_main_thread(move || {
             update_splitter_internal(&app_cleanup, &app_cleanup.state::<SplitterState>());
@@ -947,7 +953,7 @@ async fn detach_window(
 
     let _ = win.set_focus();
     let _ = win.set_title(&title);
-    Ok(())
+            Ok(())
 }
 
 #[tauri::command]
@@ -968,7 +974,7 @@ async fn get_pane2_url(
 
     let (tx, rx) = std::sync::mpsc::channel();
     let app_clone = app_handle.clone();
-    
+
     let _ = app_handle.run_on_main_thread(move || {
         let mut result = Err("Could not get URL".to_string());
         if let Some(window) = app_clone.get_window("main") {
@@ -1214,7 +1220,7 @@ fn main() {
             let height = size.height as f64;
             let base_webview_builder = WebviewBuilder::new("main_webview", WebviewUrl::App("index.html".into()));
             let _base_wv = window.add_child(base_webview_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(width as u32, height as u32))?;
-            
+
             let init_script_pane1 = r#"
                 window.addEventListener('dblclick', function(e) {
                     if (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke) {
@@ -1260,8 +1266,8 @@ fn main() {
                 .initialization_script(init_script_pane2)
                 .on_navigation(move |url| {
                     let url_str = url.as_str();
-                    if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1") 
-                       || url_str.contains("index2.html") || url_str.contains("index3.html") 
+                    if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1")
+                       || url_str.contains("index2.html") || url_str.contains("index3.html")
                        || url_str.contains("account.box.com") || url_str.contains("app.box.com") || url_str.contains("reearth.io") || url_str.contains("earth.google.com")
                        || url_str.contains("google.com") || url_str.contains("google.co.jp") || url_str.contains("yahoo.co.jp") {
                         return true;
@@ -1293,8 +1299,8 @@ fn main() {
                 .initialization_script(init_script_pane3)
                 .on_navigation(move |url| {
                     let url_str = url.as_str();
-                    if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1") 
-                       || url_str.contains("index2.html") || url_str.contains("index3.html") 
+                    if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1")
+                       || url_str.contains("index2.html") || url_str.contains("index3.html")
                        || url_str.contains("account.box.com") || url_str.contains("app.box.com") || url_str.contains("reearth.io") || url_str.contains("earth.google.com")
                        || url_str.contains("google.com") || url_str.contains("google.co.jp") || url_str.contains("yahoo.co.jp") {
                         return true;
@@ -1416,8 +1422,8 @@ fn main() {
                 "#)
                 .on_navigation(move |url| {
                     let url_str = url.as_str();
-                    if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1") 
-                       || url_str.contains("index.html") || url_str.contains("index3.html") 
+                    if url_str.starts_with("tauri://") || url_str.contains("localhost") || url_str.contains("127.0.0.1")
+                       || url_str.contains("index.html") || url_str.contains("index3.html")
                        || url_str.contains("cesium.html") {
                         return true;
                     }
@@ -1443,7 +1449,7 @@ fn main() {
             let _wv_cesium = window.add_child(webview_cesium, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv4 = window.add_child(webview4, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv3 = window.add_child(webview3_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
-            
+
             let state = app.state::<SplitterState>();
             recalculate_webview_bounds(&window, width, height, 0.1, 0.8, "default", &state);
             Ok(())
@@ -1451,7 +1457,4 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
-
-
 
