@@ -602,8 +602,14 @@
         // Google Map 再読み込み関数
         async function reloadGoogleMap() {
                 if (window.__TAURI__ && window.__TAURI__.core) {
-                // Rust 側の webview が再読み込みする処理を呼び出す
-                await window.__TAURI__.core.invoke('reload_pane2_google');
+                try {
+                    console.log('[Kasugai JS] invoking reload_pane2_google');
+                    const res = await window.__TAURI__.core.invoke('reload_pane2_google');
+                    console.log('[Kasugai JS] reload_pane2_google result:', res);
+                } catch (e) {
+                    console.error('[Kasugai JS] reload_pane2_google failed:', e);
+                    try { alert('Google Map reload failed: ' + e); } catch (_) {}
+                }
                 }
         }
 

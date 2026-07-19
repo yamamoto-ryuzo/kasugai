@@ -1008,6 +1008,28 @@ fn preload_webview(app_handle: tauri::AppHandle, target: String, url: String) {
     }
 }
 
+// フロントからの Google Map 再読み込みリクエストを処理
+#[tauri::command]
+fn reload_pane2_google(app_handle: tauri::AppHandle) -> Result<(), String> {
+    println!("[Kasugai Rust] reload_pane2_google invoked - performing full navigate to current URL");
+    if let Some(window) = app_handle.get_window("main") {
+        if let Some(wv) = window.get_webview("pane2_google") {
+            match wv.url() {
+                Ok(cur) => {
+                    println!("[Kasugai Rust] navigating to current URL to force reload: {}", cur.as_str());
+                    let _ = wv.navigate(cur);
+                    return Ok(());
+                }
+                Err(e) => {
+                    println!("[Kasugai Rust] could not obtain current URL for pane2_google: {}", e);
+                    return Err(format!("could not obtain current URL: {}", e));
+                }
+            }
+        }
+    }
+    Err("pane2_google webview not found".to_string())
+}
+
 #[derive(serde::Serialize)]
 struct GeminiResponse {
     text: String,
@@ -1194,6 +1216,7 @@ fn main() {
             switch_pane3_tab,
             close_pane3_tab,
             get_pane2_url,
+            reload_pane2_google,
             call_gemini,
             detach_window
         ])
