@@ -72,8 +72,15 @@
             <!-- 超コンパクト・リモコン型UI (縦一列に隙間なく収める) -->
             <div style="display: flex; flex-direction: column; gap: 8px;">
                 <div style="font-size: 13px; font-weight: bold; color: #1e293b; text-align: center; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">🗺️ 連携</div>
-                
-                <button class="portal-btn" onclick="getLocation(event)" style="width: 95%; background-color: #22c55e; color: white; border-color: #16a34a; cursor: pointer;" title="位置情報を取得">
+
+                <div style="display: flex; gap: 4px; width: 95%; align-items: center;" title="GISのURLを入力">
+                    <input type="text" id="input-url" placeholder="GISのURL" style="flex: 1 1 auto; min-width: 0;">
+                    <button class="portal-btn" onclick="clearUrl(event)" style="flex: 0 0 auto; width: auto; padding: 4px 6px; background-color: #f1f5f9; color: #475569; cursor: pointer;" title="URLをクリア">
+                        クリア
+                    </button>
+                </div>
+
+                <button class="portal-btn" onclick="getLocation(event)" style="width: 95%; background-color: #22c55e; color: white; border-color: #16a34a; cursor: pointer;" title="URLまたは地図から位置情報を取得">
                     取得
                 </button>
 
@@ -248,10 +255,43 @@
             return null;
         }
 
+        // URL入力欄をクリアする
+        function clearUrl(event) {
+            if (event) event.preventDefault();
+            const urlInput = document.getElementById('input-url');
+            if (urlInput) urlInput.value = '';
+            const statusDiv = document.getElementById('location-status');
+            if (statusDiv) statusDiv.style.display = 'none';
+            if (urlInput) urlInput.focus();
+        }
+
+        // 入力欄へ緯度・経度・ズームを反映する
+        function applyLocation(loc) {
+            document.getElementById('input-lat').value = loc.lat;
+            document.getElementById('input-lng').value = loc.lng;
+            document.getElementById('input-zoom').value = loc.zoom || '';
+        }
+
         async function getLocation(event) {
             if (event) event.preventDefault();
             const statusDiv = document.getElementById('location-status');
             statusDiv.style.display = 'none';
+
+            // URL入力欄に値があれば、そのURLから座標を取得する（地図ペインより優先）
+            const urlInputEl = document.getElementById('input-url');
+            const manualUrl = urlInputEl ? urlInputEl.value.trim() : '';
+            if (manualUrl) {
+                let loc = parseLocation(manualUrl) || extractLatLngZoomFromText(manualUrl);
+                if (loc) {
+                    applyLocation(loc);
+                    statusDiv.style.display = 'none';
+                } else {
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.color = '#dc2626';
+                    statusDiv.textContent = 'URLから位置情報を解析できませんでした。';
+                }
+                return;
+            }
 
             if (window.__TAURI__ && window.__TAURI__.core) {
                 try {
@@ -281,9 +321,7 @@
                         loc = extractLatLngZoomFromText(url);
                     }
                     if (loc) {
-                        document.getElementById('input-lat').value = loc.lat;
-                        document.getElementById('input-lng').value = loc.lng;
-                        document.getElementById('input-zoom').value = loc.zoom || '';
+                        applyLocation(loc);
                         statusDiv.style.display = 'none';
                     } else {
                         statusDiv.style.display = 'block';
