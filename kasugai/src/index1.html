@@ -148,10 +148,21 @@
                 const matchLat = urlStr.match(/[#?&]lat=(-?\d+(?:\.\d+)?)/);
                 const matchLon = urlStr.match(/[#?&]lon=(-?\d+(?:\.\d+)?)/);
                 const matchZoom = urlStr.match(/[#?&](?:zoom|z)=(\d+(?:\.\d+)?)/);
+                const matchHeight = urlStr.match(/[#?&]height=(-?\d+(?:\.\d+)?)/);
                 if (matchLat && matchLon) {
                     lat = Number(matchLat[1]).toFixed(6);
                     lng = Number(matchLon[1]).toFixed(6);
-                    zoom = matchZoom ? Number(matchZoom[1]).toFixed(4) : "15.0000";
+                    if (matchZoom) {
+                        zoom = Number(matchZoom[1]).toFixed(4);
+                    } else if (matchHeight) {
+                        // Re:Earth の height を地図ズームに近似変換
+                        const height = parseFloat(matchHeight[1]);
+                        // 同様の原理で距離->ズーム変換 (Google Earth に合わせた経験的変換)
+                        const z = 27 - Math.log2(Math.max(1, height || 5000));
+                        zoom = Number(z).toFixed(4);
+                    } else {
+                        zoom = "15.0000";
+                    }
                     return { lat, lng, zoom, originalUrl: urlStr };
                 }
 
@@ -172,6 +183,71 @@
             }
         }
 
+        // クリップボードや任意テキストから緯度・経度・ズームを抽出するフォールバック
+        function extractLatLngZoomFromText(text) {
+            if (!text) return null;
+            // 1) JSON内に lat/lng/zoom がある場合
+            try {
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    try {
+                        const obj = JSON.parse(jsonMatch[0]);
+                        if (obj && (obj.lat || obj.latitude || obj.lng || obj.lon || obj.longitude)) {
+                            const lat = (obj.lat ?? obj.latitude ?? obj.latitude ?? obj.lat) || obj.latitude || obj.lat;
+                            const lng = (obj.lng ?? obj.lon ?? obj.longitude) || obj.lng || obj.lon;
+                            const zoom = obj.zoom ?? obj.z ?? obj.level ?? null;
+                            if (lat !== undefined && lng !== undefined) {
+                                return { lat: Number(lat).toFixed(6), lng: Number(lng).toFixed(6), zoom: zoom ? String(zoom) : '' };
+                            }
+                        }
+                    } catch(e) { /* ignore JSON parse errors */ }
+                }
+            } catch(e) {}
+
+            // 2) クエリ文字列風: lat=..&lon=.. または lat:.., lon:..
+            const kvLat = text.match(/(?:lat|latitude)[\s:=]*(-?\d+\.?\d+)/i);
+            const kvLng = text.match(/(?:lon|lng|longitude)[\s:=]*(-?\d+\.?\d+)/i);
+            const kvZoom = text.match(/(?:zoom|z)[\s:=]*(-?\d+\.?\d+)/i);
+            const kvHeight = text.match(/(?:height)[\s:=]*(-?\d+\.?\d+)/i) || text.match(/[?&#]height=(-?\d+(?:\.\d+)?)/i);
+            if (kvLat && kvLng) {
+                let z = kvZoom ? String(kvZoom[1]) : '';
+                if (!z && kvHeight) {
+                    const h = parseFloat(kvHeight[1]);
+                    const zz = 27 - Math.log2(Math.max(1, h || 5000));
+                    z = Number(zz).toFixed(4);
+                }
+                return { lat: Number(kvLat[1]).toFixed(6), lng: Number(kvLng[1]).toFixed(6), zoom: z };
+            }
+
+            // 3) テキスト中の浮動小数点数列から最初の2つを lat/lng として使う
+            const nums = Array.from(text.matchAll(/-?\d+\.\d+/g)).map(m => m[0]);
+            if (nums.length >= 2) {
+                // 値の順序が lon,lat になっているケースもあるので、緯度の範囲で判定
+                let a = Number(nums[0]);
+                let b = Number(nums[1]);
+                let lat = a, lng = b;
+                if (Math.abs(a) > 90 && Math.abs(b) <= 90) {
+                    // a は経度で範囲外 -> swap
+                    lat = b; lng = a;
+                }
+                const maybeZoom = nums[2] ? String(nums[2]) : '';
+                return { lat: Number(lat).toFixed(6), lng: Number(lng).toFixed(6), zoom: maybeZoom };
+            }
+
+            // 4) 整数のみ（ズームなど）が混ざる場合は整数列を抽出して最後の数値をズームに使う
+            const ints = Array.from(text.matchAll(/-?\d+/g)).map(m => m[0]);
+            if (ints.length >= 2) {
+                const a = Number(ints[0]);
+                const b = Number(ints[1]);
+                if (Math.abs(a) <= 90 && Math.abs(b) <= 180) {
+                    const zoom = ints.length >= 3 ? String(ints[2]) : '';
+                    return { lat: Number(a).toFixed(6), lng: Number(b).toFixed(6), zoom };
+                }
+            }
+
+            return null;
+        }
+
         async function getLocation(event) {
             if (event) event.preventDefault();
             const statusDiv = document.getElementById('location-status');
@@ -179,8 +255,31 @@
 
             if (window.__TAURI__ && window.__TAURI__.core) {
                 try {
-                    const url = await window.__TAURI__.core.invoke('get_pane2_url');
-                    const loc = parseLocation(url);
+                    // Re:Earth はプラグイン内でクリップボードへ permalink をコピーするため、
+                    // アクティブが reearth の場合はクリップボードから読み取る（ユーザーの取得ボタン操作があるため許可あり）。
+                    let url = '';
+                    try {
+                        const active = await window.__TAURI__.core.invoke('get_active_pane2');
+                        if (active === 'reearth' && navigator.clipboard && navigator.clipboard.readText) {
+                            try {
+                                url = await navigator.clipboard.readText();
+                            } catch (e) {
+                                // 読み取り失敗したらフォールバックで通常の取得を試す
+                                url = await window.__TAURI__.core.invoke('get_pane2_url');
+                            }
+                        } else {
+                            url = await window.__TAURI__.core.invoke('get_pane2_url');
+                        }
+                    } catch (e) {
+                        // Tauri呼び出し失敗時は従来の取得を試す
+                        url = await window.__TAURI__.core.invoke('get_pane2_url');
+                    }
+
+                    let loc = parseLocation(url);
+                    if (!loc) {
+                        // 直接URL解析が失敗したら、クリップボード内の任意テキストから抽出を試みる
+                        loc = extractLatLngZoomFromText(url);
+                    }
                     if (loc) {
                         document.getElementById('input-lat').value = loc.lat;
                         document.getElementById('input-lng').value = loc.lng;

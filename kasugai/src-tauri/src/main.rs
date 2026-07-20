@@ -990,6 +990,11 @@ async fn get_pane2_url(
 }
 
 #[tauri::command]
+fn get_active_pane2(state: tauri::State<'_, SplitterState>) -> String {
+    state.active_pane2.lock().unwrap().clone()
+}
+
+#[tauri::command]
 fn preload_webview(app_handle: tauri::AppHandle, target: String, url: String) {
     if target == "pane2_reearth" || target == "pane2_box" {
         // Re:EarthとBOXは起動時の自動ログイン（タイピング/DOM操作）を確実にするためプレロード（裏読み）をスキップします。
@@ -1216,6 +1221,7 @@ fn main() {
             switch_pane3_tab,
             close_pane3_tab,
             get_pane2_url,
+            get_active_pane2,
             reload_pane2_google,
             call_gemini,
             detach_window
