@@ -332,7 +332,7 @@
                             const base = (localStorage.getItem('reearth_url') || 'https://reearth.io/').split('?')[0];
                             // height を zoom から逆算
                             const height = Math.pow(2, 27 - Number(zoom));
-                            const reearthUrl = `${base}?lat=${lat}&lng=${lng}&height=${Number(height).toFixed(4)}`;
+                            const reearthUrl = `${base}?lat=${lat}&lng=${lng}&height=${Number(height).toFixed(4)}&heading=0&pitch=-90`;
                             if (navigator.clipboard && navigator.clipboard.writeText) {
                                 await navigator.clipboard.writeText(reearthUrl);
                                 statusDiv.style.display = 'block';
