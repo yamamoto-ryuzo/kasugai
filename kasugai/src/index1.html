@@ -95,11 +95,8 @@
 
                 <div style="margin-top: 8px; width: 95%;">
                     <div>
-                        <input type="text" id="input-gis-url" placeholder="GIS URLを入力（クリックで貼り付け）" title="GIS URL" style="background-color: #f1f5f9; cursor: pointer;" onclick="pasteFromClipboard()" oninput="updateUrlTooltip()">
+                        <input type="text" id="input-gis-url" placeholder="GIS URL" title="GIS URL入力（クリックで貼り付け）" style="background-color: #f1f5f9; cursor: pointer;" onclick="pasteFromClipboard()" oninput="updateUrlTooltip()">
                     </div>
-                    <button class="portal-btn" onclick="getLocationFromUrl(event)" style="width: 100%; background-color: #f59e0b; color: white; border-color: #d97706; cursor: pointer; margin-top: 4px;" title="URLから座標を取得">
-                        URL取得
-                    </button>
                 </div>
 
                 <div id="location-status" style="margin-top: 3px; font-size: 10px; color: #dc2626; display: none; text-align: center; word-break: break-all;"></div>
@@ -262,6 +259,38 @@
             const statusDiv = document.getElementById('location-status');
             statusDiv.style.display = 'none';
 
+            // GIS URL入力欄を優先的にチェック
+            const urlInput = document.getElementById('input-gis-url');
+            const gisUrl = urlInput.value.trim();
+            
+            if (gisUrl) {
+                // GIS URL入力欄がある場合はそこから取得
+                let loc = parseLocation(gisUrl);
+                if (!loc) {
+                    loc = extractLatLngZoomFromText(gisUrl);
+                }
+                
+                if (loc) {
+                    document.getElementById('input-lat').value = loc.lat;
+                    document.getElementById('input-lng').value = loc.lng;
+                    document.getElementById('input-zoom').value = loc.zoom || '';
+                    // 取得完了後にURL入力欄をクリア
+                    urlInput.value = '';
+                    urlInput.title = 'GIS URL';
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.color = '#15803d';
+                    statusDiv.textContent = 'URLから座標を取得しました。';
+                    setTimeout(() => { statusDiv.style.display = 'none'; }, 2000);
+                    return;
+                } else {
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.color = '#dc2626';
+                    statusDiv.textContent = "GIS URLから位置情報を解析できませんでした。";
+                    return;
+                }
+            }
+
+            // GIS URL入力欄が空の場合は従来の方法で取得
             if (window.__TAURI__ && window.__TAURI__.core) {
                 try {
                     // Re:Earth はプラグイン内でクリップボードへ permalink をコピーするため、
@@ -343,42 +372,6 @@
                 urlInput.title = url;
             } else {
                 urlInput.title = 'GIS URL';
-            }
-        }
-
-        // URL入力欄から座標を取得
-        async function getLocationFromUrl(event) {
-            if (event) event.preventDefault();
-            const statusDiv = document.getElementById('location-status');
-            const urlInput = document.getElementById('input-gis-url');
-            statusDiv.style.display = 'none';
-
-            const url = urlInput.value.trim();
-            if (!url) {
-                statusDiv.style.display = 'block';
-                statusDiv.style.color = '#dc2626';
-                statusDiv.textContent = "GIS URLを入力してください。入力欄をクリックするとクリップボードから貼り付けできます。";
-                return;
-            }
-
-            let loc = parseLocation(url);
-            if (!loc) {
-                // 直接URL解析が失敗したら、テキストから抽出を試みる
-                loc = extractLatLngZoomFromText(url);
-            }
-            
-            if (loc) {
-                document.getElementById('input-lat').value = loc.lat;
-                document.getElementById('input-lng').value = loc.lng;
-                document.getElementById('input-zoom').value = loc.zoom || '';
-                statusDiv.style.display = 'block';
-                statusDiv.style.color = '#15803d';
-                statusDiv.textContent = '座標を取得しました。';
-                setTimeout(() => { statusDiv.style.display = 'none'; }, 2000);
-            } else {
-                statusDiv.style.display = 'block';
-                statusDiv.style.color = '#dc2626';
-                statusDiv.textContent = "位置情報を解析できませんでした。URLを確認してください。";
             }
         }
 
