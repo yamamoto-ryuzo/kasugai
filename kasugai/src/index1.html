@@ -320,6 +320,42 @@
 
             if (window.__TAURI__ && window.__TAURI__.core) {
                 try {
+                    // 判定: 現在のアクティブタブ種別を問い合わせ（reearth のときはクリップボードへコピー）
+                    let activeTab = '';
+                    try {
+                        activeTab = await window.__TAURI__.core.invoke('get_active_pane2');
+                    } catch (e) { /* ignore */ }
+
+                    // Re:Earth タブがアクティブな場合は Re:Earth 用 URL を組み立ててクリップボードへコピー
+                    if (activeTab === 'reearth') {
+                        try {
+                            const base = (localStorage.getItem('reearth_url') || 'https://reearth.io/').split('?')[0];
+                            // height を zoom から逆算
+                            const height = Math.pow(2, 27 - Number(zoom));
+                            const reearthUrl = `${base}?lat=${lat}&lng=${lng}&height=${Number(height).toFixed(4)}`;
+                            if (navigator.clipboard && navigator.clipboard.writeText) {
+                                await navigator.clipboard.writeText(reearthUrl);
+                                statusDiv.style.display = 'block';
+                                statusDiv.style.color = '#15803d';
+                                statusDiv.textContent = 'Re:Earth 用 URL をクリップボードへコピーしました。プラグインで貼り付けてください。';
+                                setTimeout(() => { statusDiv.style.display = 'none'; }, 2500);
+                                return;
+                            } else {
+                                // フォールバック: Rust 経由でクリップボードに書き込むことも可能だが、ここでは通知する
+                                statusDiv.style.display = 'block';
+                                statusDiv.style.color = '#dc2626';
+                                statusDiv.textContent = 'クリップボードへコピーできませんでした。ブラウザの権限を確認してください。';
+                                return;
+                            }
+                        } catch (e) {
+                            statusDiv.style.display = 'block';
+                            statusDiv.style.color = '#dc2626';
+                            statusDiv.textContent = 'Re:Earth URL の生成/コピーに失敗しました: ' + e;
+                            return;
+                        }
+                    }
+
+                    // デフォルトはGoogle Maps 等へ遷移
                     // 現在画面2で開いている地図サービスを判定
                     let currentUrlStr = "";
                     try {
@@ -328,7 +364,7 @@
 
                     // デフォルトはGoogle Maps
                     let targetUrl = `https://www.google.com/maps/@${lat},${lng},${zoom}z`;
-                    
+
                     try {
                         if (currentUrlStr) {
                             // URLオブジェクトパース前の生文字列（currentUrlStr）によるより確実なサービス判定
@@ -341,13 +377,6 @@
                             } else if (currentUrlStr.includes('cesium')) {
                                 // CesiumJS専用のハッシュURLを組み立てて遷移させる
                                 targetUrl = `${window.location.origin}/cesium.html#lat=${lat}&lon=${lng}&zoom=${zoom}`;
-                            } else if (currentUrlStr.includes('reearth.io')) {
-                                // Re:Earthへの同期移動（イベント発行・CORS突破）
-                                if (window.__TAURI__ && window.__TAURI__.event) {
-                                    window.__TAURI__.event.emit('move_cesium', { lat: Number(lat), lon: Number(lng), zoom: Number(zoom) });
-                                    statusDiv.style.display = 'none';
-                                    return;
-                                }
                             } else if (currentUrlStr.includes('index2.html')) {
                                 // index2.htmlの場合は何もしない（設定画面などのため）
                             }
