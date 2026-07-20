@@ -93,6 +93,15 @@
                     移動
                 </button>
 
+                <div style="margin-top: 8px; width: 95%;">
+                    <div>
+                        <input type="text" id="input-gis-url" placeholder="GIS URLを入力（クリックで貼り付け）" title="GIS URL" style="background-color: #f1f5f9; cursor: pointer;" onclick="pasteFromClipboard()" oninput="updateUrlTooltip()">
+                    </div>
+                    <button class="portal-btn" onclick="getLocationFromUrl(event)" style="width: 100%; background-color: #f59e0b; color: white; border-color: #d97706; cursor: pointer; margin-top: 4px;" title="URLから座標を取得">
+                        URL取得
+                    </button>
+                </div>
+
                 <div id="location-status" style="margin-top: 3px; font-size: 10px; color: #dc2626; display: none; text-align: center; word-break: break-all;"></div>
             </div>
         </div>
@@ -299,6 +308,77 @@
                 statusDiv.style.display = 'block';
                 statusDiv.style.color = '#dc2626';
                 statusDiv.textContent = "Tauri環境で実行してください。";
+            }
+        }
+
+        // GIS URL入力欄をクリックしたときにクリップボードから貼り付け
+        async function pasteFromClipboard() {
+            const urlInput = document.getElementById('input-gis-url');
+            const statusDiv = document.getElementById('location-status');
+            
+            if (navigator.clipboard && navigator.clipboard.readText) {
+                try {
+                    const text = await navigator.clipboard.readText();
+                    urlInput.value = text;
+                    statusDiv.style.display = 'none';
+                    updateUrlTooltip();
+                } catch (e) {
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.color = '#dc2626';
+                    statusDiv.textContent = "クリップボードからの読み取りに失敗しました: " + e;
+                }
+            } else {
+                statusDiv.style.display = 'block';
+                statusDiv.style.color = '#dc2626';
+                statusDiv.textContent = "クリップボードへのアクセスができません。";
+            }
+        }
+
+        // URL入力欄のツールチップを入力されたURLに更新
+        function updateUrlTooltip() {
+            const urlInput = document.getElementById('input-gis-url');
+            const url = urlInput.value.trim();
+            
+            if (url) {
+                urlInput.title = url;
+            } else {
+                urlInput.title = 'GIS URL';
+            }
+        }
+
+        // URL入力欄から座標を取得
+        async function getLocationFromUrl(event) {
+            if (event) event.preventDefault();
+            const statusDiv = document.getElementById('location-status');
+            const urlInput = document.getElementById('input-gis-url');
+            statusDiv.style.display = 'none';
+
+            const url = urlInput.value.trim();
+            if (!url) {
+                statusDiv.style.display = 'block';
+                statusDiv.style.color = '#dc2626';
+                statusDiv.textContent = "GIS URLを入力してください。入力欄をクリックするとクリップボードから貼り付けできます。";
+                return;
+            }
+
+            let loc = parseLocation(url);
+            if (!loc) {
+                // 直接URL解析が失敗したら、テキストから抽出を試みる
+                loc = extractLatLngZoomFromText(url);
+            }
+            
+            if (loc) {
+                document.getElementById('input-lat').value = loc.lat;
+                document.getElementById('input-lng').value = loc.lng;
+                document.getElementById('input-zoom').value = loc.zoom || '';
+                statusDiv.style.display = 'block';
+                statusDiv.style.color = '#15803d';
+                statusDiv.textContent = '座標を取得しました。';
+                setTimeout(() => { statusDiv.style.display = 'none'; }, 2000);
+            } else {
+                statusDiv.style.display = 'block';
+                statusDiv.style.color = '#dc2626';
+                statusDiv.textContent = "位置情報を解析できませんでした。URLを確認してください。";
             }
         }
 
