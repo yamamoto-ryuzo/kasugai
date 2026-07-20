@@ -61,6 +61,43 @@ graph TD
 
 ---
 
+## 位置同期（緯度/経度ベース）
+
+### 目的
+- 異なる地図サービス間（Google Maps / Google Earth / CesiumJS / Yahoo / Re:Earth）の現在位置を、緯度・経度・ズーム（または高さ）で正確に同期すること。
+
+### 対応方式
+- **URLハッシュ／パラメータ解析**: Google系・Cesium・Yahoo等はURL（ハッシュやクエリ）に位置情報を含むため、これをパースして同期。 
+- **クリップボード経由（Re:Earth）**: Re:Earth は iframe サンドボックスの制約があるため、プラグインが生成する permalink をユーザーがコピー → 本アプリが clipboard を read して解析・同期／作成する運用を採用。
+
+### 同期アルゴリズム概要
+- 1) WebView の現在URLを監視し、既知のパターン（Google Maps/GE/Cesium/Yahoo）と照合して `lat, lng, zoom/height` を抽出。
+- 2) 抽出に失敗した場合は、クリップボード・テキストやページ内に残る数値列からフォールバックで抽出。
+- 3) 取得した `height` は経験式で `zoom` に変換、また `zoom` から `height` を逆算して各サービス向けパラメータを生成。
+
+### 高度 ↔ ズームの近似式
+- 採用式（経験則）:
+  $$zoom \approx 27 - \log_2(height)$$
+  逆変換:
+  $$height \approx 2^{27 - zoom}$$
+  - `height` はメートル単位のカメラ高度を想定。実運用では目視で微調整を推奨します。
+
+### 具体的運用手順（ユーザー向け）
+- **位置取得（Re:Earth）**: Re:Earth プラグインで permalink を「COPY」→ Kasugai の画面1「取得」を押下 → `Lat/Lng/Zoom` が自動入力される。
+- **移動（Re:Earth）**: 画面1 で `Lat/Lng/Zoom` を決め「移動」→ Re:Earth 用 permalink を生成（`height` を逆算）し、`&heading=0&pitch=-90` を付与してクリップボードへコピー。Re:Earth プラグイン側で貼り付けて適用する。
+- **他地図サービス間の移動**: 画面1 の移動で、各サービス固有のURLパターンへ変換して直接そのWebViewをナビゲートする（Google, Cesium, Yahoo, Google Earth対応）。
+
+### サンプル（permalink 例）
+- Re:Earth サンプル: `https://reearth.io/permalink?lat=35.6809591&lng=139.7673068&height=1200&heading=0&pitch=-90`
+- Google Maps（ハッシュ）: `https://www.google.com/maps/@35.6809591,139.7673068,15z`
+
+### 制約と推奨
+- Re:Earth は iframe サンドボックスのため「貼付」操作をユーザーが行う運用が必要（自動直接注入は不可）。
+- `height` ↔ `zoom` の式は近似のため、高度差による誤差に注意。重要作業は目視確認の上で微調整を行うこと。
+- WebView2 のクリップボード権限やユーザー操作制約により、環境によってはネイティブ側（Rust）での clipboard フォールバック実装を検討してください。
+
+---
+
 ## 3. ディレクトリ構成
 
 ```text
