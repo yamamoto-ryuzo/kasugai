@@ -337,7 +337,7 @@
 <body>
     <div class="header-tabs">
         <div class="tabs" id="tabs-container">
-            <button class="tab-btn active" id="tab-default" onclick="switchPane3Tab('default')" ondblclick="detachTab('default', '✨ Gemini')">
+            <button class="tab-btn active" id="tab-default" onclick="switchPane3Tab('default')" oncontextmenu="handleRightDoubleClick(event, window.location.origin + '/index3.html')">
                 <span class="tab-title">✨  Gemini</span>
             </button>
         </div>
@@ -424,6 +424,28 @@
             }
             const btn = document.getElementById('tab-' + tabId);
             return btn ? btn.getAttribute('data-url') : window.location.href;
+        }
+
+        async function openTabInBrowser(url) {
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                await window.__TAURI__.core.invoke('open_in_default_browser', { url: url });
+            }
+        }
+
+        // 右ダブルクリック検出用
+        let lastRightClickTime = 0;
+        const RIGHT_DOUBLE_CLICK_THRESHOLD = 300; // ミリ秒
+
+        function handleRightDoubleClick(e, url) {
+            e.preventDefault();
+            const now = Date.now();
+            if (now - lastRightClickTime < RIGHT_DOUBLE_CLICK_THRESHOLD) {
+                // 右ダブルクリックと判定
+                openTabInBrowser(url);
+                lastRightClickTime = 0;
+            } else {
+                lastRightClickTime = now;
+            }
         }
 
         function switchPane3Tab(tabId) {
@@ -765,7 +787,7 @@
                     btn.id = 'tab-' + tabId;
                     btn.setAttribute('data-url', url);
                     btn.onclick = () => switchPane3Tab(tabId);
-                    btn.ondblclick = () => detachTab(tabId, title);
+                    btn.oncontextmenu = (e) => handleRightDoubleClick(e, url);
                     
                     const spanTitle = document.createElement('span');
                     spanTitle.className = 'tab-title';
