@@ -339,6 +339,16 @@
             } else {
                 lastRightClickTabId = tabId;
                 lastRightClickTime = now;
+                
+                // ネイティブコンテキストメニューを表示
+                if (window.__TAURI__ && window.__TAURI__.core) {
+                    window.__TAURI__.core.invoke('show_context_menu', {
+                        x: e.screenX,
+                        y: e.screenY,
+                        tabId: tabId,
+                        title: title
+                    });
+                }
             }
         }
 

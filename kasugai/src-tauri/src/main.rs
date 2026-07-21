@@ -44,6 +44,12 @@ fn get_system_info() -> String {
     "ステータス: 正常稼働中\nエンジン: Tauri v2 (Rust)\nWebview: Microsoft WebView2\n応答時間: リアルタイム".to_string()
 }
 
+// デフォルトブラウザでURLを開く
+#[tauri::command]
+fn open_in_default_browser(url: String) -> Result<(), String> {
+    tauri_plugin_opener::open_url(&url, None::<&str>).map_err(|e| e.to_string())
+}
+
 // EXEと同じフォルダにある kasugai*.ini を列挙して返す
 #[tauri::command]
 fn list_ini_files() -> Result<Vec<String>, String> {
@@ -956,6 +962,97 @@ async fn detach_window(
 }
 
 #[tauri::command]
+async fn show_context_menu(
+    app_handle: tauri::AppHandle,
+    x: i32,
+    y: i32,
+    tab_id: String,
+    title: String,
+) -> Result<(), String> {
+    let window_label = "context_menu";
+    
+    // 既存のコンテキストメニューがあれば閉じる
+    if let Some(existing_win) = app_handle.get_window(window_label) {
+        let _ = existing_win.close();
+    }
+    
+    let new_win = WindowBuilder::new(&app_handle, window_label)
+        .title("Context Menu")
+        .inner_size(300.0, 100.0)
+        .position(x as f64, y as f64)
+        .decorations(false)
+        .always_on_top(true)
+        .resizable(false)
+        .skip_taskbar(true)
+        .build()
+        .map_err(|e| e.to_string())?;
+    
+    let app_clone = app_handle.clone();
+    
+    new_win.on_window_event(move |event| {
+        if let tauri::WindowEvent::Focused(false) = event {
+            let _ = app_clone.get_window("context_menu").map(|w| w.close());
+        }
+    });
+    
+    let tab_id_json = serde_json::to_string(&tab_id).map_err(|e| e.to_string())?;
+    let title_json = serde_json::to_string(&title).map_err(|e| e.to_string())?;
+    
+    let menu_url = WebviewUrl::App("context_menu.html".into());
+    let webview_builder = WebviewBuilder::new("context_menu_webview", menu_url)
+        .initialization_script(&format!(
+            r#"
+            window.tabId = {};
+            window.tabTitle = {};
+            "#,
+            tab_id_json, title_json
+        ));
+    
+    let webview = new_win.add_child(webview_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(300, 100))
+        .map_err(|e| e.to_string())?;
+    
+    let _ = webview.set_bounds(Rect {
+        position: Position::Physical(PhysicalPosition::new(0, 0)),
+        size: Size::Physical(new_win.inner_size().unwrap()),
+    });
+    
+    Ok(())
+}
+
+#[tauri::command]
+fn close_context_menu(app_handle: tauri::AppHandle) -> Result<(), String> {
+    if let Some(win) = app_handle.get_window("context_menu") {
+        win.close().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_tab_url(
+    app_handle: tauri::AppHandle,
+    tab_id: String,
+) -> Result<String, String> {
+    let wv_id = format!("pane2_{}", tab_id);
+    
+    let (tx, rx) = std::sync::mpsc::channel();
+    let app_clone = app_handle.clone();
+    
+    let _ = app_handle.run_on_main_thread(move || {
+        let mut result = Err("Could not get URL".to_string());
+        if let Some(window) = app_clone.get_window("main") {
+            if let Some(wv) = window.get_webview(&wv_id) {
+                if let Ok(url) = wv.url() {
+                    result = Ok(url.to_string());
+                }
+            }
+        }
+        let _ = tx.send(result);
+    });
+    
+    rx.recv().map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 async fn get_pane2_url(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, SplitterState>,
@@ -1224,7 +1321,11 @@ fn main() {
             get_active_pane2,
             reload_pane2_google,
             call_gemini,
-            detach_window
+            detach_window,
+            open_in_default_browser,
+            show_context_menu,
+            close_context_menu,
+            get_tab_url
         ])
         .setup(|app| {
 
@@ -1482,6 +1583,7 @@ fn main() {
             recalculate_webview_bounds(&window, width, height, 0.1, 0.8, "default", &state);
             Ok(())
         })
+        .plugin(tauri_plugin_opener::init())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
