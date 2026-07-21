@@ -978,7 +978,7 @@ async fn show_context_menu(
     
     let new_win = WindowBuilder::new(&app_handle, window_label)
         .title("Context Menu")
-        .inner_size(300.0, 100.0)
+        .inner_size(250.0, 70.0)
         .position(x as f64, y as f64)
         .decorations(false)
         .always_on_top(true)
@@ -1008,7 +1008,7 @@ async fn show_context_menu(
             tab_id_json, title_json
         ));
     
-    let webview = new_win.add_child(webview_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(300, 100))
+    let webview = new_win.add_child(webview_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(250, 70))
         .map_err(|e| e.to_string())?;
     
     let _ = webview.set_bounds(Rect {
