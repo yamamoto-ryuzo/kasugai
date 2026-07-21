@@ -337,7 +337,7 @@
 <body>
     <div class="header-tabs">
         <div class="tabs" id="tabs-container">
-            <button class="tab-btn active" id="tab-default" onclick="switchPane3Tab('default')" oncontextmenu="handleRightDoubleClick(event, window.location.origin + '/index3.html')">
+            <button class="tab-btn active" id="tab-default" onclick="switchPane3Tab('default')" oncontextmenu="handleRightDoubleClick(event, window.location.origin + '/index3.html', false)">
                 <span class="tab-title">✨  Gemini</span>
             </button>
         </div>
@@ -436,13 +436,19 @@
         let lastRightClickTime = 0;
         const RIGHT_DOUBLE_CLICK_THRESHOLD = 300; // ミリ秒
 
-        function handleRightDoubleClick(e, url) {
+        function handleRightDoubleClick(e, url, closeAfterOpen = false) {
             e.preventDefault();
             const now = Date.now();
             if (now - lastRightClickTime < RIGHT_DOUBLE_CLICK_THRESHOLD) {
                 // 右ダブルクリックと判定
                 openTabInBrowser(url);
                 lastRightClickTime = 0;
+                
+                // Gemini以外のタブの場合、ブラウザで開いた後にタブを閉じる
+                if (closeAfterOpen) {
+                    const tabId = e.target.closest('.tab-btn').id.replace('tab-', '');
+                    closePane3Tab(e, tabId);
+                }
             } else {
                 lastRightClickTime = now;
             }
@@ -787,7 +793,7 @@
                     btn.id = 'tab-' + tabId;
                     btn.setAttribute('data-url', url);
                     btn.onclick = () => switchPane3Tab(tabId);
-                    btn.oncontextmenu = (e) => handleRightDoubleClick(e, url);
+                    btn.oncontextmenu = (e) => handleRightDoubleClick(e, url, true);
                     
                     const spanTitle = document.createElement('span');
                     spanTitle.className = 'tab-title';
