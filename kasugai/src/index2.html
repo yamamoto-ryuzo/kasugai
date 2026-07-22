@@ -325,6 +325,7 @@
         let detachedTabs = new Set();
         let lastRightClickTime = 0;
         let lastRightClickTabId = null;
+        let rightClickTimeout = null;
 
         function handleTabRightClick(e, tabId, title) {
             e.preventDefault();
@@ -332,23 +333,30 @@
             
             // 連続右ダブルクリック（Macなどの2タップ）の検知ロジック
             const now = Date.now();
+            
+            // 既存のタイムアウトをクリア
+            if (rightClickTimeout) {
+                clearTimeout(rightClickTimeout);
+                rightClickTimeout = null;
+            }
+            
             if (tabId === lastRightClickTabId && (now - lastRightClickTime) < 500) {
-                // 右ダブルクリックが成立した場合、デタッチを起動
-                detachTab(tabId, title);
+                // 右ダブルクリックが成立した場合、デフォルトブラウザで開く
+                openTabInBrowser(tabId);
                 lastRightClickTime = 0;
+                lastRightClickTabId = null;
             } else {
                 lastRightClickTabId = tabId;
                 lastRightClickTime = now;
                 
-                // ネイティブコンテキストメニューを表示
-                if (window.__TAURI__ && window.__TAURI__.core) {
-                    window.__TAURI__.core.invoke('show_context_menu', {
-                        x: e.screenX,
-                        y: e.screenY,
-                        tabId: tabId,
-                        title: title
-                    });
-                }
+                // 右クリック：少し待ってダブルクリックかどうか判定
+                rightClickTimeout = setTimeout(() => {
+                    // タイムアウトした場合はシングルクリックとして処理（単独ウインドウで開く）
+                    detachTab(tabId, title);
+                    rightClickTimeout = null;
+                    lastRightClickTime = 0;
+                    lastRightClickTabId = null;
+                }, 300); // 300ms待機
             }
         }
 
@@ -412,6 +420,13 @@
                 }, { passive: true });
             }
         })();
+
+        async function openTabInBrowser(tabId) {
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                const url = await getTabUrl(tabId);
+                await window.__TAURI__.core.invoke('open_in_default_browser', { url: url });
+            }
+        }
 
         async function getTabUrl(tabId) {
             if (tabId === 'settings') return window.location.origin + '/index2.html?settings=true';
