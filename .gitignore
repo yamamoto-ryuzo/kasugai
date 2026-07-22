@@ -31,3 +31,9 @@ desktop.ini
 *.log
 tmp/
 temp/
+
+# --- Download Directory ---
+download/*.exe
+download/*.msi
+download/*.sig
+download/*.zip
