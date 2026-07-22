@@ -5,7 +5,7 @@
   "identifier": "com.kasugai.app",
   "bundle": {
     "active": true,
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "icon": [
       "icons/icon.ico"
     ]
@@ -24,7 +24,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "YOUR_PUBLIC_KEY_HERE",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVEQjM4QjQ2OTM3NUIxRDkKUldUWnNYV1RSb3V6N2V2VlFaY1R5M09CNFVlU0M0aHBpSnBXTVQvTGpha1FSWkRWSU55S1EreTgK",
       "endpoints": [
         "https://yamamoto-ryuzo.github.io/kasugai/download/latest.json"
       ]

@@ -1,7 +1,7 @@
 {
   "version": "1.2.0",
-  "notes": "Kasugai バージョン 1.2.0\n\n- アップデーター機能の追加\n- 自動更新のサポート\n- バグ修正と改善",
-  "pub_date": "2026-07-22T00:00:00Z",
+  "notes": "Kasugai バージョン 1.2.0\n\n- 最新の更新内容",
+  "pub_date": "2026-07-22T11:30:49Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "",
