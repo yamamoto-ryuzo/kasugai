@@ -3,14 +3,14 @@
 
 use std::sync::Mutex;
 use tauri::{
-    Manager, Position, Rect, Size, WebviewBuilder, WebviewUrl, WindowBuilder,
-    PhysicalPosition, PhysicalSize
+    Manager, PhysicalPosition, PhysicalSize, Position, Rect, Size, WebviewBuilder, WebviewUrl,
+    WindowBuilder,
 };
 
-use enigo::{Enigo, KeyboardControllable, Key};
+use enigo::{Enigo, Key, KeyboardControllable};
+use std::error::Error;
 use std::thread;
 use std::time::Duration;
-use std::error::Error;
 
 // スプリッターの比率を保持するグローバルステート
 struct SplitterState {
@@ -29,12 +29,21 @@ struct SplitterState {
 }
 
 #[tauri::command]
-fn update_pane4_ratio(app_handle: tauri::AppHandle, state: tauri::State<'_, SplitterState>, ratio: f64) {
-    let clamped = if ratio < 0.05 { 0.05 } else if ratio > 0.6 { 0.6 } else { ratio };
+fn update_pane4_ratio(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
+    ratio: f64,
+) {
+    let clamped = if ratio < 0.05 {
+        0.05
+    } else if ratio > 0.6 {
+        0.6
+    } else {
+        ratio
+    };
     *state.pane4_ratio.lock().unwrap() = clamped;
     update_splitter_internal(&app_handle, &state);
 }
-
 
 use keyring::Entry;
 
@@ -54,7 +63,9 @@ fn open_in_default_browser(url: String) -> Result<(), String> {
 #[tauri::command]
 fn list_ini_files() -> Result<Vec<String>, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let dir = exe.parent().ok_or_else(|| "実行ファイルのディレクトリが取得できません".to_string())?;
+    let dir = exe
+        .parent()
+        .ok_or_else(|| "実行ファイルのディレクトリが取得できません".to_string())?;
     let mut out: Vec<String> = Vec::new();
     let read = std::fs::read_dir(dir).map_err(|e| e.to_string())?;
     for entry in read {
@@ -76,7 +87,9 @@ fn list_ini_files() -> Result<Vec<String>, String> {
 #[tauri::command]
 fn read_ini_file(filename: String) -> Result<String, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let dir = exe.parent().ok_or_else(|| "実行ファイルのディレクトリが取得できません".to_string())?;
+    let dir = exe
+        .parent()
+        .ok_or_else(|| "実行ファイルのディレクトリが取得できません".to_string())?;
     let path = dir.join(&filename);
     // 安全のため、path が dir の直下にあるか確認
     let canonical_dir = std::fs::canonicalize(dir).map_err(|e| e.to_string())?;
@@ -92,7 +105,9 @@ fn read_ini_file(filename: String) -> Result<String, String> {
 #[tauri::command]
 fn write_ini_file(filename: String, content: String) -> Result<(), String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let dir = exe.parent().ok_or_else(|| "実行ファイルのディレクトリが取得できません".to_string())?;
+    let dir = exe
+        .parent()
+        .ok_or_else(|| "実行ファイルのディレクトリが取得できません".to_string())?;
     let path = dir.join(&filename);
     // 安全のため、path が dir の直下にあるか確認
     let canonical_dir = std::fs::canonicalize(dir).map_err(|e| e.to_string())?;
@@ -111,9 +126,9 @@ fn write_ini_file(filename: String, content: String) -> Result<(), String> {
 #[tauri::command]
 fn save_credential(
     state: tauri::State<'_, SplitterState>,
-    service: String, 
-    username: String, 
-    password: String
+    service: String,
+    username: String,
+    password: String,
 ) -> Result<(), String> {
     if service == "Kasugai_Reearth" {
         *state.reearth_email.lock().unwrap() = Some(username.clone());
@@ -214,7 +229,7 @@ fn open_box_in_pane(
     if let Some(window) = app_handle.get_window("main") {
         if let Some(wv) = window.get_webview(real_target) {
             let target_url = tauri::Url::parse(&url).unwrap();
-            
+
             let is_dedicated = real_target.starts_with("pane2_");
             let should_navigate = if let Ok(current_url) = wv.url() {
                 if is_dedicated {
@@ -230,7 +245,7 @@ fn open_box_in_pane(
                 let _ = wv.navigate(target_url);
             }
             let _ = wv.set_focus();
-            
+
             if should_navigate {
                 // 3段階ダメ押しインジェクション
                 let wv_clone1 = wv.clone();
@@ -239,10 +254,10 @@ fn open_box_in_pane(
                 let creds_clone1 = creds.clone();
                 let creds_clone2 = creds.clone();
                 let creds_clone3 = creds.clone();
-                
+
                 let app_handle_clone = app_handle.clone();
                 inject_box_autologin(&wv_clone1, creds_clone1);
-                
+
                 std::thread::spawn(move || {
                     std::thread::sleep(std::time::Duration::from_millis(1800));
                     let _ = app_handle_clone.run_on_main_thread(move || {
@@ -276,7 +291,7 @@ fn open_reearth_in_pane(
     if let Some(window) = app_handle.get_window("main") {
         if let Some(wv) = window.get_webview(real_target) {
             let target_url = tauri::Url::parse(&url).unwrap();
-            
+
             let is_dedicated = real_target.starts_with("pane2_");
             let should_navigate = if let Ok(current_url) = wv.url() {
                 if is_dedicated {
@@ -292,7 +307,7 @@ fn open_reearth_in_pane(
                 let _ = wv.navigate(target_url);
             }
             let _ = wv.set_focus();
-            
+
             if should_navigate {
                 // Basic認証ダイアログ待ち（またはページ表示後）に物理タイピング
                 let c = creds.clone();
@@ -319,19 +334,19 @@ fn add_pane3_tab(app_handle: tauri::AppHandle, target_url: tauri::Url) {
     let mut counter = state.tab_counter.lock().unwrap();
     *counter += 1;
     let tab_id = format!("pane3_tab_{}", *counter);
-    
+
     state.pane3_tabs.lock().unwrap().push(tab_id.clone());
     *state.pane3_active_tab.lock().unwrap() = tab_id.clone();
-    
+
     let url_str = target_url.as_str().to_string();
     let tab_id_clone = tab_id.clone();
-    
+
     let app_handle_clone = app_handle.clone();
-    
+
     let _ = app_handle.run_on_main_thread(move || {
         if let Some(window) = app_handle_clone.get_window("main") {
             let app_for_new = app_handle_clone.clone();
-            
+
             let init_script = r#"
                 window.addEventListener('dblclick', function(e) {
                     if (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke) {
@@ -350,18 +365,23 @@ fn add_pane3_tab(app_handle: tauri::AppHandle, target_url: tauri::Url) {
                     }
                     tauri::webview::NewWindowResponse::Deny
                 })
-                .on_navigation(move |_url| {
-                    true
-                });
-                
-            let _wv = window.add_child(builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0));
-            
+                .on_navigation(move |_url| true);
+
+            let _wv = window.add_child(
+                builder,
+                PhysicalPosition::new(0, 0),
+                PhysicalSize::new(0, 0),
+            );
+
             // フロントに通知してタブUIを作らせる
-            let _ = window.emit("pane3_new_tab", serde_json::json!({
-                "id": tab_id_clone,
-                "url": url_str
-            }));
-            
+            let _ = window.emit(
+                "pane3_new_tab",
+                serde_json::json!({
+                    "id": tab_id_clone,
+                    "url": url_str
+                }),
+            );
+
             // Bounds再計算
             let state = app_handle_clone.state::<SplitterState>();
             update_splitter_internal(&app_handle_clone, &state);
@@ -378,7 +398,7 @@ fn open_in_pane2(
 ) {
     if let Ok(target_url) = tauri::Url::parse(&url) {
         let host = target_url.host_str().map(|h| h.to_string());
-        
+
         let target_str = if url.contains("earth.google.com") {
             *state.active_pane2.lock().unwrap() = "googleearth".to_string();
             update_splitter_internal(&app_handle, &state);
@@ -417,16 +437,21 @@ fn open_in_pane2(
         } else {
             if let Some(window) = app_handle.get_window("main") {
                 if let Some(wv) = window.get_webview(target_str) {
-                    if let Some(h) = host { *state.pane2_current_host.lock().unwrap() = Some(h); }
-                    
+                    if let Some(h) = host {
+                        *state.pane2_current_host.lock().unwrap() = Some(h);
+                    }
+
                     let mut is_googleearth_smooth = false;
                     let should_navigate = if let Ok(current_url) = wv.url() {
-                        if target_str == "pane2_googleearth" && current_url.host_str() == Some("earth.google.com") {
+                        if target_str == "pane2_googleearth"
+                            && current_url.host_str() == Some("earth.google.com")
+                        {
                             // 同一ホスト内であれば pushState による滑らかな移動を行う（フォールバックは行わない）
                             is_googleearth_smooth = true;
                             false
                         } else {
-                            current_url.as_str() != target_url.as_str() && current_url.as_str() != format!("{}/", target_url.as_str())
+                            current_url.as_str() != target_url.as_str()
+                                && current_url.as_str() != format!("{}/", target_url.as_str())
                         }
                     } else {
                         true
@@ -490,11 +515,14 @@ fn open_in_pane3(
                 if let Some(wv) = window.get_webview(target_str) {
                     let mut is_googleearth_smooth = false;
                     let should_navigate = if let Ok(current_url) = wv.url() {
-                        if target_str == "pane2_googleearth" && current_url.host_str() == Some("earth.google.com") {
+                        if target_str == "pane2_googleearth"
+                            && current_url.host_str() == Some("earth.google.com")
+                        {
                             is_googleearth_smooth = true;
                             false
                         } else {
-                            current_url.as_str() != target_url.as_str() && current_url.as_str() != format!("{}/", target_url.as_str())
+                            current_url.as_str() != target_url.as_str()
+                                && current_url.as_str() != format!("{}/", target_url.as_str())
                         }
                     } else {
                         true
@@ -523,8 +551,12 @@ fn update_splitter(
     ratio1: f64,
     ratio2: f64,
 ) {
-    if ratio1 >= 0.0 { *state.ratio1.lock().unwrap() = ratio1; }
-    if ratio2 >= 0.0 { *state.ratio2.lock().unwrap() = ratio2; }
+    if ratio1 >= 0.0 {
+        *state.ratio1.lock().unwrap() = ratio1;
+    }
+    if ratio2 >= 0.0 {
+        *state.ratio2.lock().unwrap() = ratio2;
+    }
     if ratio1 >= 0.0 || ratio2 >= 0.0 {
         *state.saved_ratios.lock().unwrap() = None;
     }
@@ -541,15 +573,21 @@ fn pane_dblclick(
 ) {
     // 独立したWebView(pane2_cesiumなど)からのダブルクリックは無視する
     if pane.starts_with("pane2_") {
-        println!("[Kasugai Rust] Ignored dblclick from dedicated pane: {}", pane);
+        println!(
+            "[Kasugai Rust] Ignored dblclick from dedicated pane: {}",
+            pane
+        );
         return;
     }
 
     let mut saved = state.saved_ratios.lock().unwrap();
-    
+
     if pane == "pane1" {
         let w = if let Some(window) = app_handle.get_window("main") {
-            window.inner_size().map(|s| s.width as f64).unwrap_or(1200.0)
+            window
+                .inner_size()
+                .map(|s| s.width as f64)
+                .unwrap_or(1200.0)
         } else {
             1200.0
         };
@@ -560,7 +598,11 @@ fn pane_dblclick(
         if width1 < 120.0 {
             // すでに閉じている（スプリットだけ）の場合は、通常表示に戻す
             let target_r = if let Some((saved_r1, _, _)) = *saved {
-                if saved_r1 >= 120.0 / w { saved_r1 } else { 0.1 }
+                if saved_r1 >= 120.0 / w {
+                    saved_r1
+                } else {
+                    0.1
+                }
             } else {
                 0.1
             };
@@ -603,18 +645,24 @@ fn pane_dblclick(
             }
         }
     }
-    
+
     update_splitter_internal(&app_handle, &state);
 
     let r1 = *state.ratio1.lock().unwrap();
     let r2 = *state.ratio2.lock().unwrap();
-    let _ = app_handle.emit("update_splitter_ui", serde_json::json!({
-        "ratio1": r1,
-        "ratio2": r2
-    }));
+    let _ = app_handle.emit(
+        "update_splitter_ui",
+        serde_json::json!({
+            "ratio1": r1,
+            "ratio2": r2
+        }),
+    );
 }
 
-fn update_splitter_internal(app_handle: &tauri::AppHandle, state: &tauri::State<'_, SplitterState>) {
+fn update_splitter_internal(
+    app_handle: &tauri::AppHandle,
+    state: &tauri::State<'_, SplitterState>,
+) {
     if let Some(window) = app_handle.get_window("main") {
         if let Ok(size) = window.inner_size() {
             let w = size.width as f64;
@@ -625,11 +673,14 @@ fn update_splitter_internal(app_handle: &tauri::AppHandle, state: &tauri::State<
             recalculate_webview_bounds(&window, w, h, r1, r2, &active, state);
             // notify UI threads of the updated ratios including pane4
             let p4 = *state.pane4_ratio.lock().unwrap();
-            let _ = app_handle.emit("update_splitter_ui", serde_json::json!({
-                "ratio1": r1,
-                "ratio2": r2,
-                "pane4_ratio": p4
-            }));
+            let _ = app_handle.emit(
+                "update_splitter_ui",
+                serde_json::json!({
+                    "ratio1": r1,
+                    "ratio2": r2,
+                    "pane4_ratio": p4
+                }),
+            );
         }
     }
 }
@@ -637,12 +688,20 @@ fn update_splitter_internal(app_handle: &tauri::AppHandle, state: &tauri::State<
 // 修正: 非表示用Rectを生成するヘルパー関数
 fn get_hidden_rect(w: f64, h: f64) -> Rect {
     Rect {
-                        position: Position::Physical(PhysicalPosition::new((w - 1.0) as i32, (h - 1.0) as i32)),
-                        size: Size::Physical(PhysicalSize::new(1, 1)),
+        position: Position::Physical(PhysicalPosition::new((w - 1.0) as i32, (h - 1.0) as i32)),
+        size: Size::Physical(PhysicalSize::new(1, 1)),
     }
 }
 
-fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f64, ratio2: f64, active_pane2: &str, state: &SplitterState) {
+fn recalculate_webview_bounds(
+    window: &tauri::Window,
+    w: f64,
+    h: f64,
+    ratio1: f64,
+    ratio2: f64,
+    active_pane2: &str,
+    state: &SplitterState,
+) {
     let splitter_width = 8.0;
     let sh = splitter_width / 2.0;
     // 画面1が開いている時（ratio1 != 0.0 の時）は、常に最小幅 80px で完全に固定する
@@ -655,16 +714,16 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     let rect_hidden = get_hidden_rect(w, h);
     if let Some(base_wv) = window.get_webview("main_webview") {
         let _ = base_wv.set_bounds(Rect {
-                            position: Position::Physical(PhysicalPosition::new(0, 0)),
+            position: Position::Physical(PhysicalPosition::new(0, 0)),
             size: Size::Physical(PhysicalSize::new(w as u32, h as u32)),
-    });
-                        }
+        });
+    }
     if let Some(wv1) = window.get_webview("pane1") {
         if ratio1 == 0.0 {
             let _ = wv1.set_bounds(rect_hidden);
         } else {
             let _ = wv1.set_bounds(Rect {
-            position: Position::Physical(PhysicalPosition::new(0, 0)),
+                position: Position::Physical(PhysicalPosition::new(0, 0)),
                 size: Size::Physical(PhysicalSize::new(80, h as u32)),
             });
         }
@@ -674,14 +733,23 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     let center_width = ((x2 - sh) - (x1 + sh)).max(0.0);
     let rect_center_top = Rect {
         position: Position::Physical(PhysicalPosition::new((x1 + sh) as i32, 0)),
-        size: Size::Physical(PhysicalSize::new(center_width as u32, (h - pane4_height).max(0.0) as u32)),
-        };
+        size: Size::Physical(PhysicalSize::new(
+            center_width as u32,
+            (h - pane4_height).max(0.0) as u32,
+        )),
+    };
     let rect_center_top_dedicated = Rect {
         position: Position::Physical(PhysicalPosition::new((x1 + sh) as i32, tab_height as i32)),
-        size: Size::Physical(PhysicalSize::new(center_width as u32, (h - tab_height - pane4_height).max(0.0) as u32)),
+        size: Size::Physical(PhysicalSize::new(
+            center_width as u32,
+            (h - tab_height - pane4_height).max(0.0) as u32,
+        )),
     };
     let rect_center_bottom = Rect {
-        position: Position::Physical(PhysicalPosition::new((x1 + sh) as i32, (h - pane4_height) as i32)),
+        position: Position::Physical(PhysicalPosition::new(
+            (x1 + sh) as i32,
+            (h - pane4_height) as i32,
+        )),
         size: Size::Physical(PhysicalSize::new(center_width as u32, pane4_height as u32)),
     };
     let rect_right = Rect {
@@ -690,7 +758,10 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     };
     let rect_right_dedicated = Rect {
         position: Position::Physical(PhysicalPosition::new((x2 + sh) as i32, tab_height as i32)),
-        size: Size::Physical(PhysicalSize::new((w - (x2 + sh)).max(0.0) as u32, (h - tab_height).max(0.0) as u32)),
+        size: Size::Physical(PhysicalSize::new(
+            (w - (x2 + sh)).max(0.0) as u32,
+            (h - tab_height).max(0.0) as u32,
+        )),
     };
 
     let pane2_rect = rect_center_top;
@@ -703,9 +774,13 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     let update_pane2 = |id: &str, is_active: bool, is_dedicated: bool| {
         if let Some(wv) = window.get_webview(id) {
             // Webviewが現在このウィンドウに属している場合のみ Bounds を更新する
-                    if wv.window().label() == window.label() {
+            if wv.window().label() == window.label() {
                 if is_active {
-                    let _ = wv.set_bounds(if is_dedicated { pane2_dedicated_rect } else { pane2_rect });
+                    let _ = wv.set_bounds(if is_dedicated {
+                        pane2_dedicated_rect
+                    } else {
+                        pane2_rect
+                    });
 
                     // Google Maps 用の再描画: 非表示から表示へ切り替わった場合、強制リロードが必要
                     if id == "pane2_google" {
@@ -748,17 +823,39 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
     // 画面2の専用画面（pane2_...）の配置設定
     // 通常時はメイン画面内に配置し、detachされた場合のみバウンズ計算から実質的に除外する運用
     let is_detached = |label: &str| {
-        window.get_window(&format!("detached_pane2_{}", label)).is_some()
-        || window.get_window("dedicated_pane2").is_some()
-        };
+        window
+            .get_window(&format!("detached_pane2_{}", label))
+            .is_some()
+            || window.get_window("dedicated_pane2").is_some()
+    };
 
     let active = active_pane2;
     update_pane2("pane2_box", active == "box" && !is_detached("box"), true);
-    update_pane2("pane2_reearth", active == "reearth" && !is_detached("reearth"), true);
-    update_pane2("pane2_google", active == "google" && !is_detached("google"), true);
-    update_pane2("pane2_googleearth", active == "googleearth" && !is_detached("googleearth"), true);
-    update_pane2("pane2_yahoo", active == "yahoo" && !is_detached("yahoo"), true);
-    update_pane2("pane2_cesium", active == "cesium" && !is_detached("cesium"), true);
+    update_pane2(
+        "pane2_reearth",
+        active == "reearth" && !is_detached("reearth"),
+        true,
+    );
+    update_pane2(
+        "pane2_google",
+        active == "google" && !is_detached("google"),
+        true,
+    );
+    update_pane2(
+        "pane2_googleearth",
+        active == "googleearth" && !is_detached("googleearth"),
+        true,
+    );
+    update_pane2(
+        "pane2_yahoo",
+        active == "yahoo" && !is_detached("yahoo"),
+        true,
+    );
+    update_pane2(
+        "pane2_cesium",
+        active == "cesium" && !is_detached("cesium"),
+        true,
+    );
 
     // pane4 を配置（常に表示）
     if let Some(wv4) = window.get_webview("pane4") {
@@ -777,7 +874,7 @@ fn recalculate_webview_bounds(window: &tauri::Window, w: f64, h: f64, ratio1: f6
         if let Some(wv) = window.get_webview(&tab_id) {
             if tab_id == pane3_active {
                 let _ = wv.set_bounds(pane3_dedicated_rect); // タブ領域(50px)の下に配置
-    } else {
+            } else {
                 let _ = wv.set_bounds(rect_hidden);
             }
         }
@@ -811,25 +908,32 @@ fn close_pane3_tab(
             if let Some(window) = app_clone.get_window("main") {
                 if let Some(wv) = window.get_webview(&tab_id) {
                     let _ = wv.close();
-                    }
+                }
             }
-                });
+        });
 
         // 削除したタブがアクティブだった場合、別のタブをアクティブにする
         let mut active = state.pane3_active_tab.lock().unwrap();
         if *active == tab {
             if tabs.len() > 0 {
                 // 右隣か、なければ最後のタブ
-                let new_idx = if pos < tabs.len() { pos } else { tabs.len() - 1 };
+                let new_idx = if pos < tabs.len() {
+                    pos
+                } else {
+                    tabs.len() - 1
+                };
                 *active = tabs[new_idx].clone();
             } else {
                 *active = "default".to_string(); // すべてのタブが消えたらdefaultに戻る
             }
 
             // UIに新しいアクティブタブを通知
-            let _ = app_handle.emit("pane3_active_changed", serde_json::json!({
-                "id": *active
-            }));
+            let _ = app_handle.emit(
+                "pane3_active_changed",
+                serde_json::json!({
+                    "id": *active
+                }),
+            );
         }
     }
     drop(tabs); // ロック解放
@@ -846,7 +950,11 @@ fn switch_pane2_tab(
     update_splitter_internal(&app_handle, &state);
 
     // 既に独立ウィンドウに移動している場合、そのウィンドウをフォーカスする
-    let wv_id = if tab == "default" { "pane2".to_string() } else { format!("pane2_{}", tab) };
+    let wv_id = if tab == "default" {
+        "pane2".to_string()
+    } else {
+        format!("pane2_{}", tab)
+    };
     if let Some(wv) = app_handle.get_webview(&wv_id) {
         let win = wv.window();
         if win.label() != "main" {
@@ -870,7 +978,7 @@ fn prefetch_basic_auth(
                 await fetch("{}", {{ method: "GET", headers: {{ "Authorization": basicAuthHeader }}, mode: 'no-cors' }});
             }})();"#,
             creds.email, creds.password, url
-    );
+        );
         if let Some(wv) = window.get_webview("pane2_reearth") {
             // Re:Earthの自動タイピングが意図しない画面で発火するのを防ぐため、
             // 初回クリック時（open_reearth_in_pane）までナビゲーションを遅延させます。
@@ -889,7 +997,11 @@ async fn detach_window(
     _url: String,
     title: String,
 ) -> Result<(), String> {
-    let wv_id = if label.starts_with("pane2") { label.clone() } else { format!("pane2_{}", label) };
+    let wv_id = if label.starts_with("pane2") {
+        label.clone()
+    } else {
+        format!("pane2_{}", label)
+    };
     let window_label = format!("dedicated_window_{}", wv_id);
 
     let win = if let Some(existing_win) = app_handle.get_window(&window_label) {
@@ -909,9 +1021,9 @@ async fn detach_window(
                         let _ = wv.set_bounds(Rect {
                             position: Position::Physical(PhysicalPosition::new(0, 0)),
                             size: Size::Physical(*size),
-    });
+                        });
                         if id.contains("cesium") || id.contains("google") || id.contains("yahoo") {
-                             let _ = wv.eval("window.dispatchEvent(new Event('resize'));");
+                            let _ = wv.eval("window.dispatchEvent(new Event('resize'));");
                         }
                     }
                 }
@@ -927,13 +1039,20 @@ async fn detach_window(
                                 let app_main = app_inner.clone();
                                 let id_main = id_inner.clone();
                                 let _ = app_inner.run_on_main_thread(move || {
-                                    update_splitter_internal(&app_main, &app_main.state::<SplitterState>());
+                                    update_splitter_internal(
+                                        &app_main,
+                                        &app_main.state::<SplitterState>(),
+                                    );
                                     if let Some(wv_now) = app_main.get_webview(&id_main) {
-                                        let _ = wv_now.eval("window.dispatchEvent(new Event('resize'));");
+                                        let _ = wv_now
+                                            .eval("window.dispatchEvent(new Event('resize'));");
                                     }
-                                    let _ = app_main.emit("window_restored", serde_json::json!({
-                                        "label": id_main
-                                    }));
+                                    let _ = app_main.emit(
+                                        "window_restored",
+                                        serde_json::json!({
+                                            "label": id_main
+                                        }),
+                                    );
                                 });
                             });
                         }
@@ -949,7 +1068,8 @@ async fn detach_window(
         wv.set_bounds(Rect {
             position: Position::Physical(PhysicalPosition::new(0, 0)),
             size: Size::Physical(win.inner_size().unwrap()),
-        }).map_err(|e| e.to_string())?;
+        })
+        .map_err(|e| e.to_string())?;
         let app_cleanup = app_handle.clone();
         let _ = app_handle.run_on_main_thread(move || {
             update_splitter_internal(&app_cleanup, &app_cleanup.state::<SplitterState>());
@@ -958,7 +1078,7 @@ async fn detach_window(
 
     let _ = win.set_focus();
     let _ = win.set_title(&title);
-            Ok(())
+    Ok(())
 }
 
 #[tauri::command]
@@ -970,12 +1090,12 @@ async fn show_context_menu(
     title: String,
 ) -> Result<(), String> {
     let window_label = "context_menu";
-    
+
     // 既存のコンテキストメニューがあれば閉じる
     if let Some(existing_win) = app_handle.get_window(window_label) {
         let _ = existing_win.close();
     }
-    
+
     let new_win = WindowBuilder::new(&app_handle, window_label)
         .title("Context Menu")
         .inner_size(250.0, 70.0)
@@ -986,18 +1106,18 @@ async fn show_context_menu(
         .skip_taskbar(true)
         .build()
         .map_err(|e| e.to_string())?;
-    
+
     let app_clone = app_handle.clone();
-    
+
     new_win.on_window_event(move |event| {
         if let tauri::WindowEvent::Focused(false) = event {
             let _ = app_clone.get_window("context_menu").map(|w| w.close());
         }
     });
-    
+
     let tab_id_json = serde_json::to_string(&tab_id).map_err(|e| e.to_string())?;
     let title_json = serde_json::to_string(&title).map_err(|e| e.to_string())?;
-    
+
     let menu_url = WebviewUrl::App("context_menu.html".into());
     let webview_builder = WebviewBuilder::new("context_menu_webview", menu_url)
         .initialization_script(&format!(
@@ -1007,15 +1127,20 @@ async fn show_context_menu(
             "#,
             tab_id_json, title_json
         ));
-    
-    let webview = new_win.add_child(webview_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(250, 70))
+
+    let webview = new_win
+        .add_child(
+            webview_builder,
+            PhysicalPosition::new(0, 0),
+            PhysicalSize::new(250, 70),
+        )
         .map_err(|e| e.to_string())?;
-    
+
     let _ = webview.set_bounds(Rect {
         position: Position::Physical(PhysicalPosition::new(0, 0)),
         size: Size::Physical(new_win.inner_size().unwrap()),
     });
-    
+
     Ok(())
 }
 
@@ -1028,15 +1153,12 @@ fn close_context_menu(app_handle: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn get_tab_url(
-    app_handle: tauri::AppHandle,
-    tab_id: String,
-) -> Result<String, String> {
+async fn get_tab_url(app_handle: tauri::AppHandle, tab_id: String) -> Result<String, String> {
     let wv_id = format!("pane2_{}", tab_id);
-    
+
     let (tx, rx) = std::sync::mpsc::channel();
     let app_clone = app_handle.clone();
-    
+
     let _ = app_handle.run_on_main_thread(move || {
         let mut result = Err("Could not get URL".to_string());
         if let Some(window) = app_clone.get_window("main") {
@@ -1048,7 +1170,7 @@ async fn get_tab_url(
         }
         let _ = tx.send(result);
     });
-    
+
     rx.recv().map_err(|e| e.to_string())?
 }
 
@@ -1058,15 +1180,15 @@ async fn get_pane2_url(
     state: tauri::State<'_, SplitterState>,
 ) -> Result<String, String> {
     let active = state.active_pane2.lock().unwrap().clone();
-        let target_str = match active.as_str() {
-            "box" => "pane2_box",
-            "reearth" => "pane2_reearth",
-            "google" => "pane2_google",
-            "googleearth" => "pane2_googleearth",
-            "yahoo" => "pane2_yahoo",
-            "cesium" => "pane2_cesium",
-            _ => "pane2",
-        };
+    let target_str = match active.as_str() {
+        "box" => "pane2_box",
+        "reearth" => "pane2_reearth",
+        "google" => "pane2_google",
+        "googleearth" => "pane2_googleearth",
+        "yahoo" => "pane2_yahoo",
+        "cesium" => "pane2_cesium",
+        _ => "pane2",
+    };
 
     let (tx, rx) = std::sync::mpsc::channel();
     let app_clone = app_handle.clone();
@@ -1083,7 +1205,8 @@ async fn get_pane2_url(
         let _ = tx.send(result);
     });
 
-    rx.recv().unwrap_or(Err("Thread communication error".to_string()))
+    rx.recv()
+        .unwrap_or(Err("Thread communication error".to_string()))
 }
 
 #[tauri::command]
@@ -1113,17 +1236,25 @@ fn preload_webview(app_handle: tauri::AppHandle, target: String, url: String) {
 // フロントからの Google Map 再読み込みリクエストを処理
 #[tauri::command]
 fn reload_pane2_google(app_handle: tauri::AppHandle) -> Result<(), String> {
-    println!("[Kasugai Rust] reload_pane2_google invoked - performing full navigate to current URL");
+    println!(
+        "[Kasugai Rust] reload_pane2_google invoked - performing full navigate to current URL"
+    );
     if let Some(window) = app_handle.get_window("main") {
         if let Some(wv) = window.get_webview("pane2_google") {
             match wv.url() {
                 Ok(cur) => {
-                    println!("[Kasugai Rust] navigating to current URL to force reload: {}", cur.as_str());
+                    println!(
+                        "[Kasugai Rust] navigating to current URL to force reload: {}",
+                        cur.as_str()
+                    );
                     let _ = wv.navigate(cur);
                     return Ok(());
                 }
                 Err(e) => {
-                    println!("[Kasugai Rust] could not obtain current URL for pane2_google: {}", e);
+                    println!(
+                        "[Kasugai Rust] could not obtain current URL for pane2_google: {}",
+                        e
+                    );
                     return Err(format!("could not obtain current URL: {}", e));
                 }
             }
@@ -1143,13 +1274,21 @@ struct GeminiResponse {
 #[tauri::command]
 async fn call_gemini(prompt: String, model: Option<String>) -> Result<GeminiResponse, String> {
     let entry = keyring::Entry::new("Kasugai_Gemini", "apikey").map_err(|e| e.to_string())?;
-    let api_key = entry.get_password().map_err(|_| "Gemini APIキーが設定されていません。システム設定画面でAPIキーを登録してください。".to_string())?;
+    let api_key = entry.get_password().map_err(|_| {
+        "Gemini APIキーが設定されていません。システム設定画面でAPIキーを登録してください。"
+            .to_string()
+    })?;
 
     if api_key.trim().is_empty() {
-        return Err("Gemini APIキーが設定されていません。システム設定画面でAPIキーを登録してください。".to_string());
+        return Err(
+            "Gemini APIキーが設定されていません。システム設定画面でAPIキーを登録してください。"
+                .to_string(),
+        );
     }
 
-    let model_name = model.clone().unwrap_or_else(|| "gemini-1.5-flash".to_string());
+    let model_name = model
+        .clone()
+        .unwrap_or_else(|| "gemini-1.5-flash".to_string());
     let model_name = if model_name.trim().is_empty() {
         "gemini-1.5-flash".to_string()
     } else {
@@ -1164,7 +1303,9 @@ async fn call_gemini(prompt: String, model: Option<String>) -> Result<GeminiResp
         .map_err(|e| format!("HTTPクライアントの初期化に失敗しました: {}", e))?;
     if let Some(raw_or_key) = api_key.strip_prefix("openrouter:") {
         let or_key = raw_or_key.trim();
-        let mut or_model = model.clone().unwrap_or_else(|| "google/gemini-3.1-flash-lite".to_string());
+        let mut or_model = model
+            .clone()
+            .unwrap_or_else(|| "google/gemini-3.1-flash-lite".to_string());
         if or_model.trim().is_empty() {
             or_model = "google/gemini-3.1-flash-lite".to_string();
         }
@@ -1189,13 +1330,19 @@ async fn call_gemini(prompt: String, model: Option<String>) -> Result<GeminiResp
             .map_err(|e| {
                 // 詳細なエラー情報を返す（ネットワーク/TLS/プロキシ等の診断に役立つ）
                 let cause = e.source().map(|s| s.to_string()).unwrap_or_default();
-                format!("OpenRouter APIリクエスト送信に失敗しました: {} (原因: {})", e, cause)
+                format!(
+                    "OpenRouter APIリクエスト送信に失敗しました: {} (原因: {})",
+                    e, cause
+                )
             })?;
 
         if !response.status().is_success() {
             let status = response.status();
             let error_body = response.text().await.unwrap_or_default();
-            return Err(format!("OpenRouter APIエラー (ステータス: {}): {}", status, error_body));
+            return Err(format!(
+                "OpenRouter APIエラー (ステータス: {}): {}",
+                status, error_body
+            ));
         }
 
         let json_resp: serde_json::Value = response
@@ -1206,7 +1353,11 @@ async fn call_gemini(prompt: String, model: Option<String>) -> Result<GeminiResp
         let text = json_resp
             .pointer("/choices/0/message/content")
             .and_then(|v| v.as_str())
-            .or_else(|| json_resp.pointer("/choices/0/text").and_then(|v| v.as_str()))
+            .or_else(|| {
+                json_resp
+                    .pointer("/choices/0/text")
+                    .and_then(|v| v.as_str())
+            })
             .ok_or_else(|| {
                 format!(
                     "OpenRouterの応答形式が想定と異なります: {}",
@@ -1217,7 +1368,11 @@ async fn call_gemini(prompt: String, model: Option<String>) -> Result<GeminiResp
         let total_tokens = json_resp
             .pointer("/usage/total_tokens")
             .and_then(|v| v.as_i64())
-            .or_else(|| json_resp.pointer("/usage/totalTokens").and_then(|v| v.as_i64()));
+            .or_else(|| {
+                json_resp
+                    .pointer("/usage/totalTokens")
+                    .and_then(|v| v.as_i64())
+            });
 
         return Ok(GeminiResponse {
             text: text.to_string(),
@@ -1230,8 +1385,7 @@ async fn call_gemini(prompt: String, model: Option<String>) -> Result<GeminiResp
     // デフォルト: Google Generative Language API への既存呼び出し
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
-        model_name,
-        api_key
+        model_name, api_key
     );
 
     let body = serde_json::json!({
@@ -1251,7 +1405,10 @@ async fn call_gemini(prompt: String, model: Option<String>) -> Result<GeminiResp
     if !response.status().is_success() {
         let status = response.status();
         let error_body = response.text().await.unwrap_or_default();
-        return Err(format!("Gemini APIエラー (ステータス: {}): {}", status, error_body));
+        return Err(format!(
+            "Gemini APIエラー (ステータス: {}): {}",
+            status, error_body
+        ));
     }
 
     let json_resp: serde_json::Value = response
@@ -1269,9 +1426,15 @@ async fn call_gemini(prompt: String, model: Option<String>) -> Result<GeminiResp
             )
         })?;
 
-    let prompt_tokens = json_resp.pointer("/usageMetadata/promptTokenCount").and_then(|v| v.as_i64());
-    let candidates_tokens = json_resp.pointer("/usageMetadata/candidatesTokenCount").and_then(|v| v.as_i64());
-    let total_tokens = json_resp.pointer("/usageMetadata/totalTokenCount").and_then(|v| v.as_i64());
+    let prompt_tokens = json_resp
+        .pointer("/usageMetadata/promptTokenCount")
+        .and_then(|v| v.as_i64());
+    let candidates_tokens = json_resp
+        .pointer("/usageMetadata/candidatesTokenCount")
+        .and_then(|v| v.as_i64());
+    let total_tokens = json_resp
+        .pointer("/usageMetadata/totalTokenCount")
+        .and_then(|v| v.as_i64());
 
     Ok(GeminiResponse {
         text: text.to_string(),
@@ -1283,6 +1446,7 @@ async fn call_gemini(prompt: String, model: Option<String>) -> Result<GeminiResp
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(SplitterState {
             ratio1: Mutex::new(0.1),
             ratio2: Mutex::new(0.8),
@@ -1587,5 +1751,3 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
-

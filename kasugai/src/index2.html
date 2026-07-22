@@ -235,6 +235,7 @@
                 <button class="tab-btn" id="settings-tab-cesium" onclick="switchSettingsTab('cesium')">🌌 CesiumJS</button>
                 <button class="tab-btn" id="settings-tab-reearth-url" onclick="switchSettingsTab('reearth-url')">🌐 Re:Earth</button>
                 <button class="tab-btn" id="settings-tab-gemini" onclick="switchSettingsTab('gemini')">✨ Gemini</button>
+                <button class="tab-btn" id="settings-tab-updater" onclick="switchSettingsTab('updater')">🔄 アップデート</button>
                     </div>
 
             <div class="interactive-section" style="gap: 15px;">
@@ -312,6 +313,28 @@
                                     <div class="status-msg">OpenRouter を利用する場合はここで選択し、APIキー欄に OpenRouter のキーを入力してください（接頭辞は不要）。</div>
                                 </div>
                                 <!-- モデル選択は画面3で管理します（pane3 に一本化） -->
+                    </div>
+                </div>
+
+                <!-- アップデート設定 -->
+                <div id="settings-panel-updater" class="settings-panel" style="display:none;">
+                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🔄 アップデート設定</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div>
+                            <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">現在のバージョン</label>
+                            <div id="current-version" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px;">1.2.0</div>
+                        </div>
+                        <div>
+                            <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">更新の自動チェック</label>
+                            <select id="auto-update-check" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+                                <option value="enabled">有効（起動時にチェック）</option>
+                                <option value="disabled">無効</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button class="btn" onclick="manualUpdateCheck()">今すぐ更新を確認</button>
+                            <div id="update-status" class="status-msg"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -535,7 +558,7 @@
 
         // 設定画面内の内部タブ切替
         function switchSettingsTab(tabName) {
-            const tabs = ['platform','box','reearth-url','gemini','cesium'];
+            const tabs = ['platform','box','reearth-url','gemini','cesium','updater'];
             tabs.forEach(t => {
                 const panel = document.getElementById('settings-panel-' + t);
                 const btn = document.getElementById('settings-tab-' + t);
@@ -1273,6 +1296,120 @@
                 }
             });
         })();
+
+        // アップデーター機能（Tauri v2）
+        async function checkForUpdates(showNotification = true) {
+            try {
+                // Tauri v2ではモジュールをインポートする必要がある
+                const { check } = await import('@tauri-apps/plugin-updater');
+                const { relaunch } = await import('@tauri-apps/plugin-process');
+                
+                const update = await check();
+                
+                if (update) {
+                    // 更新が利用可能
+                    const message = `新しいバージョン ${update.version} が利用可能です\n\n${update.body || update.notes || ''}`;
+                    if (showNotification) {
+                        if (confirm(message + '\n\n今すぐ更新しますか？')) {
+                            await performUpdate(update, relaunch);
+                        }
+                    }
+                    return { available: true, version: update.version, notes: update.body || update.notes };
+                } else {
+                    // 更新なし
+                    if (showNotification) {
+                        console.log('更新は利用可能ではありません');
+                    }
+                    return { available: false };
+                }
+            } catch (error) {
+                console.error('更新チェックエラー:', error);
+                if (showNotification) {
+                    const statusEl = document.getElementById('update-status');
+                    if (statusEl) {
+                        statusEl.textContent = '更新チェック中にエラーが発生しました';
+                        statusEl.style.color = '#ef4444';
+                    }
+                }
+                return { available: false, error: error.message };
+            }
+        }
+
+        async function performUpdate(update, relaunch) {
+            let downloaded = 0;
+            let contentLength = 0;
+            
+            await update.downloadAndInstall((event) => {
+                switch (event.event) {
+                    case 'Started':
+                        contentLength = event.data.contentLength;
+                        console.log(`ダウンロード開始: ${event.data.contentLength} bytes`);
+                        break;
+                    case 'Progress':
+                        downloaded += event.data.chunkLength;
+                        console.log(`ダウンロード中: ${downloaded} / ${contentLength}`);
+                        break;
+                    case 'Finished':
+                        console.log('ダウンロード完了');
+                        break;
+                }
+            });
+            
+            console.log('更新インストール完了');
+            await relaunch();
+        }
+
+        // 手動更新チェック
+        async function manualUpdateCheck() {
+            const statusEl = document.getElementById('update-status');
+            if (statusEl) {
+                statusEl.textContent = '更新を確認中...';
+                statusEl.style.color = '#64748b';
+            }
+            
+            const result = await checkForUpdates(false);
+            
+            if (statusEl) {
+                if (result.available) {
+                    statusEl.textContent = `バージョン ${result.version} が利用可能です`;
+                    statusEl.style.color = '#22c55e';
+                    if (confirm(`新しいバージョン ${result.version} が利用可能です\n\n${result.notes}\n\n今すぐ更新しますか？`)) {
+                        const { check } = await import('@tauri-apps/plugin-updater');
+                        const { relaunch } = await import('@tauri-apps/plugin-process');
+                        const update = await check();
+                        if (update) {
+                            await performUpdate(update, relaunch);
+                        }
+                    }
+                } else if (result.error) {
+                    statusEl.textContent = 'エラー: ' + result.error;
+                    statusEl.style.color = '#ef4444';
+                } else {
+                    statusEl.textContent = '最新バージョンを使用しています';
+                    statusEl.style.color = '#22c55e';
+                }
+            }
+        }
+
+        // ページ読み込み時に更新チェックを実行（少し遅延させてパフォーマンスに影響しないように）
+        setTimeout(async () => {
+            // 現在のバージョンを表示
+            try {
+                const { getVersion } = await import('@tauri-apps/plugin-app');
+                const currentVersion = await getVersion();
+                const versionEl = document.getElementById('current-version');
+                if (versionEl) {
+                    versionEl.textContent = currentVersion;
+                }
+            } catch (error) {
+                console.error('バージョン取得エラー:', error);
+            }
+            
+            const autoUpdateCheck = document.getElementById('auto-update-check');
+            if (autoUpdateCheck && autoUpdateCheck.value === 'enabled') {
+                await checkForUpdates(true);
+            }
+        }, 5000); // 5秒後にチェック
 
     </script>
 </body>
