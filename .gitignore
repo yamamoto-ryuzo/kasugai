@@ -36,4 +36,4 @@ temp/
 download/*.exe
 download/*.msi
 download/*.sig
-download/*.zip
+# download/*.zip # ZIPファイルは配信用にコミット
