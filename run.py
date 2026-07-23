@@ -3,7 +3,6 @@ import sys
 import subprocess
 import shutil
 import json
-import zipfile
 from datetime import datetime
 
 def main():
@@ -54,47 +53,51 @@ def main():
         # ビルドモードの場合、生成された EXE を download フォルダへコピーし、配信用ファイルを作成
         if mode == "build":
             try:
-                # ファイルパスの設定
-                src_exe = os.path.join(target_dir, 'src-tauri', 'target', 'release', 'kasugai.exe')
+                bundle_dir = os.path.join(target_dir, 'src-tauri', 'target', 'release', 'bundle')
                 download_dir = os.path.join(script_dir, 'download')
                 os.makedirs(download_dir, exist_ok=True)
-                dest_exe = os.path.join(download_dir, 'kasugai.exe')
-                dest_zip = os.path.join(download_dir, 'kasugai.exe.zip')
                 dest_json = os.path.join(download_dir, 'latest.json')
-                
-                # EXEをコピー
-                if os.path.exists(src_exe):
-                    shutil.copy2(src_exe, dest_exe)
-                    print(f"[Kasugai] ビルド生成物をコピーしました: {dest_exe}")
-                else:
-                    print(f"[Kasugai] 警告: 期待される EXE が見つかりません: {src_exe}")
-                    sys.exit(1)
-                
-                # ZIPファイルを作成
-                print(f"[Kasugai] ZIPファイルを作成中: {dest_zip}")
-                with zipfile.ZipFile(dest_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                    zipf.write(dest_exe, 'kasugai.exe')
-                print(f"[Kasugai] ZIPファイルを作成しました: {dest_zip}")
-                
-                # 署名ファイルを探してコピー
-                signature = ""
-                sig_dirs = [
-                    os.path.join(target_dir, 'src-tauri', 'target', 'release', 'bundle', 'msi'),
-                    os.path.join(target_dir, 'src-tauri', 'target', 'release', 'bundle', 'nsis')
+
+                # Tauri v2 updater 用インストーラーを検索（NSIS を優先、次に MSI）
+                installer_src = None
+                sig_path = None
+                dest_installer = None
+                bundle_candidates = [
+                    ('nsis', '.exe', 'kasugai.exe'),
+                    ('msi', '.msi', 'kasugai.msi'),
                 ]
-                
-                for sig_dir in sig_dirs:
-                    if os.path.exists(sig_dir):
-                        for file in os.listdir(sig_dir):
-                            if file.endswith('.sig'):
-                                sig_path = os.path.join(sig_dir, file)
-                                with open(sig_path, 'r') as f:
-                                    signature = f.read().strip()
-                                print(f"[Kasugai] 署名ファイルを見つけました: {sig_path}")
-                                break
-                    if signature:
+                for kind, installer_ext, dest_name in bundle_candidates:
+                    subdir = os.path.join(bundle_dir, kind)
+                    if not os.path.isdir(subdir):
+                        continue
+                    installer_files = [
+                        f for f in os.listdir(subdir)
+                        if f.endswith(installer_ext) and not f.endswith('.sig')
+                    ]
+                    if installer_files:
+                        installer_src = os.path.join(subdir, installer_files[0])
+                        sig_path = installer_src + '.sig'
+                        dest_installer = os.path.join(download_dir, dest_name)
+                        print(f"[Kasugai] {kind.upper()} インストーラーを見つけました: {installer_src}")
                         break
-                
+
+                if not installer_src:
+                    print("[Kasugai] エラー: インストーラー（.exe または .msi）が見つかりません")
+                    sys.exit(1)
+
+                # インストーラーを download フォルダへコピー
+                shutil.copy2(installer_src, dest_installer)
+                print(f"[Kasugai] インストーラーをコピーしました: {dest_installer}")
+
+                # 署名ファイルを読み込み
+                signature = ""
+                if sig_path and os.path.exists(sig_path):
+                    with open(sig_path, 'r', encoding='utf-8') as f:
+                        signature = f.read().strip()
+                    print(f"[Kasugai] 署名ファイルを読み込みました: {sig_path}")
+                else:
+                    print("[Kasugai] 警告: 署名ファイルが見つかりません。latest.json の signature が空になります。")
+
                 # バージョン情報を取得
                 tauri_conf_path = os.path.join(target_dir, 'src-tauri', 'tauri.conf.json')
                 version = "1.2.0"  # デフォルトバージョン
@@ -102,7 +105,7 @@ def main():
                     with open(tauri_conf_path, 'r', encoding='utf-8') as f:
                         conf = json.load(f)
                         version = conf.get('version', '1.2.0')
-                
+
                 # 更新JSONを生成
                 print(f"[Kasugai] 更新JSONを生成中: {dest_json}")
                 update_data = {
@@ -112,20 +115,19 @@ def main():
                     "platforms": {
                         "windows-x86_64": {
                             "signature": signature,
-                            "url": "https://yamamoto-ryuzo.github.io/kasugai/download/kasugai.exe.zip"
+                            "url": f"https://yamamoto-ryuzo.github.io/kasugai/download/{os.path.basename(dest_installer)}"
                         }
                     }
                 }
-                
+
                 with open(dest_json, 'w', encoding='utf-8') as f:
                     json.dump(update_data, f, indent=2, ensure_ascii=False)
                 print(f"[Kasugai] 更新JSONを生成しました: {dest_json}")
-                
+
                 print(f"[Kasugai] 配信用ファイルの準備が完了しました")
-                print(f"[Kasugai] - EXE: {dest_exe}")
-                print(f"[Kasugai] - ZIP: {dest_zip}")
+                print(f"[Kasugai] - INSTALLER: {dest_installer}")
                 print(f"[Kasugai] - JSON: {dest_json}")
-                
+
             except Exception as e:
                 print(f"[Kasugai] 配信用ファイル作成中にエラー: {e}")
                 import traceback
