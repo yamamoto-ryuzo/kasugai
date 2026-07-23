@@ -1326,7 +1326,7 @@
                 }
 
                 // npm パッケージを import せず直接 IPC で呼び出す（バンドラー不要）
-                const update = await window.__TAURI__.core.invoke('plugin:updater|check', { headers: {} });
+                const update = await window.__TAURI__.core.invoke('plugin:updater|check', { headers: [] });
 
                 if (update) {
                     const notes = update.body || update.notes || '';
@@ -1380,7 +1380,7 @@
                 await window.__TAURI__.core.invoke('plugin:updater|download_and_install', {
                     rid: update.rid,
                     onEvent,
-                    headers: {}
+                    headers: []
                 });
                 console.log('更新インストール完了');
                 await window.__TAURI__.core.invoke('plugin:process|relaunch');
@@ -1406,7 +1406,7 @@
                     statusEl.style.color = '#22c55e';
                     if (confirm(`新しいバージョン ${result.version} が利用可能です\n\n${result.notes}\n\n今すぐ更新しますか？`)) {
                         if (isTauriEnvironment()) {
-                            const update = await window.__TAURI__.core.invoke('plugin:updater|check', { headers: {} });
+                            const update = await window.__TAURI__.core.invoke('plugin:updater|check', { headers: [] });
                             if (update) {
                                 await performUpdate(update);
                             }
