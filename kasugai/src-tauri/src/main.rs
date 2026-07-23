@@ -1447,6 +1447,7 @@ async fn call_gemini(prompt: String, model: Option<String>) -> Result<GeminiResp
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(SplitterState {
             ratio1: Mutex::new(0.1),
             ratio2: Mutex::new(0.8),

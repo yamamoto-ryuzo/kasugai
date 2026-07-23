@@ -1298,25 +1298,46 @@
         })();
 
         // アップデーター機能（Tauri v2）
+        // Tauri 実行環境かを厳密に判定するヘルパー
+        // withGlobalTauri: true のとき window.__TAURI__.core.invoke が存在する
+        function isTauriEnvironment() {
+            try {
+                return typeof window !== 'undefined'
+                    && typeof window.__TAURI__ !== 'undefined'
+                    && window.__TAURI__ !== null
+                    && window.__TAURI__.core
+                    && typeof window.__TAURI__.core.invoke === 'function';
+            } catch (e) {
+                return false;
+            }
+        }
+
         async function checkForUpdates(showNotification = true) {
             try {
-                // Tauri v2ではモジュールをインポートする必要がある
-                const { check } = await import('@tauri-apps/plugin-updater');
-                const { relaunch } = await import('@tauri-apps/plugin-process');
-                
-                const update = await check();
-                
-                if (update) {
-                    // 更新が利用可能
-                    const message = `新しいバージョン ${update.version} が利用可能です\n\n${update.body || update.notes || ''}`;
+                if (!isTauriEnvironment()) {
                     if (showNotification) {
-                        if (confirm(message + '\n\n今すぐ更新しますか？')) {
-                            await performUpdate(update, relaunch);
+                        const statusEl = document.getElementById('update-status');
+                        if (statusEl) {
+                            statusEl.textContent = '更新機能はデスクトップ版でのみ利用可能です';
+                            statusEl.style.color = '#ef4444';
                         }
                     }
-                    return { available: true, version: update.version, notes: update.body || update.notes };
+                    return { available: false, error: 'not_tauri' };
+                }
+
+                // npm パッケージを import せず直接 IPC で呼び出す（バンドラー不要）
+                const update = await window.__TAURI__.core.invoke('plugin:updater|check', { headers: {} });
+
+                if (update) {
+                    const notes = update.body || update.notes || '';
+                    const message = `新しいバージョン ${update.version} が利用可能です\n\n${notes}`;
+                    if (showNotification) {
+                        if (confirm(message + '\n\n今すぐ更新しますか？')) {
+                            await performUpdate(update);
+                        }
+                    }
+                    return { available: true, version: update.version, notes };
                 } else {
-                    // 更新なし
                     if (showNotification) {
                         console.log('更新は利用可能ではありません');
                     }
@@ -1335,28 +1356,38 @@
             }
         }
 
-        async function performUpdate(update, relaunch) {
-            let downloaded = 0;
-            let contentLength = 0;
-            
-            await update.downloadAndInstall((event) => {
-                switch (event.event) {
-                    case 'Started':
-                        contentLength = event.data.contentLength;
-                        console.log(`ダウンロード開始: ${event.data.contentLength} bytes`);
-                        break;
-                    case 'Progress':
-                        downloaded += event.data.chunkLength;
-                        console.log(`ダウンロード中: ${downloaded} / ${contentLength}`);
-                        break;
-                    case 'Finished':
-                        console.log('ダウンロード完了');
-                        break;
-                }
-            });
-            
-            console.log('更新インストール完了');
-            await relaunch();
+        async function performUpdate(update) {
+            try {
+                let downloaded = 0;
+                let contentLength = 0;
+                // Channel は withGlobalTauri: true で window.__TAURI__.core.Channel として利用可能
+                const onEvent = new window.__TAURI__.core.Channel();
+                onEvent.onmessage = (event) => {
+                    switch (event.event) {
+                        case 'Started':
+                            contentLength = event.data.contentLength;
+                            console.log(`ダウンロード開始: ${contentLength} bytes`);
+                            break;
+                        case 'Progress':
+                            downloaded += event.data.chunkLength;
+                            console.log(`ダウンロード中: ${downloaded} / ${contentLength}`);
+                            break;
+                        case 'Finished':
+                            console.log('ダウンロード完了');
+                            break;
+                    }
+                };
+                await window.__TAURI__.core.invoke('plugin:updater|download_and_install', {
+                    rid: update.rid,
+                    onEvent,
+                    headers: {}
+                });
+                console.log('更新インストール完了');
+                await window.__TAURI__.core.invoke('plugin:process|relaunch');
+            } catch (error) {
+                console.error('更新インストールエラー:', error);
+                alert('更新のインストールに失敗しました: ' + error.message);
+            }
         }
 
         // 手動更新チェック
@@ -1366,27 +1397,29 @@
                 statusEl.textContent = '更新を確認中...';
                 statusEl.style.color = '#64748b';
             }
-            
+
             const result = await checkForUpdates(false);
-            
+
             if (statusEl) {
                 if (result.available) {
                     statusEl.textContent = `バージョン ${result.version} が利用可能です`;
                     statusEl.style.color = '#22c55e';
                     if (confirm(`新しいバージョン ${result.version} が利用可能です\n\n${result.notes}\n\n今すぐ更新しますか？`)) {
-                        const { check } = await import('@tauri-apps/plugin-updater');
-                        const { relaunch } = await import('@tauri-apps/plugin-process');
-                        const update = await check();
-                        if (update) {
-                            await performUpdate(update, relaunch);
+                        if (isTauriEnvironment()) {
+                            const update = await window.__TAURI__.core.invoke('plugin:updater|check', { headers: {} });
+                            if (update) {
+                                await performUpdate(update);
+                            }
+                        } else {
+                            alert('更新はデスクトップ版でのみ実行できます。');
                         }
                     }
-                } else if (result.error) {
+                } else if (result.error && result.error !== 'not_tauri') {
                     statusEl.textContent = 'エラー: ' + result.error;
                     statusEl.style.color = '#ef4444';
-                } else {
-                    statusEl.textContent = '最新バージョンを使用しています';
-                    statusEl.style.color = '#22c55e';
+                } else if (!result.available) {
+                    statusEl.textContent = isTauriEnvironment() ? '最新バージョンを使用しています' : '更新機能はデスクトップ版でのみ利用可能です';
+                    statusEl.style.color = isTauriEnvironment() ? '#22c55e' : '#64748b';
                 }
             }
         }
@@ -1394,17 +1427,19 @@
         // ページ読み込み時に更新チェックを実行（少し遅延させてパフォーマンスに影響しないように）
         setTimeout(async () => {
             // 現在のバージョンを表示
+            // window.__TAURI__.app は withGlobalTauri: true で @tauri-apps/api から注入される
             try {
-                const { getVersion } = await import('@tauri-apps/plugin-app');
-                const currentVersion = await getVersion();
                 const versionEl = document.getElementById('current-version');
-                if (versionEl) {
-                    versionEl.textContent = currentVersion;
+                if (isTauriEnvironment() && window.__TAURI__.app && typeof window.__TAURI__.app.getVersion === 'function') {
+                    const currentVersion = await window.__TAURI__.app.getVersion();
+                    if (versionEl) versionEl.textContent = currentVersion;
+                } else {
+                    if (versionEl) versionEl.textContent = 'web';
                 }
             } catch (error) {
                 console.error('バージョン取得エラー:', error);
             }
-            
+
             const autoUpdateCheck = document.getElementById('auto-update-check');
             if (autoUpdateCheck && autoUpdateCheck.value === 'enabled') {
                 await checkForUpdates(true);
