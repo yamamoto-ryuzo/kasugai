@@ -75,6 +75,11 @@ def main():
                         if f.endswith(installer_ext) and not f.endswith('.sig')
                     ]
                     if installer_files:
+                        # 同名の古いビルドが残っていても、最も新しいファイルを選択する
+                        installer_files.sort(
+                            key=lambda f: os.path.getmtime(os.path.join(subdir, f)),
+                            reverse=True,
+                        )
                         installer_src = os.path.join(subdir, installer_files[0])
                         sig_path = installer_src + '.sig'
                         dest_installer = os.path.join(download_dir, dest_name)
