@@ -4,6 +4,18 @@
 
 このプロジェクトは [Semantic Versioning](https://semver.org/spec/v2.0.0.html) に準拠しています。
 
+## [2.2.0] - 2026-07-24
+
+### 概要
+画面2（中央ペイン）のGoogle Map等の専用WebView表示と、画面4（下部ペイン）との水平スプリッター表示・操作を整理しました。専用画面がスプリッターを覆ってしまいドラッグできなかった問題を修正しています。
+
+### 追加 (Added)
+- **画面4水平スプリッターの可視化**: 専用WebView（Google Maps / Google Earth / Yahoo Map / CesiumJS / BOX / Re:Earth）の下端に8pxのスプリッター余白を確保し、常にドラッグ可能な水平スプリッターバー（`#hsplit`）を表示するようレイアウト計算を調整しました。
+
+### 変更 (Changed)
+- **レイアウト計算の調整**: `recalculate_webview_bounds` で `pane2_*` 専用WebViewの高さから水平スプリッター幅（8px）を差し引くよう変更しました。
+- **`index2.html` の#hsplit CSS**: 縮小しないよう `flex-shrink: 0` を追加しました。
+
 ## [2.1.0] - 2026-07-20
 
 ### 概要

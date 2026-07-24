@@ -163,6 +163,7 @@
             transition: background-color 0.15s;
             box-sizing: border-box;
             display: block;
+            flex-shrink: 0;
         }
         #hsplit:hover,
         #hsplit.dragging {
@@ -322,7 +323,7 @@
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">現在のバージョン</label>
-                            <div id="current-version" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px;">1.2.0</div>
+                            <div id="current-version" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px;">2.2.0</div>
                         </div>
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">更新の自動チェック</label>
@@ -1188,20 +1189,40 @@
 
         // pane4 用の水平スプリッター処理
         (function() {
-            const header = document.querySelector('.header-tabs');
-            const container = document.querySelector('.container');
             const hsplit = document.getElementById('hsplit');
-            const headerH = header ? header.offsetHeight : 50;
+
+            let currentRatio = 0.2;
+            let fullWindowHeight = 0;
+            let isDragging = false;
+            let overlay = null;
+            let rafId = null;
+            let lastY = 0;
+            let containerRafId = null;
+
+            function clampRatio(r) {
+                return Math.min(Math.max(r, 0.0), 1.0);
+            }
+
+            function clampDragRatio(r) {
+                return Math.min(Math.max(r, 0.05), 0.6);
+            }
+
+            function recomputeFullWindowHeight() {
+                const denom = 1 - currentRatio;
+                fullWindowHeight = (denom > 0) ? (window.innerHeight / denom) : window.innerHeight;
+            }
 
             function applyPane4Ratio(ratio, notify=true) {
-                const clamped = Math.min(Math.max(ratio, 0.05), 0.6);
-                localStorage.setItem('pane4_ratio', String(clamped));
-                const pane4_h = Math.round(window.innerHeight * clamped);
-                // container の高さを調整（マージンとヘッダ領域を差し引く）
-                const containerHeight = Math.max(window.innerHeight - pane4_h - headerH - 20, 120);
-                if (container) container.style.height = containerHeight + 'px';
+                currentRatio = clampRatio(ratio);
+                localStorage.setItem('pane4_ratio', String(clampDragRatio(currentRatio)));
+                if (containerRafId) cancelAnimationFrame(containerRafId);
+                containerRafId = requestAnimationFrame(() => {
+                    containerRafId = null;
+                    recomputeFullWindowHeight();
+                });
                 if (notify && window.__TAURI__ && window.__TAURI__.core) {
-                    try { window.__TAURI__.core.invoke('update_pane4_ratio', { ratio: clamped }); } catch(e){}
+                    const r = clampDragRatio(currentRatio);
+                    try { window.__TAURI__.core.invoke('update_pane4_ratio', { ratio: r }); } catch(e){}
                 }
             }
 
@@ -1217,8 +1238,12 @@
                     try {
                         if (event.payload && typeof event.payload.pane4_ratio !== 'undefined') {
                             const p4 = Number(event.payload.pane4_ratio) || 0.0;
-                            // フロント側の表示を更新（notify=false で Rust への再通知を防ぐ）
-                            applyPane4Ratio(Math.min(Math.max(p4, 0.0), 1.0), false);
+                            if (isDragging) {
+                                // ドラッグ中は自前で container を更新するため比率のみ保持
+                                currentRatio = clampRatio(p4);
+                            } else {
+                                applyPane4Ratio(p4, false);
+                            }
                         }
                     } catch (e) { /* ignore malformed payloads */ }
                 });
@@ -1226,73 +1251,93 @@
 
             // リサイズ時の再計算
             window.addEventListener('resize', () => {
+                if (isDragging) return;
                 const stored = parseFloat(localStorage.getItem('pane4_ratio') || '0.2');
                 applyPane4Ratio(isNaN(stored) ? 0.2 : stored, false);
             });
 
-            // ドラッグ処理（pointer API + オーバーレイ + ゴースト線）：移動中は見た目だけ追従し、最終で高さを確定
-            let dragging = false;
-            let dragOverlay = null;
-            let dragGhost = null;
+            function updateFromY(y) {
+                if (!fullWindowHeight) return;
+                let r = 1 - y / fullWindowHeight;
+                r = clampDragRatio(r);
+                currentRatio = r;
+                if (window.__TAURI__ && window.__TAURI__.core) {
+                    try { window.__TAURI__.core.invoke('update_pane4_ratio', { ratio: r }); } catch(e){}
+                }
+            }
+
+            function flushUpdate() {
+                if (rafId) {
+                    cancelAnimationFrame(rafId);
+                    rafId = null;
+                }
+                updateFromY(lastY);
+            }
 
             hsplit.addEventListener('pointerdown', (e) => {
                 e.preventDefault();
-                dragging = true;
+                isDragging = true;
                 document.body.style.userSelect = 'none';
                 document.body.style.cursor = 'row-resize';
                 if (hsplit) hsplit.classList.add('dragging');
+
                 // 全画面オーバーレイを置いて iframe 等からイベントを奪う
-                dragOverlay = document.createElement('div');
-                Object.assign(dragOverlay.style, {
+                overlay = document.createElement('div');
+                Object.assign(overlay.style, {
                     position: 'fixed', top: '0', left: '0', right: '0', bottom: '0',
                     cursor: 'row-resize', zIndex: '9998', background: 'transparent'
                 });
-                document.body.appendChild(dragOverlay);
+                document.body.appendChild(overlay);
 
-                // ゴースト線（視覚フィードバック）
-                dragGhost = document.createElement('div');
-                Object.assign(dragGhost.style, {
-                    position: 'fixed', left: '0', right: '0', height: '4px',
-                    background: 'rgba(59,130,246,0.9)', zIndex: '9999', pointerEvents: 'none',
-                    transform: 'translateY(0px)'
-                });
-                document.body.appendChild(dragGhost);
+                // 現在の pane2 高さと pane4 比率から実ウィンドウ高さを逆算
+                const pane2H = window.innerHeight;
+                const denom = 1 - currentRatio;
+                fullWindowHeight = (denom > 0) ? (pane2H / denom) : pane2H;
+                lastY = e.clientY;
 
                 try { hsplit.setPointerCapture(e.pointerId); } catch(_) {}
-                if (window.__TAURI__ && window.__TAURI__.event) {
-                    window.__TAURI__.event.emit('splitter_drag_start', { activeSplitter: 'hsplit', ratio1: 0.0, ratio2: 0.0 });
-                }
             });
 
-            let lastEmit = 0;
-            const emitInterval = 30; // ms
             document.addEventListener('pointermove', (e) => {
-                if (!dragging) return;
-                const y = e.clientY;
-                // ゴースト線を移動させるだけ（頻繁なレイアウト変更を避ける）
-                if (dragGhost) dragGhost.style.transform = `translateY(${y - 2}px)`;
-                const now = performance.now();
-                if (window.__TAURI__ && window.__TAURI__.event && (now - lastEmit) > emitInterval) {
-                    lastEmit = now;
-                    window.__TAURI__.event.emit('global_mousemove', { screenX: e.screenX, screenY: e.screenY });
+                if (!isDragging) return;
+                lastY = e.clientY;
+                if (!rafId) {
+                    rafId = requestAnimationFrame(() => {
+                        rafId = null;
+                        if (!isDragging) return;
+                        updateFromY(lastY);
+                    });
                 }
             }, { passive: true });
 
             document.addEventListener('pointerup', (e) => {
-                if (!dragging) return;
-                dragging = false;
+                if (!isDragging) return;
+                isDragging = false;
                 document.body.style.userSelect = '';
                 document.body.style.cursor = '';
                 if (hsplit) hsplit.classList.remove('dragging');
                 try { hsplit.releasePointerCapture && hsplit.releasePointerCapture(e.pointerId); } catch(_) {}
-                if (dragOverlay && dragOverlay.parentNode) dragOverlay.parentNode.removeChild(dragOverlay);
-                if (dragGhost && dragGhost.parentNode) dragGhost.parentNode.removeChild(dragGhost);
-                const y = e.clientY;
-                const ratio = (window.innerHeight - y) / window.innerHeight;
-                applyPane4Ratio(ratio, true);
-                if (window.__TAURI__ && window.__TAURI__.event) {
-                    window.__TAURI__.event.emit('splitter_drag_end');
-                    window.__TAURI__.event.emit('global_mouseup');
+                if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                overlay = null;
+
+                lastY = e.clientY;
+                flushUpdate();
+                // 最終値を永続化
+                localStorage.setItem('pane4_ratio', String(clampDragRatio(currentRatio)));
+            });
+
+            document.addEventListener('pointercancel', (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+                document.body.style.userSelect = '';
+                document.body.style.cursor = '';
+                if (hsplit) hsplit.classList.remove('dragging');
+                try { hsplit.releasePointerCapture && hsplit.releasePointerCapture(e.pointerId); } catch(_) {}
+                if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                overlay = null;
+                if (rafId) {
+                    cancelAnimationFrame(rafId);
+                    rafId = null;
                 }
             });
         })();

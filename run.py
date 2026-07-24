@@ -100,11 +100,11 @@ def main():
 
                 # バージョン情報を取得
                 tauri_conf_path = os.path.join(target_dir, 'src-tauri', 'tauri.conf.json')
-                version = "1.2.0"  # デフォルトバージョン
+                version = "2.2.0"  # デフォルトバージョン
                 if os.path.exists(tauri_conf_path):
                     with open(tauri_conf_path, 'r', encoding='utf-8') as f:
                         conf = json.load(f)
-                        version = conf.get('version', '1.2.0')
+                        version = conf.get('version', '2.2.0')
 
                 # 更新JSONを生成
                 print(f"[Kasugai] 更新JSONを生成中: {dest_json}")

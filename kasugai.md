@@ -567,9 +567,9 @@ Kasugaiシステムの配信と自動更新機能をGitHub Pagesを活用して�
 #### latest.json (更新情報)
 ```json
 {
-  "version": "1.2.0",
-  "notes": "Kasugai バージョン 1.2.0\n\n- 最新の更新内容",
-  "pub_date": "2026-07-22T00:00:00Z",
+  "version": "2.2.0",
+  "notes": "Kasugai バージョン 2.2.0\n\n- 最新の更新内容",
+  "pub_date": "2026-07-24T00:00:00Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "署名データ（.exe.sig の内容）",

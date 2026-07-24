@@ -742,7 +742,7 @@ fn recalculate_webview_bounds(
         position: Position::Physical(PhysicalPosition::new((x1 + sh) as i32, tab_height as i32)),
         size: Size::Physical(PhysicalSize::new(
             center_width as u32,
-            (h - tab_height - pane4_height).max(0.0) as u32,
+            (h - tab_height - pane4_height - splitter_width).max(0.0) as u32,
         )),
     };
     let rect_center_bottom = Rect {
@@ -770,29 +770,40 @@ fn recalculate_webview_bounds(
     let pane3_rect = rect_right;
     let pane3_dedicated_rect = rect_right_dedicated;
 
-    // 画面1の下部（待機エリア）の管理用カウンター
+    // 画面2の専用WebView表示切替
     let update_pane2 = |id: &str, is_active: bool, is_dedicated: bool| {
         if let Some(wv) = window.get_webview(id) {
             // Webviewが現在このウィンドウに属している場合のみ Bounds を更新する
             if wv.window().label() == window.label() {
                 if is_active {
-                    let _ = wv.set_bounds(if is_dedicated {
+                    let target_rect = if is_dedicated {
                         pane2_dedicated_rect
                     } else {
                         pane2_rect
-                    });
+                    };
+                    // WebView2 の推奨方法で表示／非表示を切り替える。
+                    // 1x1 の座標移動だけでは WebView2 が描画を停止したままグレー背景になり、
+                    // 操作も効かなくなることがあるため、show()/hide() を併用する。
+                    let _ = wv.set_bounds(target_rect);
+                    let _ = wv.show();
 
-                    // Google Maps 用の再描画: 非表示から表示へ切り替わった場合、強制リロードが必要
+                    // Google Maps 用の再描画: 非表示→表示時に WebGL/Canvas の再描画が行われないことがある
                     if id == "pane2_google" {
                         let google_repaint = r#"
                             (function(){
                                 try{
-                                    // 画面サイズ変化を通知
-                                    window.dispatchEvent(new Event('resize'));
-                                    // 描画要素のチェックを行い、欠落している場合は再読み込みする
-                                    if (!document.querySelector('canvas') && !document.querySelector('.app-canvas')) {
-                                        window.location.reload();
-                    }
+                                    function rsz(){ window.dispatchEvent(new Event('resize')); }
+                                    rsz();
+                                    requestAnimationFrame(function(){
+                                        rsz();
+                                        setTimeout(rsz, 100);
+                                        setTimeout(function(){
+                                            rsz();
+                                            if (!document.querySelector('canvas') && !document.querySelector('.app-canvas')) {
+                                                window.location.reload();
+                                            }
+                                        }, 500);
+                                    });
                                 }catch(e){}
                             })();
                         "#;
@@ -802,13 +813,18 @@ fn recalculate_webview_bounds(
                         let repaint_script = r#"
                             (function(){
                                 try{
-                                    window.dispatchEvent(new Event('resize'));
+                                    function rsz(){ window.dispatchEvent(new Event('resize')); }
+                                    rsz();
+                                    requestAnimationFrame(function(){ rsz(); });
+                                    setTimeout(rsz, 100);
+                                    setTimeout(rsz, 300);
                                 }catch(e){}
                             })();
-            "#;
+                        "#;
                         let _ = wv.eval(repaint_script);
                     }
                 } else {
+                    let _ = wv.hide();
                     let _ = wv.set_bounds(rect_hidden);
                 }
             }
@@ -959,6 +975,9 @@ fn switch_pane2_tab(
         let win = wv.window();
         if win.label() != "main" {
             let _ = win.set_focus();
+        } else {
+            // メインウィンドウに埋め込まれている場合、WebView2 へフォーカスを移して操作を受け付けるようにする
+            let _ = wv.set_focus();
         }
     }
 }
@@ -1235,19 +1254,38 @@ fn preload_webview(app_handle: tauri::AppHandle, target: String, url: String) {
 
 // フロントからの Google Map 再読み込みリクエストを処理
 #[tauri::command]
-fn reload_pane2_google(app_handle: tauri::AppHandle) -> Result<(), String> {
-    println!(
-        "[Kasugai Rust] reload_pane2_google invoked - performing full navigate to current URL"
-    );
+fn reload_pane2_google(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
+) -> Result<(), String> {
+    println!("[Kasugai Rust] reload_pane2_google invoked");
+    // 再読み込み時は Google Map タブをアクティブにして表示状態にする
+    {
+        let mut active = state.active_pane2.lock().unwrap();
+        *active = "google".to_string();
+    }
+    update_splitter_internal(&app_handle, &state);
+
     if let Some(window) = app_handle.get_window("main") {
         if let Some(wv) = window.get_webview("pane2_google") {
             match wv.url() {
                 Ok(cur) => {
+                    let cur_str = cur.as_str();
+                    let is_blank = cur_str == "about:blank"
+                        || cur_str.is_empty()
+                        || cur_str == "https://tauri.localhost/"
+                        || cur_str.starts_with("tauri://");
+                    let target = if is_blank {
+                        tauri::Url::parse("https://www.google.co.jp/maps/@35.681236,139.767125,15z")
+                            .map_err(|e| e.to_string())?
+                    } else {
+                        cur
+                    };
                     println!(
-                        "[Kasugai Rust] navigating to current URL to force reload: {}",
-                        cur.as_str()
+                        "[Kasugai Rust] navigating to force reload: {}",
+                        target.as_str()
                     );
-                    let _ = wv.navigate(cur);
+                    let _ = wv.navigate(target);
                     return Ok(());
                 }
                 Err(e) => {
@@ -1630,7 +1668,7 @@ fn main() {
 
             let app_handle_for_google_new = app.handle().clone();
             let app_handle_for_google_nav = app.handle().clone();
-            let webview_google = WebviewBuilder::new("pane2_google", WebviewUrl::External(tauri::Url::parse("https://www.google.co.jp/maps/").unwrap()))
+            let webview_google = WebviewBuilder::new("pane2_google", WebviewUrl::External(tauri::Url::parse("https://www.google.co.jp/maps/@35.681236,139.767125,15z").unwrap()))
                 .initialization_script(init_script_pane2)
                 .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                 .on_navigation(move |url| {
