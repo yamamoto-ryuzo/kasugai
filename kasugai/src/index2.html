@@ -237,6 +237,7 @@
                 <button class="tab-btn" id="settings-tab-reearth-url" onclick="switchSettingsTab('reearth-url')">🌐 Re:Earth</button>
                 <button class="tab-btn" id="settings-tab-gemini" onclick="switchSettingsTab('gemini')">✨ Gemini</button>
                 <button class="tab-btn" id="settings-tab-updater" onclick="switchSettingsTab('updater')">🔄 アップデート</button>
+                <button class="tab-btn" id="settings-tab-qgis" onclick="switchSettingsTab('qgis')">QGISランチャー</button>
                     </div>
 
             <div class="interactive-section" style="gap: 15px;">
@@ -323,7 +324,7 @@
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">現在のバージョン</label>
-                            <div id="current-version" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px;">2.2.0</div>
+                            <div id="current-version" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px;">2.3.0</div>
                         </div>
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">更新の自動チェック</label>
@@ -335,6 +336,22 @@
                         <div>
                             <button class="btn" onclick="manualUpdateCheck()">今すぐ更新を確認</button>
                             <div id="update-status" class="status-msg"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- QGISランチャー設定 -->
+                <div id="settings-panel-qgis" class="settings-panel" style="display:none;">
+                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">QGISランチャー</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div>
+                            <label for="qgis-install-path-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">インストール先</label>
+                            <input type="text" id="qgis-install-path-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="C:\\Kasugai\\qgis_launcher">
+                            <div class="status-msg">空欄の場合は C:\\Kasugai\\qgis_launcher を使用します。</div>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button class="btn" id="qgis-install-btn" onclick="handleQgisLauncher(event)">インストール</button>
+                            <div id="qgis-status" class="status-msg"></div>
                         </div>
                     </div>
                 </div>
@@ -559,7 +576,7 @@
 
         // 設定画面内の内部タブ切替
         function switchSettingsTab(tabName) {
-            const tabs = ['platform','box','reearth-url','gemini','cesium','updater'];
+            const tabs = ['platform','box','reearth-url','gemini','cesium','updater','qgis'];
             tabs.forEach(t => {
                 const panel = document.getElementById('settings-panel-' + t);
                 const btn = document.getElementById('settings-tab-' + t);
@@ -646,6 +663,8 @@
             try { updateReearthUrlDisplay(); } catch(e){}
             // URL 操作ボタンの初期化
             try { setupReearthUrlControls(); } catch(e){}
+            // QGISランチャー設定の初期化
+            try { await initQgisSettings(); } catch(e){ console.warn('QGIS設定初期化失敗:', e); }
         };
 
         // Google Map 再読み込み関数
@@ -790,6 +809,8 @@
                 kv.push(['cesium_token', '']);
                 const platform = document.getElementById('platform-setting-input')?.value ?? '';
                 kv.push(['platform_setting', platform.replace(/\r?\n/g,'\\n')]);
+                const qgisPath = document.getElementById('qgis-install-path-input')?.value ?? localStorage.getItem('qgis_launcher_install_path') ?? '';
+                kv.push(['qgis_launcher_install_path', qgisPath.trim()]);
             } catch (e) { console.warn('collect settings error', e); }
 
             // build INI content with explanatory comments
@@ -911,6 +932,14 @@
                 if (Object.prototype.hasOwnProperty.call(parsed, 'platform_setting')) {
                     localStorage.setItem('platform_setting', parsed.platform_setting || '');
                     document.getElementById('platform-setting-input').value = parsed.platform_setting || '';
+                }
+
+                if (Object.prototype.hasOwnProperty.call(parsed, 'qgis_launcher_install_path')) {
+                    const qgisPath = parsed.qgis_launcher_install_path || '';
+                    localStorage.setItem('qgis_launcher_install_path', qgisPath);
+                    const qgisInput = document.getElementById('qgis-install-path-input');
+                    if (qgisInput) qgisInput.value = qgisPath;
+                    updateQgisStatus(qgisPath);
                 }
             } catch (e) {
                 console.warn('INI適用中にエラー:', e);
@@ -1048,6 +1077,12 @@
                     localStorage.setItem('platform_setting', platformVal);
                 } catch (e) { console.warn('platform_setting 保存に失敗:', e); }
 
+                // 7. QGISランチャー インストール先の保存
+                try {
+                    const qgisPath = document.getElementById('qgis-install-path-input').value || '';
+                    localStorage.setItem('qgis_launcher_install_path', qgisPath.trim());
+                } catch (e) { console.warn('qgis_launcher_install_path 保存に失敗:', e); }
+
             if (window.__TAURI__ && window.__TAURI__.event) {
                 window.__TAURI__.event.emit('reearth_url_changed', { url: url });
                 window.__TAURI__.event.emit('box_credentials_changed', { email: email, password: password });
@@ -1140,6 +1175,7 @@
             localStorage.removeItem("box_email");
             localStorage.removeItem("reearth_email");
             localStorage.removeItem("platform_setting");
+            localStorage.removeItem("qgis_launcher_install_path");
 
             // 3. 入力項目の初期化
             document.getElementById("reearth-url-input").value = defaultReearthUrl;
@@ -1151,6 +1187,11 @@
             try { const sel = document.getElementById('gemini-provider-select'); if (sel) sel.value = 'google'; } catch(_) {}
             document.getElementById("cesium-ion-token-input").value = "";
             document.getElementById("platform-setting-input").value = "";
+            try {
+                const defaultQgis = await window.__TAURI__.core.invoke('get_qgis_launcher_default_dir');
+                document.getElementById("qgis-install-path-input").value = defaultQgis;
+            } catch(_) { document.getElementById("qgis-install-path-input").value = ""; }
+            updateQgisStatus();
 
             // 4. 他のウィンドウ/コンポーネントへの変更イベント通知
             if (window.__TAURI__ && window.__TAURI__.event) {
@@ -1490,6 +1531,103 @@
                 await checkForUpdates(true);
             }
         }, 5000); // 5秒後にチェック
+
+        // --- QGISランチャー設定 ---
+        let qgisLauncherPath = null;
+
+        async function initQgisSettings() {
+            const input = document.getElementById('qgis-install-path-input');
+            const status = document.getElementById('qgis-status');
+            if (!input || !window.__TAURI__ || !window.__TAURI__.core) {
+                if (status) status.textContent = 'Tauri環境で実行してください';
+                return;
+            }
+
+            const savedPath = localStorage.getItem('qgis_launcher_install_path') || '';
+            if (savedPath) {
+                input.value = savedPath;
+                await updateQgisStatus(savedPath);
+            } else {
+                try {
+                    const defaultDir = await window.__TAURI__.core.invoke('get_qgis_launcher_default_dir');
+                    input.value = defaultDir;
+                    await updateQgisStatus(defaultDir);
+                } catch (e) {
+                    console.warn('QGISデフォルトパス取得失敗:', e);
+                }
+            }
+        }
+
+        function getQgisInstallPath() {
+            const input = document.getElementById('qgis-install-path-input');
+            return input ? input.value.trim() : '';
+        }
+
+        async function updateQgisStatus(path) {
+            const btn = document.getElementById('qgis-install-btn');
+            const status = document.getElementById('qgis-status');
+            if (!btn || !window.__TAURI__ || !window.__TAURI__.core) return;
+
+            try {
+                const exePath = await window.__TAURI__.core.invoke('get_qgis_launcher_status', { path: path || getQgisInstallPath() });
+                if (exePath) {
+                    qgisLauncherPath = exePath;
+                    btn.textContent = '起動';
+                    btn.title = 'QGIS Launcher を起動';
+                    if (status) { status.textContent = 'インストール済: ' + exePath; status.style.color = '#15803d'; }
+                } else {
+                    qgisLauncherPath = null;
+                    btn.textContent = 'インストール';
+                    btn.title = 'QGIS Launcher をインストール';
+                    if (status) { status.textContent = '未インストール'; status.style.color = '#64748b'; }
+                }
+            } catch (e) {
+                qgisLauncherPath = null;
+                btn.textContent = 'インストール';
+                if (status) { status.textContent = 'エラー: ' + e; status.style.color = '#dc2626'; }
+            }
+        }
+
+        async function handleQgisLauncher(event) {
+            if (event) event.preventDefault();
+            const btn = document.getElementById('qgis-install-btn');
+            const status = document.getElementById('qgis-status');
+            if (!window.__TAURI__ || !window.__TAURI__.core) return;
+
+            const path = getQgisInstallPath();
+            localStorage.setItem('qgis_launcher_install_path', path);
+
+            if (qgisLauncherPath) {
+                try {
+                    if (status) { status.textContent = '起動中...'; status.style.color = '#2563eb'; }
+                    await window.__TAURI__.core.invoke('launch_qgis_launcher', { path });
+                    if (status) { status.textContent = '起動しました'; status.style.color = '#15803d'; }
+                } catch (e) {
+                    if (status) { status.textContent = '起動失敗: ' + e; status.style.color = '#dc2626'; }
+                }
+                return;
+            }
+
+            try {
+                btn.disabled = true;
+                if (status) { status.textContent = 'ダウンロード中...'; status.style.color = '#2563eb'; }
+                const result = await window.__TAURI__.core.invoke('install_qgis_launcher', { path });
+                qgisLauncherPath = result;
+                btn.textContent = '起動';
+                btn.title = 'QGIS Launcher を起動';
+                if (status) { status.textContent = '完了: ' + result; status.style.color = '#15803d'; }
+            } catch (e) {
+                btn.textContent = '再試行';
+                if (status) { status.textContent = '失敗: ' + e; status.style.color = '#dc2626'; }
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        document.getElementById('qgis-install-path-input')?.addEventListener('change', async (e) => {
+            localStorage.setItem('qgis_launcher_install_path', e.target.value.trim());
+            await updateQgisStatus(e.target.value.trim());
+        });
 
     </script>
 </body>

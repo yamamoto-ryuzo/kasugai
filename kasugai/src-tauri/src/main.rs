@@ -9,6 +9,8 @@ use tauri::{
 
 use enigo::{Enigo, Key, KeyboardControllable};
 use std::error::Error;
+use std::path::PathBuf;
+use std::process::Command;
 use std::thread;
 use std::time::Duration;
 
@@ -51,6 +53,97 @@ use keyring::Entry;
 #[tauri::command]
 fn get_system_info() -> String {
     "ステータス: 正常稼働中\nエンジン: Tauri v2 (Rust)\nWebview: Microsoft WebView2\n応答時間: リアルタイム".to_string()
+}
+
+// QGIS Launcher (kasugai_qgis) のデフォルトインストール先パスを返す
+fn qgis_launcher_default_dir() -> Result<PathBuf, String> {
+    Ok(PathBuf::from(r"C:\Kasugai\qgis_launcher"))
+}
+
+// 指定またはデフォルトのインストール先パスを解決する
+fn resolve_qgis_install_dir(path: Option<String>) -> Result<PathBuf, String> {
+    if let Some(p) = path {
+        let trimmed = p.trim().to_string();
+        if !trimmed.is_empty() {
+            return Ok(PathBuf::from(trimmed));
+        }
+    }
+    qgis_launcher_default_dir()
+}
+
+#[tauri::command]
+fn get_qgis_launcher_default_dir() -> Result<String, String> {
+    Ok(qgis_launcher_default_dir()?.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn get_qgis_launcher_status(path: Option<String>) -> Result<String, String> {
+    let dir = resolve_qgis_install_dir(path)?;
+    let exe = dir.join("qgis_launcher.exe");
+    if exe.exists() {
+        Ok(exe.to_string_lossy().into_owned())
+    } else {
+        Ok(String::new())
+    }
+}
+
+#[tauri::command]
+async fn install_qgis_launcher(path: Option<String>) -> Result<String, String> {
+    const QGIS_LAUNCHER_URL: &str =
+        "https://yamamoto-ryuzo.github.io/kasugai_qgis/public/qgis_launcher.zip";
+
+    let install_dir = resolve_qgis_install_dir(path)?;
+    if install_dir.join("qgis_launcher.exe").exists() {
+        return Ok(format!(
+            "既にインストールされています: {}",
+            install_dir.display()
+        ));
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(600))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let response = client
+        .get(QGIS_LAUNCHER_URL)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !response.status().is_success() {
+        return Err(format!("ダウンロードに失敗しました: {}", response.status()));
+    }
+
+    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+
+    tauri::async_runtime::spawn_blocking(move || {
+        std::fs::create_dir_all(&install_dir).map_err(|e| e.to_string())?;
+
+        let cursor = std::io::Cursor::new(bytes);
+        let mut archive = zip::ZipArchive::new(cursor).map_err(|e| e.to_string())?;
+        archive.extract(&install_dir).map_err(|e| e.to_string())?;
+
+        Ok(format!("インストール完了: {}", install_dir.display()))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn launch_qgis_launcher(path: Option<String>) -> Result<(), String> {
+    let dir = resolve_qgis_install_dir(path)?;
+    let exe = dir.join("qgis_launcher.exe");
+    if !exe.exists() {
+        return Err("qgis_launcher.exe がインストールされていません".to_string());
+    }
+
+    Command::new(&exe)
+        .current_dir(&dir)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 // デフォルトブラウザでURLを開く
@@ -1501,6 +1594,10 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             get_system_info,
+            get_qgis_launcher_default_dir,
+            get_qgis_launcher_status,
+            install_qgis_launcher,
+            launch_qgis_launcher,
             update_splitter,
             update_pane4_ratio,
             pane_dblclick,
