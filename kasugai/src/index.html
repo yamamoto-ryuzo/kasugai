@@ -59,7 +59,11 @@
             }
 
             splitter1.style.left = (w * ratio1 - sh) + 'px';
-            splitter2.style.left = (w * ratio2 - sh) + 'px';
+            // スプリッター2は最大化時（ratio2=1.0等）でも常に全幅が画面内に見えるようにクランプする
+            let s2left = w * ratio2 - sh;
+            if (s2left < 0) s2left = 0;
+            if (s2left > w - splitterWidth) s2left = w - splitterWidth;
+            splitter2.style.left = s2left + 'px';
 
             // 画面1が閉じている（0.0）の場合にスプリッター1を強調する
             if (ratio1 === 0.0) {
@@ -73,6 +77,11 @@
         window.addEventListener('resize', updateSplitterElements, { passive: true });
 
         let activeSplitter = null;
+        // ダブルクリック時の誤ドラッグ防止用（一定距離動くまでドラッグ扱いにしない）
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let dragMoved = false;
+        const DRAG_THRESHOLD = 4;
 
         // ドラッグ状態を子Webview全体に通知
         function notifyDragStart() {
@@ -94,6 +103,9 @@
         function onMouseDown(e, splitterNum) {
             e.preventDefault();
             activeSplitter = splitterNum;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            dragMoved = false;
             document.body.style.cursor = 'col-resize';
             if (splitterNum === 1) splitter1.classList.add('dragging');
             if (splitterNum === 2) splitter2.classList.add('dragging');
@@ -104,7 +116,7 @@
         splitter1.addEventListener('mousedown', (e) => onMouseDown(e, 1));
         splitter2.addEventListener('mousedown', (e) => onMouseDown(e, 2));
 
-        // スプリッターのダブルクリックによる最大化・復元
+        // スプリッターのダブルクリックによる表示・非表示トグル
         splitter1.addEventListener('dblclick', () => {
             if (window.__TAURI__ && window.__TAURI__.core) {
                 window.__TAURI__.core.invoke('pane_dblclick', { pane: 'pane1' });
@@ -112,13 +124,20 @@
         });
         splitter2.addEventListener('dblclick', () => {
             if (window.__TAURI__ && window.__TAURI__.core) {
-                window.__TAURI__.core.invoke('pane_dblclick', { pane: 'pane2' });
+                window.__TAURI__.core.invoke('toggle_pane3');
             }
         });
 
         // マウス位置に基づくスプリッター比率の更新ロジック
         function handleMove(clientX, clientY) {
             if (!activeSplitter) return;
+
+            // クリック（ダブルクリック含む）時のわずかなマウス移動では比率を変更しない
+            if (!dragMoved) {
+                if (Math.abs(clientX - dragStartX) < DRAG_THRESHOLD &&
+                    Math.abs(clientY - dragStartY) < DRAG_THRESHOLD) return;
+                dragMoved = true;
+            }
 
             // 水平スプリッター(画面2下部 pane4) の場合は Y 座標で比率を計算
             if (activeSplitter === 'hsplit') {

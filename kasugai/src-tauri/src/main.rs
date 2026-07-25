@@ -28,6 +28,9 @@ struct SplitterState {
     pane3_tabs: Mutex<Vec<String>>,
     pane4_ratio: Mutex<f64>,
     tab_counter: Mutex<u64>,
+    // スプリッターダブルクリックによる表示・非表示トグル用の保存値
+    saved_pane3_ratio2: Mutex<Option<f64>>,
+    saved_pane4_ratio: Mutex<Option<f64>>,
 }
 
 #[tauri::command]
@@ -44,6 +47,47 @@ fn update_pane4_ratio(
         ratio
     };
     *state.pane4_ratio.lock().unwrap() = clamped;
+    update_splitter_internal(&app_handle, &state);
+}
+
+// スプリッター2のダブルクリック: 画面3の表示・非表示トグル
+#[tauri::command]
+fn toggle_pane3(app_handle: tauri::AppHandle, state: tauri::State<'_, SplitterState>) {
+    println!("[Kasugai Rust] toggle_pane3");
+    {
+        let mut saved = state.saved_pane3_ratio2.lock().unwrap();
+        let r2 = *state.ratio2.lock().unwrap();
+        // ドラッグ上限(0.95)以上はほぼ非表示とみなす
+        if r2 >= 0.95 {
+            // 非表示中 → 表示に戻す
+            let target = saved.take().unwrap_or(0.8);
+            *state.ratio2.lock().unwrap() = target.clamp(0.05, 0.94);
+        } else {
+            // 表示中 → 非表示にする（スプリッター2を右端へ）
+            *saved = Some(r2);
+            *state.ratio2.lock().unwrap() = 1.0;
+        }
+    }
+    update_splitter_internal(&app_handle, &state);
+}
+
+// 水平スプリッターのダブルクリック: 画面4の表示・非表示トグル
+#[tauri::command]
+fn toggle_pane4(app_handle: tauri::AppHandle, state: tauri::State<'_, SplitterState>) {
+    println!("[Kasugai Rust] toggle_pane4");
+    {
+        let mut saved = state.saved_pane4_ratio.lock().unwrap();
+        let p4 = *state.pane4_ratio.lock().unwrap();
+        if p4 <= 0.001 {
+            // 非表示中 → 表示に戻す
+            let target = saved.take().unwrap_or(0.2);
+            *state.pane4_ratio.lock().unwrap() = target.clamp(0.05, 0.6);
+        } else {
+            // 表示中 → 非表示にする
+            *saved = Some(p4);
+            *state.pane4_ratio.lock().unwrap() = 0.0;
+        }
+    }
     update_splitter_internal(&app_handle, &state);
 }
 
@@ -690,6 +734,8 @@ fn pane_dblclick(
     state: tauri::State<'_, SplitterState>,
     pane: String,
 ) {
+    println!("[Kasugai Rust] pane_dblclick received: {}", pane);
+
     // 独立したWebView(pane2_cesiumなど)からのダブルクリックは無視する
     if pane.starts_with("pane2_") {
         println!(
@@ -701,15 +747,16 @@ fn pane_dblclick(
 
     let mut saved = state.saved_ratios.lock().unwrap();
 
+    let w = if let Some(window) = app_handle.get_window("main") {
+        window
+            .inner_size()
+            .map(|s| s.width as f64)
+            .unwrap_or(1200.0)
+    } else {
+        1200.0
+    };
+
     if pane == "pane1" {
-        let w = if let Some(window) = app_handle.get_window("main") {
-            window
-                .inner_size()
-                .map(|s| s.width as f64)
-                .unwrap_or(1200.0)
-        } else {
-            1200.0
-        };
         let r1 = *state.ratio1.lock().unwrap();
         let r2 = *state.ratio2.lock().unwrap();
         let width1 = w * r1;
@@ -735,15 +782,15 @@ fn pane_dblclick(
             // also hide pane4 when closing pane1? keep pane4 as-is for now
         }
     } else {
+        // 画面2・3・4の最大化・復元。画面1の表示状態（ratio1）には一切触れない。
         if saved.is_some() {
-            // 復元
-            let (r1, r2, p4) = saved.unwrap();
-            *state.ratio1.lock().unwrap() = r1;
+            // 復元（ratio1 は現在の状態を維持する）
+            let (_r1, r2, p4) = saved.unwrap();
             *state.ratio2.lock().unwrap() = r2;
             *state.pane4_ratio.lock().unwrap() = p4;
             *saved = None;
         } else {
-            // 現在の比率を保存して最大化
+            // 現在の比率を保存して最大化（画面2・3・4のうち1つを大きくする）
             let r1 = *state.ratio1.lock().unwrap();
             let r2 = *state.ratio2.lock().unwrap();
             let p4 = *state.pane4_ratio.lock().unwrap();
@@ -751,14 +798,20 @@ fn pane_dblclick(
 
             match pane.as_str() {
                 "pane2" => {
-                    *state.ratio1.lock().unwrap() = 0.0;
+                    // 画面2を最大化: 画面3・4を閉じる
                     *state.ratio2.lock().unwrap() = 1.0;
-                    // hide pane4 when maximizing pane2
                     *state.pane4_ratio.lock().unwrap() = 0.0;
                 }
                 "pane3" => {
-                    *state.ratio1.lock().unwrap() = 0.0;
-                    *state.ratio2.lock().unwrap() = 0.0;
+                    // 画面3を最大化: 画面1の右端までスプリッター2を寄せて画面2・4を閉じる
+                    // 画面1が開いている場合は 80px 固定幅＋スプリッター幅の位置に寄せる
+                    let target = if r1 > 0.0 { (80.0 + 4.0) / w } else { 0.0 };
+                    *state.ratio2.lock().unwrap() = target;
+                }
+                "pane4" => {
+                    // 画面4を最大化: 画面3を閉じ、中央を画面4で埋める
+                    *state.ratio2.lock().unwrap() = 1.0;
+                    *state.pane4_ratio.lock().unwrap() = 1.0;
                 }
                 _ => {}
             }
@@ -825,10 +878,15 @@ fn recalculate_webview_bounds(
     let sh = splitter_width / 2.0;
     // 画面1が開いている時（ratio1 != 0.0 の時）は、常に最小幅 80px で完全に固定する
     let x1 = if ratio1 == 0.0 { 0.0 } else { 80.0 + sh };
-    let x2 = w * ratio2;
+    // スプリッター2が常に画面内に見えるように、左右端でクランプする
+    let x2 = (w * ratio2).clamp(sh, (w - sh).max(sh));
     let tab_height = 50.0; // 画面2上部のタブ領域の高さ
     let pane4_ratio = *state.pane4_ratio.lock().unwrap();
-    let pane4_height = (h * pane4_ratio).max(0.0); // 中央ペイン下に追加する画面4の高さ（px）
+    // 中央ペイン下に追加する画面4の高さ（px）
+    // 画面4最大化時でも画面2のタブ＋水平スプリッターが見えるように上限をクランプする
+    let pane4_height = (h * pane4_ratio)
+        .max(0.0)
+        .min((h - tab_height - splitter_width).max(0.0));
 
     let rect_hidden = get_hidden_rect(w, h);
     if let Some(base_wv) = window.get_webview("main_webview") {
@@ -1617,6 +1675,8 @@ fn main() {
             pane3_tabs: Mutex::new(Vec::new()),
             pane4_ratio: Mutex::new(0.2),
             tab_counter: Mutex::new(0),
+            saved_pane3_ratio2: Mutex::new(None),
+            saved_pane4_ratio: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
             get_system_info,
@@ -1626,6 +1686,8 @@ fn main() {
             launch_qgis_launcher,
             update_splitter,
             update_pane4_ratio,
+            toggle_pane3,
+            toggle_pane4,
             pane_dblclick,
             open_in_pane2,
             open_in_pane3,
@@ -1700,6 +1762,15 @@ fn main() {
                         window.__TAURI_INTERNALS__.invoke('pane_dblclick', { pane: 'pane3' });
                     } else if (window.__TAURI__ && window.__TAURI__.core) {
                         window.__TAURI__.core.invoke('pane_dblclick', { pane: 'pane3' });
+                    }
+                });
+            "#;
+            let init_script_pane4 = r#"
+                window.addEventListener('dblclick', function(e) {
+                    if (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke) {
+                        window.__TAURI_INTERNALS__.invoke('pane_dblclick', { pane: 'pane4' });
+                    } else if (window.__TAURI__ && window.__TAURI__.core) {
+                        window.__TAURI__.core.invoke('pane_dblclick', { pane: 'pane4' });
                     }
                 });
             "#;
@@ -1888,7 +1959,7 @@ fn main() {
             // pane4: 中央ペイン下の汎用HTML表示領域
             let app_handle_for_webview4 = app.handle().clone();
             let webview4 = WebviewBuilder::new("pane4", WebviewUrl::App("index4.html".into()))
-                .initialization_script(init_script_pane2)
+                .initialization_script(init_script_pane4)
                 .on_navigation(move |_url| { true })
                 .on_new_window(move |url, _new_window| {
                     let url_str = url.as_str();

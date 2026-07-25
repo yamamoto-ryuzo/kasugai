@@ -1239,6 +1239,10 @@
             let rafId = null;
             let lastY = 0;
             let containerRafId = null;
+            // ダブルクリック時の誤ドラッグ防止用（一定距離動くまでドラッグ扱いにしない）
+            let dragMoved = false;
+            let dragStartY = 0;
+            const DRAG_THRESHOLD = 4;
 
             function clampRatio(r) {
                 return Math.min(Math.max(r, 0.0), 1.0);
@@ -1315,9 +1319,20 @@
                 updateFromY(lastY);
             }
 
+            // 水平スプリッターのダブルクリックで画面4の表示・非表示をトグル
+            hsplit.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.__TAURI__ && window.__TAURI__.core) {
+                    try { window.__TAURI__.core.invoke('toggle_pane4'); } catch(err){}
+                }
+            });
+
             hsplit.addEventListener('pointerdown', (e) => {
                 e.preventDefault();
                 isDragging = true;
+                dragMoved = false;
+                dragStartY = e.clientY;
                 document.body.style.userSelect = 'none';
                 document.body.style.cursor = 'row-resize';
                 if (hsplit) hsplit.classList.add('dragging');
@@ -1341,6 +1356,10 @@
 
             document.addEventListener('pointermove', (e) => {
                 if (!isDragging) return;
+                if (!dragMoved) {
+                    if (Math.abs(e.clientY - dragStartY) < DRAG_THRESHOLD) return;
+                    dragMoved = true;
+                }
                 lastY = e.clientY;
                 if (!rafId) {
                     rafId = requestAnimationFrame(() => {
@@ -1361,10 +1380,13 @@
                 if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
                 overlay = null;
 
-                lastY = e.clientY;
-                flushUpdate();
-                // 最終値を永続化
-                localStorage.setItem('pane4_ratio', String(clampDragRatio(currentRatio)));
+                // 実際にドラッグした場合のみ比率を確定する（クリック・ダブルクリックでは変更しない）
+                if (dragMoved) {
+                    lastY = e.clientY;
+                    flushUpdate();
+                    // 最終値を永続化
+                    localStorage.setItem('pane4_ratio', String(clampDragRatio(currentRatio)));
+                }
             });
 
             document.addEventListener('pointercancel', (e) => {
