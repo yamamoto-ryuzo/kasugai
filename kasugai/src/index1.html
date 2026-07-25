@@ -100,6 +100,12 @@
                 </div>
 
                 <div id="location-status" style="margin-top: 3px; font-size: 10px; color: #dc2626; display: none; text-align: center; word-break: break-all;"></div>
+
+                <!-- 画面2で×により非表示にされたタブの一覧（クリックで画面2へ戻す） -->
+                <div id="hidden-tabs-section" style="margin-top: 10px; width: 95%; display: none;">
+                    <div style="font-size: 12px; font-weight: bold; color: #1e293b; text-align: center; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📌 タブ</div>
+                    <div id="hidden-tabs-list" style="display: flex; flex-direction: column; gap: 6px; margin-top: 6px;"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -548,7 +554,43 @@
             window.__TAURI__.event.listen('reearth_url_changed', (e) => localStorage.setItem("reearth_url", e.payload.url));
             window.__TAURI__.event.listen('box_credentials_changed', (e) => localStorage.setItem("box_email", e.payload.email));
             window.__TAURI__.event.listen('reearth_credentials_changed', (e) => localStorage.setItem("reearth_email", e.payload.email));
+            // 画面2で非表示にされたタブ一覧の受信
+            window.__TAURI__.event.listen('pane2_hidden_tabs_state', (e) => {
+                renderHiddenTabs((e.payload && e.payload.tabs) || []);
+            });
         }
+
+        // --- 画面2の非表示タブ一覧の表示（クリックで画面2の元の位置へ戻す） ---
+        function renderHiddenTabs(tabs) {
+            const section = document.getElementById('hidden-tabs-section');
+            const list = document.getElementById('hidden-tabs-list');
+            if (!section || !list) return;
+            list.innerHTML = '';
+            tabs.forEach(t => {
+                const btn = document.createElement('button');
+                btn.className = 'portal-btn';
+                btn.style.width = '100%';
+                btn.style.cursor = 'pointer';
+                btn.style.whiteSpace = 'nowrap';
+                btn.style.overflow = 'hidden';
+                btn.style.textOverflow = 'ellipsis';
+                btn.textContent = t.title || t.id;
+                btn.title = 'クリックで画面2のタブに戻す';
+                btn.addEventListener('click', () => {
+                    if (window.__TAURI__ && window.__TAURI__.event) {
+                        window.__TAURI__.event.emit('pane2_tab_restore', { tabId: t.id });
+                    }
+                });
+                list.appendChild(btn);
+            });
+            section.style.display = tabs.length ? 'block' : 'none';
+            try { localStorage.setItem('pane1_hidden_tabs', JSON.stringify(tabs)); } catch (e) {}
+        }
+
+        // 起動直後は前回の状態を復元表示（画面2ロード後に最新状態で上書きされる）
+        try {
+            renderHiddenTabs(JSON.parse(localStorage.getItem('pane1_hidden_tabs') || '[]'));
+        } catch (e) {}
 
         async function preloadBasicAuth() {
             if (window.__TAURI__ && window.__TAURI__.core) {

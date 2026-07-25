@@ -151,6 +151,21 @@
             color: #ffffff;
             cursor: pointer;
         }
+        /* タブの×（閉じる）ボタン */
+        .tab-close {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 4px;
+            border-radius: 4px;
+            font-size: 11px;
+            line-height: 1.4;
+            opacity: 0.55;
+            cursor: pointer;
+        }
+        .tab-close:hover {
+            opacity: 1;
+            background-color: rgba(0, 0, 0, 0.15);
+        }
 
         /* 水平スプリッター（pane2 / pane4 間） — 垂直スプリッターと同じ見た目に整える */
         #hsplit {
@@ -198,13 +213,13 @@
     <div class="header-tabs">
         <div class="tabs">
             <button class="tab-btn active" id="tab-settings" onclick="switchTab('settings')" oncontextmenu="handleTabRightClick(event, 'settings', '⚙️ システム設定')">⚙️ システム設定</button>
-            <button class="tab-btn" id="tab-box" onclick="switchTab('box')" oncontextmenu="handleTabRightClick(event, 'box', '📦 BOX')">📦 BOX</button>
-            <button class="tab-btn" onclick="reloadGoogleMap()" style="padding: 6px 8px; font-size: 13px;" title="Google Mapを再読み込み">🔄</button>
-            <button class="tab-btn" id="tab-google" onclick="switchTab('google')" oncontextmenu="handleTabRightClick(event, 'google', '🗺️ Google Map')">🗺️ Google Map</button>
-            <button class="tab-btn" id="tab-googleearth" onclick="switchTab('googleearth')" oncontextmenu="handleTabRightClick(event, 'googleearth', '🌍 Google Earth')">🌍 Google Earth</button>
-            <button class="tab-btn" id="tab-yahoo" onclick="switchTab('yahoo')" oncontextmenu="handleTabRightClick(event, 'yahoo', '🗾 Yahoo Map')">🗾 Yahoo Map</button>
-            <button class="tab-btn" id="tab-cesium" onclick="switchTab('cesium')" oncontextmenu="handleTabRightClick(event, 'cesium', '🌌 CesiumJS')">🌌 CesiumJS</button>
-            <button class="tab-btn" id="tab-reearth" onclick="switchTab('reearth')" oncontextmenu="handleTabRightClick(event, 'reearth', '🌐 Re:Earth')">🌐 Re:Earth</button>
+            <button class="tab-btn" id="tab-box" onclick="switchTab('box')" oncontextmenu="handleTabRightClick(event, 'box', '📦 BOX')">📦 BOX<span class="tab-close" onclick="closeTab(event, 'box')" title="タブを閉じる（画面1へ移動）">×</span></button>
+            <button class="tab-btn" id="tab-google-reload" onclick="reloadGoogleMap()" style="padding: 6px 8px; font-size: 13px;" title="Google Mapを再読み込み">🔄</button>
+            <button class="tab-btn" id="tab-google" onclick="switchTab('google')" oncontextmenu="handleTabRightClick(event, 'google', '🗺️ Google Map')">🗺️ Google Map<span class="tab-close" onclick="closeTab(event, 'google')" title="タブを閉じる（画面1へ移動）">×</span></button>
+            <button class="tab-btn" id="tab-googleearth" onclick="switchTab('googleearth')" oncontextmenu="handleTabRightClick(event, 'googleearth', '🌍 Google Earth')">🌍 Google Earth<span class="tab-close" onclick="closeTab(event, 'googleearth')" title="タブを閉じる（画面1へ移動）">×</span></button>
+            <button class="tab-btn" id="tab-yahoo" onclick="switchTab('yahoo')" oncontextmenu="handleTabRightClick(event, 'yahoo', '🗾 Yahoo Map')">🗾 Yahoo Map<span class="tab-close" onclick="closeTab(event, 'yahoo')" title="タブを閉じる（画面1へ移動）">×</span></button>
+            <button class="tab-btn" id="tab-cesium" onclick="switchTab('cesium')" oncontextmenu="handleTabRightClick(event, 'cesium', '🌌 CesiumJS')">🌌 CesiumJS<span class="tab-close" onclick="closeTab(event, 'cesium')" title="タブを閉じる（画面1へ移動）">×</span></button>
+            <button class="tab-btn" id="tab-reearth" onclick="switchTab('reearth')" oncontextmenu="handleTabRightClick(event, 'reearth', '🌐 Re:Earth')">🌐 Re:Earth<span class="tab-close" onclick="closeTab(event, 'reearth')" title="タブを閉じる（画面1へ移動）">×</span></button>
             <div id="reearth-url-display" style="display:flex; align-items:center; align-self:center; height:100%; max-width:520px; margin-left:8px; padding:0 8px; line-height:1; font-size:12px; color:#475569;">
                 <div id="reearth-url-inner" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"> </div>
                 <button id="reearth-copy-btn" class="url-btn" title="クリップボードにコピー">📋</button>
@@ -423,6 +438,66 @@
                 const btn = document.getElementById('tab-' + tabId);
                 if (btn) btn.classList.add('detached');
             }
+        }
+
+        // --- タブの非表示（×で閉じて画面1へ移動）管理 ---
+        const HIDEABLE_TAB_TITLES = {
+            'box': '📦 BOX',
+            'google': '🗺️ Google Map',
+            'googleearth': '🌍 Google Earth',
+            'yahoo': '🗾 Yahoo Map',
+            'cesium': '🌌 CesiumJS',
+            'reearth': '🌐 Re:Earth'
+        };
+        let hiddenTabs = new Set();
+        try {
+            hiddenTabs = new Set(JSON.parse(localStorage.getItem('pane2_hidden_tabs') || '[]'));
+        } catch (e) { hiddenTabs = new Set(); }
+
+        function applyHiddenTabs() {
+            Object.keys(HIDEABLE_TAB_TITLES).forEach(id => {
+                const btn = document.getElementById('tab-' + id);
+                if (btn) btn.style.display = hiddenTabs.has(id) ? 'none' : '';
+            });
+            // Google Map再読み込みボタンはGoogle Mapタブと連動して表示・非表示
+            const reloadBtn = document.getElementById('tab-google-reload');
+            if (reloadBtn) reloadBtn.style.display = hiddenTabs.has('google') ? 'none' : '';
+        }
+
+        function persistHiddenTabs() {
+            try { localStorage.setItem('pane2_hidden_tabs', JSON.stringify([...hiddenTabs])); } catch (e) {}
+        }
+
+        // 画面1へ非表示タブの一覧を通知
+        function broadcastHiddenTabs() {
+            if (window.__TAURI__ && window.__TAURI__.event) {
+                const tabs = [...hiddenTabs].map(id => ({ id: id, title: HIDEABLE_TAB_TITLES[id] || id }));
+                window.__TAURI__.event.emit('pane2_hidden_tabs_state', { tabs: tabs });
+            }
+        }
+
+        // タブの×クリック：非表示にして画面1へ移動
+        function closeTab(e, tabId) {
+            if (e) { e.stopPropagation(); e.preventDefault(); }
+            if (!(tabId in HIDEABLE_TAB_TITLES)) return;
+            const btn = document.getElementById('tab-' + tabId);
+            const wasActive = btn ? btn.classList.contains('active') : false;
+            hiddenTabs.add(tabId);
+            persistHiddenTabs();
+            applyHiddenTabs();
+            broadcastHiddenTabs();
+            // アクティブなタブを閉じた場合はシステム設定へ切り替え
+            if (wasActive) switchTab('settings');
+        }
+
+        // 画面1からの復元：元のタブ位置に再表示し、そのタブをアクティブにする
+        function restoreTab(tabId) {
+            if (!hiddenTabs.has(tabId)) return;
+            hiddenTabs.delete(tabId);
+            persistHiddenTabs();
+            applyHiddenTabs();
+            broadcastHiddenTabs();
+            switchTab(tabId);
         }
 
         // --- スプリッターのドラッグ・リサイズ用中継処理 ---
@@ -653,6 +728,10 @@
             const savedPlatform = localStorage.getItem('platform_setting') || '';
             const platformEl = document.getElementById('platform-setting-input');
             if (platformEl) platformEl.value = savedPlatform;
+
+            // 非表示タブ状態の復元と画面1への通知
+            applyHiddenTabs();
+            broadcastHiddenTabs();
 
             // デフォルトでシステム設定タブをアクティブにする
             switchTab('settings');
@@ -1225,6 +1304,11 @@
             // Re:Earth URL が設定で変更されたときに表示更新
             window.__TAURI__.event.listen('reearth_url_changed', (ev) => {
                 try { updateReearthUrlDisplay(); } catch(e){}
+            });
+            // 画面1のクリックによるタブ復元通知
+            window.__TAURI__.event.listen('pane2_tab_restore', (event) => {
+                const tabId = event.payload && event.payload.tabId;
+                if (tabId) restoreTab(tabId);
             });
         }
 
