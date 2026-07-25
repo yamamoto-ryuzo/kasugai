@@ -1,10 +1,10 @@
 {
   "version": "2.3.1",
   "notes": "Kasugai バージョン 2.3.1\n\n- 画面1にシステム設定ボタンを固定表示\n- 画面2のタブバーからシステム設定タブを削除\n- GIS URL入力欄のクリップボード自動貼り付けをURLに限定",
-  "pub_date": "2026-07-25T01:27:50Z",
+  "pub_date": "2026-07-25T09:29:10Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVURW9ZMVJ3VHRSZy9FTitoZkFqMXdKYk9HR2xDMmJUQTJIUEZ4dVVCNi9DUFptb25OUFJvVFozWjR6TWNoeHFwUnhyS281QjlQcng5OXBwU1R3NXgwMDRqdjd3aVpmSWdNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0OTcwNzg2CWZpbGU6a2FzdWdhaV8yLjMuMV94NjQtc2V0dXAuZXhlCnhKQTR2ejk1RjRGdjdGWTcxMWNUbWZaWE1oZDFaMkZoSlE1cTMyK3R5Y3R4REdtUWpuQ3FyaEZsUUFxYXBaM1J2YXpsMGNSN1VVYTVtb3JBNzh2Q0NBPT0K",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVURW9ZMVJ3VHRSZy9JTEdFaUlabWJjWVRQOXdrWjZoMVdsNlVEK05IUTVtVDJKTUhVbVVjZzd3aXNBYUVpbitVWUhlV2J3RHRyWC94dFZhdzhPSk9sT0pIbFZnZXo5K2dVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0OTcxNzAxCWZpbGU6a2FzdWdhaV8yLjMuMV94NjQtc2V0dXAuZXhlCjNYVWg1MmV2NFg0ZFp0Q3FlQ2RjT211OU12clBuWE41WmltRUdMQkhQOHoveWcxamJNR0NJdFU2T3R1SWJoU2xXZEEyQ2FTVk54NE03dzVhc1l2UkFRPT0K",
       "url": "https://yamamoto-ryuzo.github.io/kasugai/download/kasugai.exe"
     }
   }
