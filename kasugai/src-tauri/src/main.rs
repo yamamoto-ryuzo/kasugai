@@ -69,6 +69,13 @@ fn set_update_install_location() -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn get_update_install_location() -> Result<String, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let dir = exe.parent().ok_or("インストールディレクトリを取得できません")?;
+    Ok(dir.to_string_lossy().into_owned())
+}
+
 // スプリッター2のダブルクリック: 画面3の表示・非表示トグル
 #[tauri::command]
 fn toggle_pane3(app_handle: tauri::AppHandle, state: tauri::State<'_, SplitterState>) {
@@ -1699,6 +1706,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             set_update_install_location,
+            get_update_install_location,
             get_system_info,
             get_qgis_launcher_default_dir,
             get_qgis_launcher_status,

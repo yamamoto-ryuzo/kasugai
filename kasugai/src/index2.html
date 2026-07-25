@@ -342,6 +342,10 @@
                             <div id="current-version" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px;">2.3.0</div>
                         </div>
                         <div>
+                            <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">起動中のインストール先</label>
+                            <div id="current-install-location" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px; word-break: break-all;">-</div>
+                        </div>
+                        <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">更新の自動チェック</label>
                             <select id="auto-update-check" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
                                 <option value="enabled">有効（起動時にチェック）</option>
@@ -1638,6 +1642,19 @@
                 }
             } catch (error) {
                 console.error('バージョン取得エラー:', error);
+            }
+
+            // 起動中のインストール先を表示
+            try {
+                const installLocEl = document.getElementById('current-install-location');
+                if (isTauriEnvironment() && window.__TAURI__.core) {
+                    const installLoc = await window.__TAURI__.core.invoke('get_update_install_location');
+                    if (installLocEl) installLocEl.textContent = installLoc;
+                } else {
+                    if (installLocEl) installLocEl.textContent = 'web';
+                }
+            } catch (error) {
+                console.error('インストール先取得エラー:', error);
             }
 
             const autoUpdateCheck = document.getElementById('auto-update-check');
