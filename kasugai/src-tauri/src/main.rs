@@ -57,7 +57,7 @@ fn get_system_info() -> String {
 
 // QGIS Launcher (kasugai_qgis) のデフォルトインストール先パスを返す
 fn qgis_launcher_default_dir() -> Result<PathBuf, String> {
-    Ok(PathBuf::from(r"C:\Kasugai\qgis_launcher"))
+    Ok(PathBuf::from(r"C:\kasugai\kasugai_qgis"))
 }
 
 // 指定またはデフォルトのインストール先パスを解決する
@@ -90,7 +90,7 @@ fn get_qgis_launcher_status(path: Option<String>) -> Result<String, String> {
 #[tauri::command]
 async fn install_qgis_launcher(path: Option<String>) -> Result<String, String> {
     const QGIS_LAUNCHER_URL: &str =
-        "https://yamamoto-ryuzo.github.io/kasugai_qgis/public/qgis_launcher.zip";
+        "https://yamamoto-ryuzo.github.io/kasugai_qgis/public/kasugai_qgis-setup.exe";
 
     let install_dir = resolve_qgis_install_dir(path)?;
     if install_dir.join("qgis_launcher.exe").exists() {
@@ -116,13 +116,39 @@ async fn install_qgis_launcher(path: Option<String>) -> Result<String, String> {
     }
 
     let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+    let installer_path = std::env::temp_dir().join("kasugai_qgis-setup.exe");
 
     tauri::async_runtime::spawn_blocking(move || {
         std::fs::create_dir_all(&install_dir).map_err(|e| e.to_string())?;
+        std::fs::write(&installer_path, &bytes).map_err(|e| e.to_string())?;
 
-        let cursor = std::io::Cursor::new(bytes);
-        let mut archive = zip::ZipArchive::new(cursor).map_err(|e| e.to_string())?;
-        archive.extract(&install_dir).map_err(|e| e.to_string())?;
+        let mut cmd = std::process::Command::new(&installer_path);
+        cmd.arg("/S");
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.raw_arg(format!("/D={}", install_dir.display()));
+        }
+        #[cfg(not(windows))]
+        {
+            cmd.arg(format!("/D={}", install_dir.display()));
+        }
+        let output = cmd.output().map_err(|e| e.to_string())?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!(
+                "インストーラーが失敗しました (code: {:?}): {}",
+                output.status.code(),
+                stderr
+            ));
+        }
+
+        if !install_dir.join("qgis_launcher.exe").exists() {
+            return Err("インストール後に qgis_launcher.exe が見つかりません".to_string());
+        }
+
+        let _ = std::fs::remove_file(&installer_path);
 
         Ok(format!("インストール完了: {}", install_dir.display()))
     })

@@ -9,7 +9,14 @@
     "targets": ["nsis"],
     "icon": [
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "perMachine",
+        "template": "windows/installer.nsi",
+        "languages": ["Japanese", "English"]
+      }
+    }
   },
   "app": {
     "withGlobalTauri": true,

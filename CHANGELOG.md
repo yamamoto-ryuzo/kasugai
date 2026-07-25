@@ -10,13 +10,13 @@
 QGIS Launcher (`kasugai_qgis`) を KASUGAI からインストール・起動できるようにしました。インストール先は画面2のシステム設定「QGISランチャー」タブで変更可能です。QGIS ランチャー本体のバージョンアップ等は、今後 `qgis_launcher` 側で実施する前提とし、KASUGAI 側はあくまでインストール・起動のみを担当します。
 
 ### 追加 (Added)
-- **QGIS Launcher 統合**: 画面2のシステム設定に「QGISランチャー」タブを追加。`kasugai_qgis` の配布 Zip をダウンロードし、指定フォルダに展開する機能を追加しました。
-- **インストール先の指定**: デフォルトは `C:\Kasugai\qgis_launcher`。ユーザーが入力欄でインストール先を自由に変更できます。
+- **QGIS Launcher 統合**: 画面2のシステム設定に「QGISランチャー」タブを追加。`kasugai_qgis` の NSIS インストーラー (`kasugai_qgis-setup.exe`) をダウンロードし、指定フォルダにサイレントインストール (`/S /D=<インストール先>`) する機能を追加しました。
+- **インストール先の指定**: デフォルトは `C:\Kasugai\kasugai_qgis`。ユーザーが入力欄でインストール先を自由に変更できます。
 - **INI 保存/読み込み対応**: `qgis_launcher_install_path` キーを KASUGAI の INI ファイル保存・読み込みに追加しました。
 - **起動ボタン**: 未インストール時は「インストール」、インストール済み時は「起動」に切り替わるボタンを提供します。
 
 ### 変更 (Changed)
-- **デフォルトインストール先**: QGIS Launcher の初期インストール先を `%LOCALAPPDATA%\Kasugai\qgis_launcher` から `C:\Kasugai\qgis_launcher` に変更しました。
+- **デフォルトインストール先**: QGIS Launcher の初期インストール先を `%LOCALAPPDATA%\Kasugai\qgis_launcher` から `C:\Kasugai\kasugai_qgis` に変更しました。
 
 ## [2.2.0] - 2026-07-24
 
