@@ -212,7 +212,7 @@
 <body>
     <div class="header-tabs">
         <div class="tabs">
-            <button class="tab-btn active" id="tab-settings" onclick="switchTab('settings')" oncontextmenu="handleTabRightClick(event, 'settings', '⚙️ システム設定')">⚙️ システム設定</button>
+            <!-- システム設定タブは画面1のGIS URL欄の下に固定ボタンとして移動（pane2_open_settings イベントで開く） -->
             <button class="tab-btn" id="tab-box" onclick="switchTab('box')" oncontextmenu="handleTabRightClick(event, 'box', '📦 BOX')">📦 BOX<span class="tab-close" onclick="closeTab(event, 'box')" title="タブを閉じる（画面1へ移動）">×</span></button>
             <button class="tab-btn" id="tab-google-reload" onclick="reloadGoogleMap()" style="padding: 6px 8px; font-size: 13px;" title="Google Mapを再読み込み">🔄</button>
             <button class="tab-btn" id="tab-google" onclick="switchTab('google')" oncontextmenu="handleTabRightClick(event, 'google', '🗺️ Google Map')">🗺️ Google Map<span class="tab-close" onclick="closeTab(event, 'google')" title="タブを閉じる（画面1へ移動）">×</span></button>
@@ -468,10 +468,12 @@
             try { localStorage.setItem('pane2_hidden_tabs', JSON.stringify([...hiddenTabs])); } catch (e) {}
         }
 
-        // 画面1へ非表示タブの一覧を通知
+        // 画面1へ非表示タブの一覧を通知（画面2のタブの並び順で送る）
         function broadcastHiddenTabs() {
             if (window.__TAURI__ && window.__TAURI__.event) {
-                const tabs = [...hiddenTabs].map(id => ({ id: id, title: HIDEABLE_TAB_TITLES[id] || id }));
+                const tabs = Object.keys(HIDEABLE_TAB_TITLES)
+                    .filter(id => hiddenTabs.has(id))
+                    .map(id => ({ id: id, title: HIDEABLE_TAB_TITLES[id] }));
                 window.__TAURI__.event.emit('pane2_hidden_tabs_state', { tabs: tabs });
             }
         }
@@ -1309,6 +1311,10 @@
             window.__TAURI__.event.listen('pane2_tab_restore', (event) => {
                 const tabId = event.payload && event.payload.tabId;
                 if (tabId) restoreTab(tabId);
+            });
+            // 画面1の固定ボタンによるシステム設定タブの表示通知
+            window.__TAURI__.event.listen('pane2_open_settings', () => {
+                switchTab('settings');
             });
         }
 

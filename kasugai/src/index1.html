@@ -99,6 +99,11 @@
                     </div>
                 </div>
 
+                <!-- 画面2のシステム設定タブを開く固定ボタン -->
+                <button class="portal-btn" onclick="openSettingsTab(event)" style="width: 95%; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="画面2でシステム設定を開く">
+                    ⚙️ 設定
+                </button>
+
                 <div id="location-status" style="margin-top: 3px; font-size: 10px; color: #dc2626; display: none; text-align: center; word-break: break-all;"></div>
 
                 <!-- 画面2で×により非表示にされたタブの一覧（クリックで画面2へ戻す） -->
@@ -353,10 +358,13 @@
             
             if (navigator.clipboard && navigator.clipboard.readText) {
                 try {
-                    const text = await navigator.clipboard.readText();
-                    urlInput.value = text;
+                    const text = (await navigator.clipboard.readText() || '').trim();
+                    // URLらしい文字列のみ貼り付ける（無関係なテキストの誤貼り付けを防止）
+                    if (/^https?:\/\//i.test(text)) {
+                        urlInput.value = text;
+                        updateUrlTooltip();
+                    }
                     statusDiv.style.display = 'none';
-                    updateUrlTooltip();
                 } catch (e) {
                     statusDiv.style.display = 'block';
                     statusDiv.style.color = '#dc2626';
@@ -548,6 +556,16 @@
             event.preventDefault();
             const url = window.location.origin + '/index2.html?settings=true';
             openLink(event, url, 'pane2');
+        }
+
+        // GIS URL欄の下の固定ボタン：画面2のシステム設定タブを表示する
+        function openSettingsTab(event) {
+            if (event) event.preventDefault();
+            if (window.__TAURI__ && window.__TAURI__.event) {
+                window.__TAURI__.event.emit('pane2_open_settings', {});
+            } else {
+                openSystemSettings(event);
+            }
         }
 
         if (window.__TAURI__ && window.__TAURI__.event) {

@@ -341,7 +341,7 @@ Google EarthやGoogle Mapsなどの地図サービスは、独自のネイティ
   * **タブ操作（画面2）**:
     * **右クリック**: 単独ウインドウで開く（独立ウィンドウとして表示）
     * **右ダブルクリック**: デフォルトブラウザで開く（外部ブラウザでURLを開く）
-    * ※ システム設定タブは独立ウィンドウ化の対象外
+    * **システム設定**: 画面2のタブバーには表示せず、画面1の GIS URL 入力欄の下にある「⚙️ 設定」ボタンから開く。`pane2_open_settings` イベントで `pane2` のシステム設定を前面表示する。
 * **画面3 (`pane3`)**: Gemini AIアシスタント ＆ 動的タブブラウザ（常に右側の役割・位置）
   * **Gemini AI アシスタント機能**:
     * **超多世代Geminiモデルの動的切り替え**: タスクの難易度や用途に応じて、チャット画面から直接Geminiのモデルを切り替え可能です（Gemini 2 Flash, Gemini 2.5 Flash, Gemini 2.5 Pro, Gemini 3 Flash, Gemini 3.1 Pro, Gemini 3.5 Flash）。
@@ -574,8 +574,8 @@ Kasugaiシステムの配信と自動更新機能をGitHub Pagesを活用して�
 #### latest.json (更新情報)
 ```json
 {
-  "version": "2.3.0",
-  "notes": "Kasugai バージョン 2.3.0\n\n- QGIS Launcher (kasugai_qgis) 統合：システム設定からのインストール・起動対応",
+  "version": "2.3.1",
+  "notes": "Kasugai バージョン 2.3.1\n\n- 画面1にシステム設定ボタンを固定表示\n- 画面2のタブバーからシステム設定タブを削除\n- GIS URL入力欄のクリップボード自動貼り付けをURLに限定",
   "pub_date": "2026-07-24T00:00:00Z",
   "platforms": {
     "windows-x86_64": {
