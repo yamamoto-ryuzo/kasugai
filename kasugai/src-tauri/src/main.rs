@@ -830,8 +830,8 @@ fn pane_dblclick(
                 }
                 "pane3" => {
                     // 画面3を最大化: 画面1の右端までスプリッター2を寄せて画面2・4を閉じる
-                    // 画面1が開いている場合は 80px 固定幅＋スプリッター幅の位置に寄せる
-                    let target = if r1 > 0.0 { (80.0 + 4.0) / w } else { 0.0 };
+                    // 画面1が開いている場合は 100px 固定幅＋スプリッター幅の位置に寄せる
+                    let target = if r1 > 0.0 { (100.0 + 4.0) / w } else { 0.0 };
                     *state.ratio2.lock().unwrap() = target;
                 }
                 "pane4" => {
@@ -902,8 +902,8 @@ fn recalculate_webview_bounds(
 ) {
     let splitter_width = 8.0;
     let sh = splitter_width / 2.0;
-    // 画面1が開いている時（ratio1 != 0.0 の時）は、常に最小幅 80px で完全に固定する
-    let x1 = if ratio1 == 0.0 { 0.0 } else { 80.0 + sh };
+    // 画面1が開いている時（ratio1 != 0.0 の時）は、常に最小幅 100px で完全に固定する
+    let x1 = if ratio1 == 0.0 { 0.0 } else { 100.0 + sh };
     // スプリッター2が常に画面内に見えるように、左右端でクランプする
     let x2 = (w * ratio2).clamp(sh, (w - sh).max(sh));
     let tab_height = 50.0; // 画面2上部のタブ領域の高さ
@@ -927,7 +927,7 @@ fn recalculate_webview_bounds(
         } else {
             let _ = wv1.set_bounds(Rect {
                 position: Position::Physical(PhysicalPosition::new(0, 0)),
-                size: Size::Physical(PhysicalSize::new(80, h as u32)),
+                size: Size::Physical(PhysicalSize::new(100, h as u32)),
             });
         }
     }

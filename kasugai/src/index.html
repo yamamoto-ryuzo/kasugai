@@ -53,9 +53,9 @@
         function updateSplitterElements() {
             const w = window.innerWidth;
             
-            // 画面1が開いている時（0.0以外の時）は、常に最小幅 80px で完全に固定する
+            // 画面1が開いている時（0.0以外の時）は、常に最小幅 100px で完全に固定する
             if (ratio1 !== 0.0) {
-                ratio1 = 80 / w;
+                ratio1 = 100 / w;
             }
 
             splitter1.style.left = (w * ratio1 - sh) + 'px';
@@ -156,12 +156,12 @@
             let newRatio = clientX / w;
 
             if (activeSplitter === 1) {
-                // 80px（最小幅）未満の縮尺になったら左端にスナップ（クローズ）する
-                const closeThreshold = 80 / w;
+                // 100px（最小幅）未満の縮尺になったら左端にスナップ（クローズ）する
+                const closeThreshold = 100 / w;
                 if (newRatio < closeThreshold) {
                     newRatio = 0.0;
                 } else {
-                    newRatio = 80 / w; // 開いている時は常に最小幅（80px）で常時固定にする
+                    newRatio = 100 / w; // 開いている時は常に最小幅（100px）で常時固定にする
                 }
                 ratio1 = newRatio;
             } else if (activeSplitter === 2) {
