@@ -12,9 +12,12 @@
     ],
     "windows": {
       "nsis": {
-        "installMode": "perMachine",
+        "installMode": "currentUser",
         "template": "windows/installer.nsi",
         "languages": ["Japanese", "English"]
+      },
+      "webviewInstallMode": {
+        "type": "skip"
       }
     }
   },

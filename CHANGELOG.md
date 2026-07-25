@@ -4,6 +4,13 @@
 
 このプロジェクトは [Semantic Versioning](https://semver.org/spec/v2.0.0.html) に準拠しています。
 
+## [Unreleased]
+
+### 変更
+- **Windows NSIS インストーラー**: `installMode` を `perMachine` から `currentUser` に変更。UAC なしでインストールできるようにしました。
+- **WebView2 インストールのスキップ**: `webviewInstallMode` を `skip` に設定。Windows インストーラー内で WebView2 ランタイムのインストールを行わないようにしました。
+- **デフォルトインストール先**: `C:\kasugai` をデフォルトとし、ディレクトリページでユーザーが自由に変更可能にしました。
+
 ## [2.3.0] - 2026-07-24
 
 ### 概要
