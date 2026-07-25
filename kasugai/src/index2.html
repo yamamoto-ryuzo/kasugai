@@ -1556,6 +1556,8 @@
 
         async function performUpdate(update) {
             try {
+                // 起動中の自身のインストール先をレジストリに書き込み、更新が同じ場所に入るようにする
+                await window.__TAURI__.core.invoke('set_update_install_location');
                 let downloaded = 0;
                 let contentLength = 0;
                 // Channel は withGlobalTauri: true で window.__TAURI__.core.Channel として利用可能

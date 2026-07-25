@@ -50,6 +50,25 @@ fn update_pane4_ratio(
     update_splitter_internal(&app_handle, &state);
 }
 
+#[tauri::command]
+fn set_update_install_location() -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+        let dir = exe.parent().ok_or("インストールディレクトリを取得できません")?;
+        let dir_str = dir.to_str().ok_or("パスが不正です")?;
+        let key = r"HKCU\Software\kasugai\kasugai";
+        let output = Command::new("reg")
+            .args(["add", key, "/ve", "/d", dir_str, "/f"])
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !output.status.success() {
+            return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        }
+    }
+    Ok(())
+}
+
 // スプリッター2のダブルクリック: 画面3の表示・非表示トグル
 #[tauri::command]
 fn toggle_pane3(app_handle: tauri::AppHandle, state: tauri::State<'_, SplitterState>) {
@@ -1679,6 +1698,7 @@ fn main() {
             saved_pane4_ratio: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
+            set_update_install_location,
             get_system_info,
             get_qgis_launcher_default_dir,
             get_qgis_launcher_status,

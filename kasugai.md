@@ -544,6 +544,16 @@ Kasugaiシステムの配信と自動更新機能をGitHub Pagesを活用して�
 5. **自動ダウンロード**: ユーザーの同意後に自動でダウンロードとインストール
 6. **自動再起動**: 更新完了後にアプリケーションを再起動
 
+#### インストール先の優先順位
+1. **更新を呼び出したアプリのディレクトリ**: 更新開始直前に、起動中の `kasugai.exe` のディレクトリを `HKCU\Software\kasugai\kasugai` のデフォルト値に書き込む（Rust コマンド `set_update_install_location`）。
+2. **前回のインストール先**: NSIS インストーラーは `RestorePreviousInstallLocation` で `HKCU\Software\kasugai\kasugai` のデフォルト値を読み取り、インストール先として復元する。
+3. **デフォルト**: 上記がない場合は `C:\kasugai` を使用する（`installer.nsi` の `.onInit`）。
+4. **ユーザー選択**: ディレクトリ選択画面で任意のパスに変更可能。
+
+注意：
+- `tauri.conf.json` の `installMode` は `currentUser` なので、レジストリの参照・書き込みは `HKCU` 限定となる。`HKLM` に残った旧 `C:\Kasugai` インストールは自動では検出されない。
+- `C:\Kasugai` など管理者権限が必要な場所に更新する場合は、アプリを管理者権限で起動するか、`installMode` を `perMachine` または `both` に変更して再ビルドする必要がある。
+
 #### 設定画面
 - **現在のバージョン表示**: アプリケーションの現在のバージョンを表示
 - **自動更新チェック**: 起動時の自動更新チェックの有効/無効を切り替え
