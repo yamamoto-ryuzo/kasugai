@@ -880,7 +880,8 @@ Section Uninstall
 SectionEnd
 
 Function RestorePreviousInstallLocation
-  ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
+  ; 更新用レジストリ HKCU\Software\kasugai\kasugai のデフォルト値を優先して復元
+  ReadRegStr $4 SHCTX "Software\kasugai\kasugai" ""
   StrCmp $4 "" +2 0
     StrCpy $INSTDIR $4
 FunctionEnd

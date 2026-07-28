@@ -242,6 +242,136 @@ fn launch_qgis_launcher(path: Option<String>) -> Result<(), String> {
     Ok(())
 }
 
+// KASUGAI_BOX サイドカーのデフォルトインストール先
+fn kasugai_box_default_dir() -> Result<PathBuf, String> {
+    Ok(PathBuf::from(r"C:\kasugai\kasugai_box"))
+}
+
+// 指定またはデフォルトの KASUGAI_BOX インストール先を解決する
+fn resolve_kasugai_box_dir(path: Option<String>) -> Result<PathBuf, String> {
+    if let Some(p) = path {
+        let trimmed = p.trim().to_string();
+        if !trimmed.is_empty() {
+            return Ok(PathBuf::from(trimmed));
+        }
+    }
+    kasugai_box_default_dir()
+}
+
+#[tauri::command]
+fn get_kasugai_box_default_dir() -> Result<String, String> {
+    Ok(kasugai_box_default_dir()?.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn get_kasugai_box_status(path: Option<String>) -> Result<String, String> {
+    let dir = resolve_kasugai_box_dir(path)?;
+    let exe = dir.join("kasugai_box.exe");
+    if exe.exists() {
+        Ok(exe.to_string_lossy().into_owned())
+    } else {
+        Ok(String::new())
+    }
+}
+
+#[tauri::command]
+async fn install_kasugai_box(path: Option<String>) -> Result<String, String> {
+    const KASUGAI_BOX_SETUP_URL: &str =
+        "https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai_box/main/download/kasugai_box_setup.exe";
+
+    let install_dir = resolve_kasugai_box_dir(path)?;
+    if install_dir.join("kasugai_box.exe").exists() {
+        return Ok(format!(
+            "既にインストールされています: {}",
+            install_dir.display()
+        ));
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(600))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let response = client
+        .get(KASUGAI_BOX_SETUP_URL)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !response.status().is_success() {
+        return Err(format!("ダウンロードに失敗しました: {}", response.status()));
+    }
+
+    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+    let installer_path = std::env::temp_dir().join("kasugai_box_setup.exe");
+
+    tauri::async_runtime::spawn_blocking(move || {
+        std::fs::create_dir_all(&install_dir).map_err(|e| e.to_string())?;
+        std::fs::write(&installer_path, &bytes).map_err(|e| e.to_string())?;
+
+        let mut cmd = std::process::Command::new(&installer_path);
+        cmd.arg("/S");
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.raw_arg(format!("/D={}", install_dir.display()));
+        }
+        #[cfg(not(windows))]
+        {
+            cmd.arg(format!("/D={}", install_dir.display()));
+        }
+        let output = cmd.output().map_err(|e| e.to_string())?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!(
+                "インストーラーが失敗しました (code: {:?}): {}",
+                output.status.code(),
+                stderr
+            ));
+        }
+
+        if !install_dir.join("kasugai_box.exe").exists() {
+            return Err("インストール後に kasugai_box.exe が見つかりません".to_string());
+        }
+
+        let _ = std::fs::remove_file(&installer_path);
+
+        Ok(format!("インストール完了: {}", install_dir.display()))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn launch_kasugai_box(path: Option<String>) -> Result<(), String> {
+    let dir = resolve_kasugai_box_dir(path)?;
+    let exe = dir.join("kasugai_box.exe");
+    if !exe.exists() {
+        return Err("kasugai_box.exe が見つかりません".to_string());
+    }
+
+    Command::new(&exe)
+        .current_dir(&dir)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn is_kasugai_box_running() -> Result<bool, String> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    match client.get("http://127.0.0.1:8410/health").send().await {
+        Ok(resp) => Ok(resp.status().is_success()),
+        Err(_) => Ok(false),
+    }
+}
+
 // デフォルトブラウザでURLを開く
 #[tauri::command]
 fn open_in_default_browser(url: String) -> Result<(), String> {
@@ -457,6 +587,40 @@ fn open_box_in_pane(
                         inject_box_autologin(&wv_clone3, creds_clone3);
                     });
                 });
+            }
+        }
+    }
+}
+
+// ------------------------------------------
+// BOX_APP（kasugai_box）専用：開くコマンド
+// ------------------------------------------
+#[tauri::command]
+fn open_box_app_in_pane(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
+    _target: String,
+    url: String,
+) {
+    *state.active_pane2.lock().unwrap() = "boxapp".to_string();
+    update_splitter_internal(&app_handle, &state);
+    let real_target = "pane2_boxapp";
+
+    if let Some(window) = app_handle.get_window("main") {
+        if let Some(wv) = window.get_webview(real_target) {
+            if let Ok(target_url) = tauri::Url::parse(&url) {
+                let should_navigate = if let Ok(current_url) = wv.url() {
+                    current_url.as_str() == "about:blank"
+                        || current_url.as_str().is_empty()
+                        || current_url.as_str() != target_url.as_str()
+                } else {
+                    true
+                };
+
+                if should_navigate {
+                    let _ = wv.navigate(target_url);
+                }
+                let _ = wv.set_focus();
             }
         }
     }
@@ -1075,6 +1239,11 @@ fn recalculate_webview_bounds(
         active == "cesium" && !is_detached("cesium"),
         true,
     );
+    update_pane2(
+        "pane2_boxapp",
+        active == "boxapp" && !is_detached("boxapp"),
+        true,
+    );
 
     // pane4 を配置（常に表示）
     if let Some(wv4) = window.get_webview("pane4") {
@@ -1404,6 +1573,7 @@ async fn get_pane2_url(
     let active = state.active_pane2.lock().unwrap().clone();
     let target_str = match active.as_str() {
         "box" => "pane2_box",
+        "boxapp" => "pane2_boxapp",
         "reearth" => "pane2_reearth",
         "google" => "pane2_google",
         "googleearth" => "pane2_googleearth",
@@ -1502,6 +1672,27 @@ fn reload_pane2_google(
         }
     }
     Err("pane2_google webview not found".to_string())
+}
+
+// アクティブな画面2タブを再読み込みする
+#[tauri::command]
+fn reload_pane2(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
+) -> Result<(), String> {
+    let active = state.active_pane2.lock().unwrap().clone();
+    if active == "default" {
+        return Ok(());
+    }
+    let wv_id = format!("pane2_{}", active);
+
+    if let Some(window) = app_handle.get_window("main") {
+        if let Some(wv) = window.get_webview(&wv_id) {
+            let _ = wv.eval("window.location.reload();");
+            let _ = wv.set_focus();
+        }
+    }
+    Ok(())
 }
 
 #[derive(serde::Serialize)]
@@ -1712,6 +1903,11 @@ fn main() {
             get_qgis_launcher_status,
             install_qgis_launcher,
             launch_qgis_launcher,
+            get_kasugai_box_default_dir,
+            get_kasugai_box_status,
+            install_kasugai_box,
+            launch_kasugai_box,
+            is_kasugai_box_running,
             update_splitter,
             update_pane4_ratio,
             toggle_pane3,
@@ -1720,6 +1916,7 @@ fn main() {
             open_in_pane2,
             open_in_pane3,
             open_box_in_pane,
+            open_box_app_in_pane,
             open_reearth_in_pane,
             save_credential,
             get_credential,
@@ -1736,6 +1933,7 @@ fn main() {
             get_pane2_url,
             get_active_pane2,
             reload_pane2_google,
+            reload_pane2,
             call_gemini,
             detach_window,
             open_in_default_browser,
@@ -1984,6 +2182,19 @@ fn main() {
                     false
                 });
 
+            let app_handle_for_boxapp_new = app.handle().clone();
+            let webview_boxapp = WebviewBuilder::new("pane2_boxapp", WebviewUrl::External(tauri::Url::parse("about:blank").unwrap()))
+                .initialization_script(init_script_pane2)
+                .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .on_navigation(move |_url| true)
+                .on_new_window(move |url, _new_window| {
+                    let url_str = url.as_str();
+                    if let Ok(target_url) = tauri::Url::parse(url_str) {
+                        add_pane3_tab(app_handle_for_boxapp_new.clone(), target_url);
+                    }
+                    tauri::webview::NewWindowResponse::Deny
+                });
+
             // pane4: 中央ペイン下の汎用HTML表示領域
             let app_handle_for_webview4 = app.handle().clone();
             let webview4 = WebviewBuilder::new("pane4", WebviewUrl::App("index4.html".into()))
@@ -2001,6 +2212,7 @@ fn main() {
             let _wv_googleearth = window.add_child(webview_googleearth, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv_yahoo = window.add_child(webview_yahoo, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv_cesium = window.add_child(webview_cesium, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
+            let _wv_boxapp = window.add_child(webview_boxapp, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv4 = window.add_child(webview4, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv3 = window.add_child(webview3_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
 

@@ -572,7 +572,7 @@ Kasugaiシステムの配信と自動更新機能をGitHub Pagesを活用して�
   },
   "plugins": {
     "updater": {
-      "pubkey": "YOUR_PUBLIC_KEY_HERE",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM0QTE4RDUxQzEzQjUxODMKUldURW9ZMVJ3VHRSZ3pCLzBXbDZ5OFVDRnBuUnNCQStsZFZwTnZjQk85LzdyUDZ6bmVCcjV1L1YK",
       "endpoints": [
         "https://yamamoto-ryuzo.github.io/kasugai/download/latest.json"
       ]

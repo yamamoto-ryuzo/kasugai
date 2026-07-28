@@ -213,8 +213,9 @@
     <div class="header-tabs">
         <div class="tabs">
             <!-- システム設定タブは画面1のGIS URL欄の下に固定ボタンとして移動（pane2_open_settings イベントで開く） -->
+            <button class="tab-btn" id="tab-reload" onclick="reloadActivePane2()" style="padding: 6px 8px; font-size: 13px;" title="現在のタブを更新">🔄</button>
             <button class="tab-btn" id="tab-box" onclick="switchTab('box')" oncontextmenu="handleTabRightClick(event, 'box', '📦 BOX')">📦 BOX<span class="tab-close" onclick="closeTab(event, 'box')" title="タブを閉じる（画面1へ移動）">×</span></button>
-            <button class="tab-btn" id="tab-google-reload" onclick="reloadGoogleMap()" style="padding: 6px 8px; font-size: 13px;" title="Google Mapを再読み込み">🔄</button>
+            <button class="tab-btn" id="tab-boxapp" onclick="switchTab('boxapp')" oncontextmenu="handleTabRightClick(event, 'boxapp', '📦 BOX_APP')">📦 BOX_APP<span class="tab-close" onclick="closeTab(event, 'boxapp')" title="タブを閉じる（画面1へ移動）">×</span></button>
             <button class="tab-btn" id="tab-google" onclick="switchTab('google')" oncontextmenu="handleTabRightClick(event, 'google', '🗺️ Google Map')">🗺️ Google Map<span class="tab-close" onclick="closeTab(event, 'google')" title="タブを閉じる（画面1へ移動）">×</span></button>
             <button class="tab-btn" id="tab-googleearth" onclick="switchTab('googleearth')" oncontextmenu="handleTabRightClick(event, 'googleearth', '🌍 Google Earth')">🌍 Google Earth<span class="tab-close" onclick="closeTab(event, 'googleearth')" title="タブを閉じる（画面1へ移動）">×</span></button>
             <button class="tab-btn" id="tab-yahoo" onclick="switchTab('yahoo')" oncontextmenu="handleTabRightClick(event, 'yahoo', '🗾 Yahoo Map')">🗾 Yahoo Map<span class="tab-close" onclick="closeTab(event, 'yahoo')" title="タブを閉じる（画面1へ移動）">×</span></button>
@@ -280,6 +281,19 @@
                             <input type="password" id="box-password-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="パスワードを入力">
                         </div>
                     </div>
+
+                    <h3 style="color: #15803d; font-size: 16px; margin-top: 24px; margin-bottom: 10px;">📦 KASUGAI_BOX サイドカー</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div>
+                            <label for="kasugaibox-install-path-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">インストール先</label>
+                            <input type="text" id="kasugaibox-install-path-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="C:\\kasugai\\kasugai_box">
+                            <div class="status-msg">空欄の場合は C:\\kasugai\\kasugai_box を使用します。</div>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button class="btn" id="kasugaibox-install-btn" onclick="handleKasugaiBox(event)">インストール</button>
+                            <div id="kasugaibox-status" class="status-msg"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Cesium 設定 -->
@@ -339,7 +353,7 @@
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">現在のバージョン</label>
-                            <div id="current-version" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px;">2.3.0</div>
+                            <div id="current-version" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px;">2.4.0</div>
                         </div>
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">起動中のインストール先</label>
@@ -347,7 +361,7 @@
                         </div>
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">更新の自動チェック</label>
-                            <select id="auto-update-check" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+                            <select id="auto-update-check" onchange="localStorage.setItem('kasugai_auto_update_check', this.value)" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
                                 <option value="enabled">有効（起動時にチェック）</option>
                                 <option value="disabled">無効</option>
                             </select>
@@ -447,6 +461,7 @@
         // --- タブの非表示（×で閉じて画面1へ移動）管理 ---
         const HIDEABLE_TAB_TITLES = {
             'box': '📦 BOX',
+            'boxapp': '📦 BOX_APP',
             'google': '🗺️ Google Map',
             'googleearth': '🌍 Google Earth',
             'yahoo': '🗾 Yahoo Map',
@@ -557,6 +572,7 @@
             // Rust側の状態に合わせてタブ名を解決（box -> pane2_box 等）
             const tabNameToWebviewId = {
                 'box': 'pane2_box',
+                'boxapp': 'pane2_boxapp',
                 'reearth': 'pane2_reearth',
                 'google': 'pane2_google',
                 'googleearth': 'pane2_googleearth',
@@ -576,6 +592,7 @@
 
             // フォールバック：設定値またはデフォルトURL
             if (tabId === 'box') return 'https://app.box.com/';
+            if (tabId === 'boxapp') return 'http://127.0.0.1:8410/ui';
             if (tabId === 'reearth') {
                 const url = document.getElementById("reearth-url-input").value;
                 return url.includes('://') ? url : 'https://' + url;
@@ -591,7 +608,7 @@
         // タブ切り替え処理
         async function switchTab(tabName) {
             // UIのアクティブ状態の更新
-            const tabs = ['settings', 'box', 'reearth', 'google', 'googleearth', 'yahoo', 'cesium'];
+            const tabs = ['settings', 'box', 'boxapp', 'reearth', 'google', 'googleearth', 'yahoo', 'cesium'];
             tabs.forEach(t => {
                 const el = document.getElementById('tab-' + t);
                 if (el) el.classList.toggle('active', tabName === t);
@@ -631,6 +648,11 @@
                         target: 'pane2',
                         url: 'https://app.box.com/',
                         creds: { email, password }
+                    });
+                } else if (tabName === 'boxapp') {
+                    window.__TAURI__.core.invoke('open_box_app_in_pane', {
+                        target: 'pane2',
+                        url: 'http://127.0.0.1:8410/ui'
                     });
                 } else if (tabName === 'reearth') {
                     const url = document.getElementById("reearth-url-input")?.value || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
@@ -748,22 +770,21 @@
             try { updateReearthUrlDisplay(); } catch(e){}
             // URL 操作ボタンの初期化
             try { setupReearthUrlControls(); } catch(e){}
+            // KASUGAI_BOX 設定の初期化
+            try { await initKasugaiBoxSettings(); } catch(e){ console.warn('KASUGAI_BOX 設定初期化失敗:', e); }
             // QGISランチャー設定の初期化
             try { await initQgisSettings(); } catch(e){ console.warn('QGIS設定初期化失敗:', e); }
         };
 
-        // Google Map 再読み込み関数
-        async function reloadGoogleMap() {
-                if (window.__TAURI__ && window.__TAURI__.core) {
+        // 現在アクティブな画面2タブを再読み込みする
+        async function reloadActivePane2() {
+            if (window.__TAURI__ && window.__TAURI__.core) {
                 try {
-                    console.log('[Kasugai JS] invoking reload_pane2_google');
-                    const res = await window.__TAURI__.core.invoke('reload_pane2_google');
-                    console.log('[Kasugai JS] reload_pane2_google result:', res);
+                    await window.__TAURI__.core.invoke('reload_pane2');
                 } catch (e) {
-                    console.error('[Kasugai JS] reload_pane2_google failed:', e);
-                    try { alert('Google Map reload failed: ' + e); } catch (_) {}
+                    console.error('[Kasugai JS] reload_pane2 failed:', e);
                 }
-                }
+            }
         }
 
         // Re:Earth タブ横に表示する URL を取得して反映する
@@ -1587,7 +1608,7 @@
                     headers: []
                 });
                 console.log('更新インストール完了');
-                await window.__TAURI__.core.invoke('plugin:process|relaunch');
+                await window.__TAURI__.core.invoke('plugin:process|restart');
             } catch (error) {
                 console.error('更新インストールエラー:', error);
                 alert('更新のインストールに失敗しました: ' + error.message);
@@ -1658,10 +1679,135 @@
             }
 
             const autoUpdateCheck = document.getElementById('auto-update-check');
+            if (autoUpdateCheck) {
+                const savedAuto = localStorage.getItem('kasugai_auto_update_check');
+                if (savedAuto) {
+                    autoUpdateCheck.value = savedAuto;
+                }
+            }
             if (autoUpdateCheck && autoUpdateCheck.value === 'enabled') {
                 await checkForUpdates(true);
             }
         }, 5000); // 5秒後にチェック
+
+        // --- KASUGAI_BOX 設定 ---
+        let kasugaiBoxPath = null;
+
+        async function initKasugaiBoxSettings() {
+            const input = document.getElementById('kasugaibox-install-path-input');
+            const status = document.getElementById('kasugaibox-status');
+            if (!input || !window.__TAURI__ || !window.__TAURI__.core) {
+                if (status) status.textContent = 'Tauri環境で実行してください';
+                return;
+            }
+
+            const savedPath = localStorage.getItem('kasugai_box_install_path') || '';
+            if (savedPath) {
+                input.value = savedPath;
+                await updateKasugaiBoxStatus(savedPath);
+            } else {
+                try {
+                    const defaultDir = await window.__TAURI__.core.invoke('get_kasugai_box_default_dir');
+                    input.value = defaultDir;
+                    await updateKasugaiBoxStatus(defaultDir);
+                } catch (e) {
+                    console.warn('KASUGAI_BOX デフォルトパス取得失敗:', e);
+                }
+            }
+        }
+
+        function getKasugaiBoxInstallPath() {
+            const input = document.getElementById('kasugaibox-install-path-input');
+            return input ? input.value.trim() : '';
+        }
+
+        async function updateKasugaiBoxStatus(path) {
+            const btn = document.getElementById('kasugaibox-install-btn');
+            const status = document.getElementById('kasugaibox-status');
+            if (!btn || !window.__TAURI__ || !window.__TAURI__.core) return;
+
+            try {
+                const exePath = await window.__TAURI__.core.invoke('get_kasugai_box_status', { path: path || getKasugaiBoxInstallPath() });
+                if (exePath) {
+                    kasugaiBoxPath = exePath;
+                    const running = await window.__TAURI__.core.invoke('is_kasugai_box_running');
+                    if (running) {
+                        btn.textContent = '再起動';
+                        btn.title = 'KASUGAI_BOX を再起動';
+                        if (status) { status.textContent = '起動中: ' + exePath; status.style.color = '#15803d'; }
+                    } else {
+                        btn.textContent = '起動';
+                        btn.title = 'KASUGAI_BOX を起動';
+                        if (status) { status.textContent = '停止中: ' + exePath; status.style.color = '#b45309'; }
+                    }
+                } else {
+                    kasugaiBoxPath = null;
+                    btn.textContent = 'インストール';
+                    btn.title = 'KASUGAI_BOX をインストール';
+                    if (status) { status.textContent = '未インストール'; status.style.color = '#64748b'; }
+                }
+            } catch (e) {
+                kasugaiBoxPath = null;
+                btn.textContent = 'インストール';
+                if (status) { status.textContent = 'エラー: ' + e; status.style.color = '#dc2626'; }
+            }
+        }
+
+        async function handleKasugaiBox(event) {
+            if (event) event.preventDefault();
+            const btn = document.getElementById('kasugaibox-install-btn');
+            const status = document.getElementById('kasugaibox-status');
+            if (!window.__TAURI__ || !window.__TAURI__.core) return;
+
+            const path = getKasugaiBoxInstallPath();
+            localStorage.setItem('kasugai_box_install_path', path);
+
+            if (kasugaiBoxPath) {
+                try {
+                    btn.disabled = true;
+                    if (status) { status.textContent = '起動中...'; status.style.color = '#2563eb'; }
+                    await window.__TAURI__.core.invoke('launch_kasugai_box', { path });
+
+                    // 実際に /health が応答するまで待機（最大15秒）
+                    let running = false;
+                    for (let i = 0; i < 15; i++) {
+                        await new Promise(r => setTimeout(r, 1000));
+                        if (await window.__TAURI__.core.invoke('is_kasugai_box_running')) {
+                            running = true;
+                            break;
+                        }
+                    }
+                    if (!running && status) {
+                        status.textContent = '起動しましたが、応答確認まで時間がかかっています';
+                        status.style.color = '#b45309';
+                    }
+                    await updateKasugaiBoxStatus(path);
+                } catch (e) {
+                    if (status) { status.textContent = '起動失敗: ' + e; status.style.color = '#dc2626'; }
+                } finally {
+                    btn.disabled = false;
+                }
+                return;
+            }
+
+            try {
+                btn.disabled = true;
+                if (status) { status.textContent = 'ダウンロード中...'; status.style.color = '#2563eb'; }
+                const result = await window.__TAURI__.core.invoke('install_kasugai_box', { path });
+                if (status) { status.textContent = 'インストール完了: ' + result; status.style.color = '#15803d'; }
+                await updateKasugaiBoxStatus(path);
+            } catch (e) {
+                if (status) { status.textContent = '失敗: ' + e; status.style.color = '#dc2626'; }
+                btn.textContent = '再試行';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        document.getElementById('kasugaibox-install-path-input')?.addEventListener('change', async (e) => {
+            localStorage.setItem('kasugai_box_install_path', e.target.value.trim());
+            await updateKasugaiBoxStatus(e.target.value.trim());
+        });
 
         // --- QGISランチャー設定 ---
         let qgisLauncherPath = null;
