@@ -1876,6 +1876,28 @@ async fn call_gemini(prompt: String, model: Option<String>) -> Result<GeminiResp
     })
 }
 
+fn auto_start_kasugai_box() {
+    std::thread::spawn(|| {
+        std::thread::sleep(Duration::from_secs(2));
+        if let Ok(dir) = kasugai_box_default_dir() {
+            let exe = dir.join("kasugai_box.exe");
+            if exe.exists() {
+                let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 8410));
+                let running = std::net::TcpStream::connect_timeout(
+                    &addr,
+                    Duration::from_millis(500),
+                ).is_ok();
+                if !running {
+                    println!("[Kasugai Rust] auto-starting kasugai_box from {}", exe.display());
+                    let _ = Command::new(&exe).current_dir(&dir).spawn();
+                } else {
+                    println!("[Kasugai Rust] kasugai_box already running, skipping auto-start");
+                }
+            }
+        }
+    });
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -2218,6 +2240,10 @@ fn main() {
 
             let state = app.state::<SplitterState>();
             recalculate_webview_bounds(&window, width, height, 0.1, 0.8, "default", &state);
+
+            // KASUGAI 起動時に KASUGAI_BOX サイドカーを自動起動（未起動の場合のみ）
+            auto_start_kasugai_box();
+
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())

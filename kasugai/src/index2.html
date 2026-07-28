@@ -1714,6 +1714,28 @@
                     console.warn('KASUGAI_BOX デフォルトパス取得失敗:', e);
                 }
             }
+
+            // インストール済みだがまだ起動していない場合、最大30秒間ポーリングして状態を反映
+            if (kasugaiBoxPath) {
+                pollKasugaiBoxStatus(30);
+            }
+        }
+
+        async function pollKasugaiBoxStatus(remaining) {
+            if (remaining <= 0 || !window.__TAURI__ || !window.__TAURI__.core) return;
+            if (!kasugaiBoxPath) return;
+
+            await new Promise(r => setTimeout(r, 1000));
+            try {
+                const running = await window.__TAURI__.core.invoke('is_kasugai_box_running');
+                if (running) {
+                    await updateKasugaiBoxStatus();
+                } else {
+                    await pollKasugaiBoxStatus(remaining - 1);
+                }
+            } catch (e) {
+                console.warn('KASUGAI_BOX ポーリング失敗:', e);
+            }
         }
 
         function getKasugaiBoxInstallPath() {
