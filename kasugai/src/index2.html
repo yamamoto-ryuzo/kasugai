@@ -232,7 +232,7 @@
 
     <div class="container">
         <h1 id="view-title" style="display: flex; justify-content: space-between; align-items: center;">
-            システム設定
+            <span id="view-title-text">システム設定</span>
             <span id="settings-version" style="font-size: 14px; color: #64748b; font-weight: normal; margin-left: 12px;">v-</span>
         </h1>
 
@@ -628,8 +628,9 @@
             const isLocal = (tabName === 'settings');
             document.getElementById('content-settings').style.display = tabName === 'settings' ? 'block' : 'none';
 
+            const titleText = document.getElementById('view-title-text');
             if (tabName === 'settings') {
-                title.textContent = 'システム設定';
+                if (titleText) titleText.textContent = 'システム設定';
                 title.style.display = 'block';
                 
                 container.style.margin = '10px';
@@ -638,7 +639,7 @@
                 container.style.backgroundColor = '#ffffff';
                 container.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
             } else {
-                title.textContent = '';
+                if (titleText) titleText.textContent = '';
                 title.style.display = 'none';
                 container.style.backgroundColor = 'transparent';
                 container.style.boxShadow = 'none';
