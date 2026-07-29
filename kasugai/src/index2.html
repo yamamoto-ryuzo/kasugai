@@ -231,7 +231,10 @@
     </div>
 
     <div class="container">
-        <h1 id="view-title">システム設定</h1>
+        <h1 id="view-title" style="display: flex; justify-content: space-between; align-items: center;">
+            システム設定
+            <span id="settings-version" style="font-size: 14px; color: #64748b; font-weight: normal; margin-left: 12px;">v-</span>
+        </h1>
 
         <div id="content-settings" class="tab-content">
             <p>システムの動作に関する設定を行います。変更は即座に反映されます。</p>
@@ -1664,11 +1667,14 @@
             // window.__TAURI__.app は withGlobalTauri: true で @tauri-apps/api から注入される
             try {
                 const versionEl = document.getElementById('current-version');
+                const settingsVersionEl = document.getElementById('settings-version');
                 if (isTauriEnvironment() && window.__TAURI__.app && typeof window.__TAURI__.app.getVersion === 'function') {
                     const currentVersion = await window.__TAURI__.app.getVersion();
                     if (versionEl) versionEl.textContent = currentVersion;
+                    if (settingsVersionEl) settingsVersionEl.textContent = 'v' + currentVersion;
                 } else {
                     if (versionEl) versionEl.textContent = 'web';
+                    if (settingsVersionEl) settingsVersionEl.textContent = 'web';
                 }
             } catch (error) {
                 console.error('バージョン取得エラー:', error);
