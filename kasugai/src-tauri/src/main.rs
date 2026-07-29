@@ -627,6 +627,40 @@ fn open_box_app_in_pane(
 }
 
 // ------------------------------------------
+// QGIS（kasugai_qgis）専用：開くコマンド
+// ------------------------------------------
+#[tauri::command]
+fn open_qgis_in_pane(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
+    _target: String,
+    url: String,
+) {
+    *state.active_pane2.lock().unwrap() = "qgis".to_string();
+    update_splitter_internal(&app_handle, &state);
+    let real_target = "pane2_qgis";
+
+    if let Some(window) = app_handle.get_window("main") {
+        if let Some(wv) = window.get_webview(real_target) {
+            if let Ok(target_url) = tauri::Url::parse(&url) {
+                let should_navigate = if let Ok(current_url) = wv.url() {
+                    current_url.as_str() == "about:blank"
+                        || current_url.as_str().is_empty()
+                        || current_url.as_str() != target_url.as_str()
+                } else {
+                    true
+                };
+
+                if should_navigate {
+                    let _ = wv.navigate(target_url);
+                }
+                let _ = wv.set_focus();
+            }
+        }
+    }
+}
+
+// ------------------------------------------
 // Re:Earth専用：開くコマンド
 // ------------------------------------------
 #[tauri::command]
@@ -1244,6 +1278,11 @@ fn recalculate_webview_bounds(
         active == "boxapp" && !is_detached("boxapp"),
         true,
     );
+    update_pane2(
+        "pane2_qgis",
+        active == "qgis" && !is_detached("qgis"),
+        true,
+    );
 
     // pane4 を配置（常に表示）
     if let Some(wv4) = window.get_webview("pane4") {
@@ -1574,6 +1613,7 @@ async fn get_pane2_url(
     let target_str = match active.as_str() {
         "box" => "pane2_box",
         "boxapp" => "pane2_boxapp",
+        "qgis" => "pane2_qgis",
         "reearth" => "pane2_reearth",
         "google" => "pane2_google",
         "googleearth" => "pane2_googleearth",
@@ -1939,6 +1979,7 @@ fn main() {
             open_in_pane3,
             open_box_in_pane,
             open_box_app_in_pane,
+            open_qgis_in_pane,
             open_reearth_in_pane,
             save_credential,
             get_credential,
@@ -2217,6 +2258,19 @@ fn main() {
                     tauri::webview::NewWindowResponse::Deny
                 });
 
+            let app_handle_for_qgis_new = app.handle().clone();
+            let webview_qgis = WebviewBuilder::new("pane2_qgis", WebviewUrl::External(tauri::Url::parse("about:blank").unwrap()))
+                .initialization_script(init_script_pane2)
+                .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .on_navigation(move |_url| true)
+                .on_new_window(move |url, _new_window| {
+                    let url_str = url.as_str();
+                    if let Ok(target_url) = tauri::Url::parse(url_str) {
+                        add_pane3_tab(app_handle_for_qgis_new.clone(), target_url);
+                    }
+                    tauri::webview::NewWindowResponse::Deny
+                });
+
             // pane4: 中央ペイン下の汎用HTML表示領域
             let app_handle_for_webview4 = app.handle().clone();
             let webview4 = WebviewBuilder::new("pane4", WebviewUrl::App("index4.html".into()))
@@ -2235,6 +2289,7 @@ fn main() {
             let _wv_yahoo = window.add_child(webview_yahoo, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv_cesium = window.add_child(webview_cesium, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv_boxapp = window.add_child(webview_boxapp, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
+            let _wv_qgis = window.add_child(webview_qgis, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv4 = window.add_child(webview4, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
             let _wv3 = window.add_child(webview3_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
 

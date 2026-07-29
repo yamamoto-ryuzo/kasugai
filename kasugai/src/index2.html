@@ -216,6 +216,7 @@
             <button class="tab-btn" id="tab-reload" onclick="reloadActivePane2()" style="padding: 6px 8px; font-size: 13px;" title="現在のタブを更新">🔄</button>
             <button class="tab-btn" id="tab-box" onclick="switchTab('box')" oncontextmenu="handleTabRightClick(event, 'box', '📦 BOX')">📦 BOX<span class="tab-close" onclick="closeTab(event, 'box')" title="タブを閉じる（画面1へ移動）">×</span></button>
             <button class="tab-btn" id="tab-boxapp" onclick="switchTab('boxapp')" oncontextmenu="handleTabRightClick(event, 'boxapp', '📦 BOX_APP')">📦 BOX_APP<span class="tab-close" onclick="closeTab(event, 'boxapp')" title="タブを閉じる（画面1へ移動）">×</span></button>
+            <button class="tab-btn" id="tab-qgis" onclick="switchTab('qgis')" oncontextmenu="handleTabRightClick(event, 'qgis', '🌐 QGIS')">🌐 QGIS<span class="tab-close" onclick="closeTab(event, 'qgis')" title="タブを閉じる（画面1へ移動）">×</span></button>
             <button class="tab-btn" id="tab-google" onclick="switchTab('google')" oncontextmenu="handleTabRightClick(event, 'google', '🗺️ Google Map')">🗺️ Google Map<span class="tab-close" onclick="closeTab(event, 'google')" title="タブを閉じる（画面1へ移動）">×</span></button>
             <button class="tab-btn" id="tab-googleearth" onclick="switchTab('googleearth')" oncontextmenu="handleTabRightClick(event, 'googleearth', '🌍 Google Earth')">🌍 Google Earth<span class="tab-close" onclick="closeTab(event, 'googleearth')" title="タブを閉じる（画面1へ移動）">×</span></button>
             <button class="tab-btn" id="tab-yahoo" onclick="switchTab('yahoo')" oncontextmenu="handleTabRightClick(event, 'yahoo', '🗾 Yahoo Map')">🗾 Yahoo Map<span class="tab-close" onclick="closeTab(event, 'yahoo')" title="タブを閉じる（画面1へ移動）">×</span></button>
@@ -462,6 +463,7 @@
         const HIDEABLE_TAB_TITLES = {
             'box': '📦 BOX',
             'boxapp': '📦 BOX_APP',
+            'qgis': '🌐 QGIS',
             'google': '🗺️ Google Map',
             'googleearth': '🌍 Google Earth',
             'yahoo': '🗾 Yahoo Map',
@@ -573,6 +575,7 @@
             const tabNameToWebviewId = {
                 'box': 'pane2_box',
                 'boxapp': 'pane2_boxapp',
+                'qgis': 'pane2_qgis',
                 'reearth': 'pane2_reearth',
                 'google': 'pane2_google',
                 'googleearth': 'pane2_googleearth',
@@ -593,6 +596,7 @@
             // フォールバック：設定値またはデフォルトURL
             if (tabId === 'box') return 'https://app.box.com/';
             if (tabId === 'boxapp') return 'http://127.0.0.1:8410/ui';
+            if (tabId === 'qgis') return 'http://127.0.0.1:8500/';
             if (tabId === 'reearth') {
                 const url = document.getElementById("reearth-url-input").value;
                 return url.includes('://') ? url : 'https://' + url;
@@ -608,7 +612,7 @@
         // タブ切り替え処理
         async function switchTab(tabName) {
             // UIのアクティブ状態の更新
-            const tabs = ['settings', 'box', 'boxapp', 'reearth', 'google', 'googleearth', 'yahoo', 'cesium'];
+            const tabs = ['settings', 'box', 'boxapp', 'qgis', 'reearth', 'google', 'googleearth', 'yahoo', 'cesium'];
             tabs.forEach(t => {
                 const el = document.getElementById('tab-' + t);
                 if (el) el.classList.toggle('active', tabName === t);
@@ -653,6 +657,11 @@
                     window.__TAURI__.core.invoke('open_box_app_in_pane', {
                         target: 'pane2',
                         url: 'http://127.0.0.1:8410/ui'
+                    });
+                } else if (tabName === 'qgis') {
+                    window.__TAURI__.core.invoke('open_qgis_in_pane', {
+                        target: 'pane2',
+                        url: 'http://127.0.0.1:8500/'
                     });
                 } else if (tabName === 'reearth') {
                     const url = document.getElementById("reearth-url-input")?.value || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
