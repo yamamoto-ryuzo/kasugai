@@ -357,7 +357,7 @@
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">現在のバージョン</label>
-                            <div id="current-version" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px;">2.4.0</div>
+                            <div id="current-version" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px;">2.5.3</div>
                         </div>
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">起動中のインストール先</label>
@@ -701,7 +701,9 @@
                 if (btn) btn.classList.toggle('active', t === tabName);
             });
             if (tabName === 'qgis') {
-                updateQgisRunningStatus();
+                if (qgisInitialStatusChecked) {
+                    updateQgisRunningStatus();
+                }
             }
         }
 
@@ -1853,6 +1855,7 @@
 
         // --- QGISランチャー設定 ---
         let qgisLauncherPath = null;
+        let qgisInitialStatusChecked = false;
 
         async function initQgisSettings() {
             const input = document.getElementById('qgis-install-path-input');
@@ -1875,6 +1878,11 @@
                     console.warn('QGISデフォルトパス取得失敗:', e);
                 }
             }
+            // 初期起動から10秒後にQGISランチャーの状態を確認
+            setTimeout(async () => {
+                await updateQgisRunningStatus();
+                qgisInitialStatusChecked = true;
+            }, 10000);
         }
 
         function getQgisInstallPath() {
