@@ -148,13 +148,17 @@ fn get_qgis_launcher_default_dir() -> Result<String, String> {
 
 #[tauri::command]
 fn get_qgis_launcher_status(path: Option<String>) -> Result<String, String> {
-    let dir = resolve_qgis_install_dir(path)?;
-    let exe = dir.join("qgis_launcher.exe");
-    if exe.exists() {
-        Ok(exe.to_string_lossy().into_owned())
-    } else {
-        Ok(String::new())
+    let default_dir = qgis_launcher_default_dir()?;
+    let custom_dir = resolve_qgis_install_dir(path)?;
+    let custom_exe = custom_dir.join("qgis_launcher.exe");
+    if custom_exe.exists() {
+        return Ok(custom_exe.to_string_lossy().into_owned());
     }
+    let default_exe = default_dir.join("qgis_launcher.exe");
+    if default_exe.exists() {
+        return Ok(default_exe.to_string_lossy().into_owned());
+    }
+    Ok(String::new())
 }
 
 #[tauri::command]
@@ -236,6 +240,7 @@ fn launch_qgis_launcher(path: Option<String>) -> Result<(), String> {
 
     Command::new(&exe)
         .current_dir(&dir)
+        .args(["--server", "--port", "8500"])
         .spawn()
         .map_err(|e| e.to_string())?;
 
@@ -370,6 +375,13 @@ async fn is_kasugai_box_running() -> Result<bool, String> {
         Ok(resp) => Ok(resp.status().is_success()),
         Err(_) => Ok(false),
     }
+}
+
+#[tauri::command]
+fn is_qgis_launcher_running() -> Result<bool, String> {
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 8500));
+    let running = std::net::TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok();
+    Ok(running)
 }
 
 // デフォルトブラウザでURLを開く
@@ -1938,6 +1950,55 @@ fn auto_start_kasugai_box() {
     });
 }
 
+fn is_port_open(port: u16) -> bool {
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+    std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(300)).is_ok()
+}
+
+fn auto_start_qgis_launcher() {
+    std::thread::spawn(|| {
+        std::thread::sleep(Duration::from_secs(2));
+        if let Ok(dir) = qgis_launcher_default_dir() {
+            let exe = dir.join("qgis_launcher.exe");
+            if !exe.exists() {
+                eprintln!("[Kasugai Rust] qgis_launcher.exe not found at {}", dir.display());
+                return;
+            }
+
+            if is_port_open(8500) {
+                println!("[Kasugai Rust] qgis_launcher already running, skipping auto-start");
+                return;
+            }
+
+            println!("[Kasugai Rust] auto-starting qgis_launcher from {}", exe.display());
+            match Command::new(&exe)
+                .current_dir(&dir)
+                .args(["--server", "--port", "8500"])
+                .spawn()
+            {
+                Ok(mut child) => {
+                    // 最大 20 秒間、8500 ポートが応答するまでポーリング
+                    for i in 0..40 {
+                        std::thread::sleep(Duration::from_millis(500));
+                        if is_port_open(8500) {
+                            println!("[Kasugai Rust] qgis_launcher is ready ({} ms)", (i + 1) * 500);
+                            return;
+                        }
+                    }
+                    let exit_status = child.try_wait();
+                    eprintln!(
+                        "[Kasugai Rust] qgis_launcher did not become ready on port 8500. child status: {:?}",
+                        exit_status
+                    );
+                }
+                Err(e) => {
+                    eprintln!("[Kasugai Rust] failed to spawn qgis_launcher: {}", e);
+                }
+            }
+        }
+    });
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -1970,6 +2031,7 @@ fn main() {
             install_kasugai_box,
             launch_kasugai_box,
             is_kasugai_box_running,
+            is_qgis_launcher_running,
             update_splitter,
             update_pane4_ratio,
             toggle_pane3,
@@ -2298,6 +2360,9 @@ fn main() {
 
             // KASUGAI 起動時に KASUGAI_BOX サイドカーを自動起動（未起動の場合のみ）
             auto_start_kasugai_box();
+
+            // KASUGAI 起動時に KASUGAI_QGIS ランチャーを自動起動（未起動の場合のみ）
+            auto_start_qgis_launcher();
 
             Ok(())
         })

@@ -390,6 +390,7 @@
                             <button class="btn" id="qgis-install-btn" onclick="handleQgisLauncher(event)">インストール</button>
                             <div id="qgis-status" class="status-msg"></div>
                         </div>
+                        <div id="qgis-running-status" class="status-msg" style="margin-top: 8px; font-weight: bold;">起動状態を確認中...</div>
                     </div>
                 </div>
 
@@ -699,6 +700,9 @@
                 if (panel) panel.style.display = (t === tabName) ? 'block' : 'none';
                 if (btn) btn.classList.toggle('active', t === tabName);
             });
+            if (tabName === 'qgis') {
+                updateQgisRunningStatus();
+            }
         }
 
         // ロード時の初期化処理
@@ -1903,6 +1907,24 @@
             }
         }
 
+        async function updateQgisRunningStatus() {
+            const el = document.getElementById('qgis-running-status');
+            if (!el || !window.__TAURI__ || !window.__TAURI__.core) return;
+            try {
+                const running = await window.__TAURI__.core.invoke('is_qgis_launcher_running');
+                if (running) {
+                    el.textContent = '状態: 起動中（127.0.0.1:8500）';
+                    el.style.color = '#15803d';
+                } else {
+                    el.textContent = '状態: 停止中（127.0.0.1:8500 未応答）';
+                    el.style.color = '#64748b';
+                }
+            } catch (e) {
+                el.textContent = '状態: 確認失敗';
+                el.style.color = '#dc2626';
+            }
+        }
+
         async function handleQgisLauncher(event) {
             if (event) event.preventDefault();
             const btn = document.getElementById('qgis-install-btn');
@@ -1915,10 +1937,14 @@
             if (qgisLauncherPath) {
                 try {
                     if (status) { status.textContent = '起動中...'; status.style.color = '#2563eb'; }
-                    await window.__TAURI__.core.invoke('launch_qgis_launcher', { path });
-                    if (status) { status.textContent = '起動しました'; status.style.color = '#15803d'; }
+                    const lastSep = qgisLauncherPath.lastIndexOf('\\');
+                    const launchDir = lastSep > 0 ? qgisLauncherPath.substring(0, lastSep) : getQgisInstallPath();
+                    await window.__TAURI__.core.invoke('launch_qgis_launcher', { path: launchDir });
+                    if (status) { status.textContent = '起動しました（10秒後に状態確認）'; status.style.color = '#15803d'; }
+                    setTimeout(updateQgisRunningStatus, 10000);
                 } catch (e) {
                     if (status) { status.textContent = '起動失敗: ' + e; status.style.color = '#dc2626'; }
+                    await updateQgisRunningStatus();
                 }
                 return;
             }
