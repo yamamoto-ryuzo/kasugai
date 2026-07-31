@@ -40,6 +40,18 @@ def main():
         print("エラー: 'npx' コマンドが見つかりません。Node.js がインストールされているか確認してください。")
         sys.exit(1)
 
+    # node_modules が存在しない場合は依存関係をインストール
+    if not os.path.isdir("node_modules"):
+        print("[Kasugai] 依存関係をインストールしています...")
+        npm_install = ["npm", "install"]
+        print(f"実行コマンド: {' '.join(npm_install)}")
+        try:
+            subprocess.run(npm_install, shell=True, check=True)
+            print("[Kasugai] 依存関係のインストールが完了しました。")
+        except subprocess.CalledProcessError as e:
+            print(f"\n[Kasugai] エラー: 依存関係のインストールに失敗しました。終了コード: {e.returncode}")
+            sys.exit(e.returncode)
+
     # Tauri コマンドの組み立て
     # Windowsシステムを考慮し shell=True を指定します
     tauri_cmd = ["npx", "tauri", mode]
@@ -93,6 +105,16 @@ def main():
                 # インストーラーを download フォルダへコピー
                 shutil.copy2(installer_src, dest_installer)
                 print(f"[Kasugai] インストーラーをコピーしました: {dest_installer}")
+
+                # インストーラーを ZIP 化して download フォルダへも提供
+                try:
+                    import zipfile
+                    dest_zip = os.path.join(download_dir, 'kasugai.exe.zip')
+                    with zipfile.ZipFile(dest_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+                        zf.write(dest_installer, os.path.basename(dest_installer))
+                    print(f"[Kasugai] インストーラー ZIP を生成しました: {dest_zip}")
+                except Exception as e:
+                    print(f"[Kasugai] ZIP 生成中に警告: {e}")
 
                 # 署名ファイルを読み込み
                 signature = ""
