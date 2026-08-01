@@ -233,7 +233,7 @@
     <div class="container">
         <h1 id="view-title" style="display: flex; justify-content: space-between; align-items: center;">
             <span id="view-title-text">システム設定</span>
-            <span style="display: flex; align-items: center; gap: 16px; margin-left: 12px; white-space: nowrap;"><span id="settings-version" style="font-size: 14px; color: #64748b; font-weight: normal;">v-</span><a href="#" target="_blank" rel="noopener" style="font-size: 12px; color: #15803d; text-decoration: underline; font-weight: bold;" onclick="event.preventDefault(); openTabInBrowser('https://yamamoto-ryuzo.github.io/kasugai/')">HELP</a></span>
+            <span style="display: flex; align-items: center; gap: 16px; margin-left: 12px; white-space: nowrap;"><span id="settings-version" style="font-size: 14px; color: #64748b; font-weight: normal;">v-</span><a href="#" style="font-size: 12px; color: #15803d; text-decoration: underline; font-weight: bold;" onclick="event.preventDefault(); openInDefaultBrowser('https://yamamoto-ryuzo.github.io/kasugai/')">HELP</a></span>
         </h1>
 
         <div id="content-settings" class="tab-content">
@@ -571,6 +571,19 @@
             if (window.__TAURI__ && window.__TAURI__.core) {
                 const url = await getTabUrl(tabId);
                 await window.__TAURI__.core.invoke('open_in_default_browser', { url: url });
+            }
+        }
+
+        async function openInDefaultBrowser(url) {
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                try {
+                    await window.__TAURI__.core.invoke('open_in_default_browser', { url: url });
+                } catch (err) {
+                    console.error('ブラウザを開けませんでした:', err);
+                    window.open(url, '_blank');
+                }
+            } else {
+                window.open(url, '_blank');
             }
         }
 
