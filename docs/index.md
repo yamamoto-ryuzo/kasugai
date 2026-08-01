@@ -12,6 +12,6 @@ nav_order: 0
 
 本プロジェクトは、分断されたローカル環境とクラウドサービスを一つの神経網として統合し、現実世界と連携する次世代のDX（デジタル・トランスフォーメーション）基盤を構築するオープンソース・イニシアティブです。　
 
-[最新版ダウンロード](https://yamamoto-ryuzo.github.io/kasugai/download/kasugai.exe)　　[最新版ZIPダウンロード](https://yamamoto-ryuzo.github.io/kasugai/download/kasugai.exe.zip)　　
+[最新版ダウンロード](https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai/main/download/kasugai.exe)　　[最新版ZIPダウンロード](https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai/main/download/kasugai.exe.zip)　　
 ![自己進化型・空間統合DXプラットフォーム](./images/desktop.png)
 
