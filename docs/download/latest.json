@@ -1,10 +1,10 @@
 {
-  "version": "2.5.4",
-  "notes": "Kasugai バージョン 2.5.4\n\n- 最新の更新内容",
-  "pub_date": "2026-08-01T01:56:31Z",
+  "version": "2.5.5",
+  "notes": "Kasugai バージョン 2.5.5\n\n- 最新の更新内容",
+  "pub_date": "2026-08-01T02:06:15Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVURW9ZMVJ3VHRSZzk3d09GTFpnVW50NEtjZjEvUHRwaDdJbmp1dUtxOEFpbE1jK1NZSnlBMVlrM1RpTW9ORTA0ZmdjdEdwbTFYcVJwTmh1L21CajROc3JhQ1lmS3ZzSGdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1NTQ5MzkwCWZpbGU6a2FzdWdhaV8yLjUuNF94NjQtc2V0dXAuZXhlCmRiRWpLbkZab1dtdUJDYjdYMXRPcURTZ1VQc2hvMFlrVldFYWhtWG1Zd1prNVNyMzY1cUVMSzRIMUpOMTJJSkZvRG9OeVN0UzVnd1FMdExGL2l6akJ3PT0K",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVURW9ZMVJ3VHRSZ3pwbVkwRTFjTmpJeDlEd3U1TkdyVXhFWjNvSzZYYTJySXhLNklwSy91VzRqczV5ZHZiV0k3SVNaTVJDNlR1MEFiMk5wWDhxQ2JyQlJNRUdTbHNneGc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1NTQ5OTc0CWZpbGU6a2FzdWdhaV8yLjUuNV94NjQtc2V0dXAuZXhlCitzS0ZDaFdybFptTVlMUjh6R0hXdXZHSHowR0Y2c1p4N3J2WmJVUGFBVFVvU21vdDVEUFlHSW9UMVZuS2t2L3ljVGVuNUFMZzlldjVXZUJBeUw0T0J3PT0K",
       "url": "https://yamamoto-ryuzo.github.io/kasugai/download/kasugai.exe"
     }
   }
