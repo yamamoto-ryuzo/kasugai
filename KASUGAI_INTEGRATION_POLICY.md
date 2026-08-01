@@ -4,7 +4,7 @@
 
 ## 全体像（インフォグラフィックス）
 
-![KASUGAI 外部連携方針 インフォグラフィックス](./images/integration_policy_infographic.png)
+![KASUGAI 外部連携方針 インフォグラフィックス](./docs/images/integration_policy_infographic.png)
 
 <details>
 <summary>テキスト版（Mermaid 図）</summary>
@@ -212,6 +212,7 @@ API サイドカーは、以下を少なくとも提供してください。
 | サイドカー名 | 既定ポート | 状態 | 備考 |
 | :--- | :--- | :--- | :--- |
 | `kasugai_box` | `8410` | 実装済み | Box 写真 EXIF 抽出・GeoJSON/CSV 出力・Box API チャット・MCP サーバー提供 |
+| `kasugai_qgis` | `8500` | 実装済み | QGIS / QField 起動ランチャー（Web UI / HTTP API / CLI 提供） |
 
 新しいサイドカーを追加する場合は、この表に名前・既定ポート・状態を追記してください。
 
