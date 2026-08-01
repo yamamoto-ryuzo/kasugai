@@ -251,13 +251,13 @@
 
             <!-- 内部タブ（設定カテゴリ） -->
             <div class="settings-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
-                <button class="tab-btn active" id="settings-tab-platform" onclick="switchSettingsTab('platform')">🔧 プラットフォーム設定</button>
                 <button class="tab-btn" id="settings-tab-box" onclick="switchSettingsTab('box')">📦 BOX</button>
+                <button class="tab-btn" id="settings-tab-qgis" onclick="switchSettingsTab('qgis')">QGISランチャー</button>
                 <button class="tab-btn" id="settings-tab-cesium" onclick="switchSettingsTab('cesium')">🌌 CesiumJS</button>
                 <button class="tab-btn" id="settings-tab-reearth-url" onclick="switchSettingsTab('reearth-url')">🌐 Re:Earth</button>
                 <button class="tab-btn" id="settings-tab-gemini" onclick="switchSettingsTab('gemini')">✨ Gemini</button>
+                <button class="tab-btn active" id="settings-tab-platform" onclick="switchSettingsTab('platform')">🔧 プラットフォーム設定</button>
                 <button class="tab-btn" id="settings-tab-updater" onclick="switchSettingsTab('updater')">🔄 アップデート</button>
-                <button class="tab-btn" id="settings-tab-qgis" onclick="switchSettingsTab('qgis')">QGISランチャー</button>
                     </div>
 
             <div class="interactive-section" style="gap: 15px;">
@@ -357,7 +357,7 @@
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">現在のバージョン</label>
-                            <div id="current-version" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px;">2.5.3</div>
+                            <div id="current-version" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px;">2.5.4</div>
                         </div>
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">起動中のインストール先</label>
@@ -379,8 +379,11 @@
 
                 <!-- QGISランチャー設定 -->
                 <div id="settings-panel-qgis" class="settings-panel" style="display:none;">
-                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">QGISランチャー</h3>
+                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🌐QGISランチャー</h3>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div class="status-msg" style="font-size: 13px; line-height: 1.5; padding: 10px 12px; background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; color: #1e40af; font-weight: bold;">
+                            QGIS 4.0以降に対応しています。QGIS本体をお持ちでない場合は、<a href="#" style="color: #1d4ed8; text-decoration: underline; font-weight: bold;" onclick="event.preventDefault(); openQgisInstallGuide();">QGIS公式サイト（qgis.org）</a> からインストールしてください。
+                        </div>
                         <div>
                             <label for="qgis-install-path-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">インストール先</label>
                             <input type="text" id="qgis-install-path-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="C:\\kasugai\\kasugai_qgis">
@@ -1900,17 +1903,20 @@
                 if (exePath) {
                     qgisLauncherPath = exePath;
                     btn.textContent = '起動';
+                    btn.style.backgroundColor = '#2563eb';
                     btn.title = 'QGIS Launcher を起動';
                     if (status) { status.textContent = 'インストール済: ' + exePath; status.style.color = '#15803d'; }
                 } else {
                     qgisLauncherPath = null;
                     btn.textContent = 'インストール';
+                    btn.style.backgroundColor = '';
                     btn.title = 'QGIS Launcher をインストール';
                     if (status) { status.textContent = '未インストール'; status.style.color = '#64748b'; }
                 }
             } catch (e) {
                 qgisLauncherPath = null;
                 btn.textContent = 'インストール';
+                btn.style.backgroundColor = '';
                 if (status) { status.textContent = 'エラー: ' + e; status.style.color = '#dc2626'; }
             }
         }
@@ -1963,13 +1969,23 @@
                 const result = await window.__TAURI__.core.invoke('install_qgis_launcher', { path });
                 qgisLauncherPath = result;
                 btn.textContent = '起動';
+                btn.style.backgroundColor = '#2563eb';
                 btn.title = 'QGIS Launcher を起動';
                 if (status) { status.textContent = '完了: ' + result; status.style.color = '#15803d'; }
             } catch (e) {
                 btn.textContent = '再試行';
+                btn.style.backgroundColor = '';
                 if (status) { status.textContent = '失敗: ' + e; status.style.color = '#dc2626'; }
             } finally {
                 btn.disabled = false;
+            }
+        }
+
+        function openQgisInstallGuide() {
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                window.__TAURI__.core.invoke('open_in_default_browser', { url: 'https://qgis.org/' });
+            } else {
+                window.open('https://qgis.org/', '_blank');
             }
         }
 
