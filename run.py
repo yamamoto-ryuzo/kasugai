@@ -142,7 +142,7 @@ def main():
                     "platforms": {
                         "windows-x86_64": {
                             "signature": signature,
-                            "url": f"https://yamamoto-ryuzo.github.io/kasugai/download/{os.path.basename(dest_installer)}"
+                            "url": f"https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai/main/download/{os.path.basename(dest_installer)}"
                         }
                     }
                 }
