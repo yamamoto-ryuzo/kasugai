@@ -233,7 +233,10 @@
     <div class="container">
         <h1 id="view-title" style="display: flex; justify-content: space-between; align-items: center;">
             <span id="view-title-text">システム設定</span>
-            <span id="settings-version" style="font-size: 14px; color: #64748b; font-weight: normal; margin-left: 12px;">v-</span>
+            <span style="display: flex; align-items: center; gap: 16px; margin-left: 12px;">
+                <span id="settings-version" style="font-size: 14px; color: #64748b; font-weight: normal;">v-</span>
+                <a href="#" style="font-size: 12px; color: #15803d; text-decoration: underline; font-weight: bold;" onclick="event.preventDefault(); openTabInBrowser('https://yamamoto-ryuzo.github.io/kasugai/')">HELP</a>
+            </span>
         </h1>
 
         <div id="content-settings" class="tab-content">
