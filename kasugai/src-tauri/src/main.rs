@@ -164,7 +164,7 @@ fn get_qgis_launcher_status(path: Option<String>) -> Result<String, String> {
 #[tauri::command]
 async fn install_qgis_launcher(path: Option<String>) -> Result<String, String> {
     const QGIS_LAUNCHER_URL: &str =
-        "https://yamamoto-ryuzo.github.io/kasugai_qgis/public/kasugai_qgis-setup.exe";
+        "https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai_qgis/main/public/kasugai_qgis-setup.exe";
 
     let install_dir = resolve_qgis_install_dir(path)?;
     if install_dir.join("qgis_launcher.exe").exists() {

@@ -61,8 +61,15 @@ KASUGAI からはペインまたはタブでこの URL を読み込み、QGIS �
 
 ③が最後に適用されるため、ユーザー個別設定が最も優先されます。
 
-### ダウンロード・詳細
+### インストール
 
-- 導入ドキュメント: <https://yamamoto-ryuzo.github.io/kasugai_qgis/>
-- 初回インストーラー: <https://yamamoto-ryuzo.github.io/kasugai_qgis/public/kasugai_qgis-setup.exe>
-- リポジトリ: <https://github.com/yamamoto-ryuzo/kasugai_qgis>
+通常は **KASUGAI 本体**をインストールしてください。KASUGAI 本体に含まれる QGIS サイドカー管理機能により、`qgis_launcher.exe` は必要に応じて自動的にダウンロード・起動されます。
+
+- KASUGAI 最新版ダウンロード: <https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai/main/download/kasugai.exe>
+- KASUGAI プロジェクト: <https://github.com/yamamoto-ryuzo/kasugai>
+
+QGIS サイドカーを単独で利用したい場合、または既存の QGIS 環境に追加する場合は以下を参照してください。
+
+- QGIS サイドカー導入ドキュメント: <https://yamamoto-ryuzo.github.io/kasugai_qgis/>
+- QGIS サイドカー単体インストーラー: <https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai_qgis/main/public/kasugai_qgis-setup.exe>
+- QGIS サイドカーリポジトリ: <https://github.com/yamamoto-ryuzo/kasugai_qgis>
