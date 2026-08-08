@@ -818,7 +818,7 @@ fn open_in_pane2(
             *state.active_pane2.lock().unwrap() = "yahoo".to_string();
             update_splitter_internal(&app_handle, &state);
             "pane2_yahoo"
-        } else if url.contains("cesium") {
+        } else if url.contains("cesium") || url.contains("127.0.0.1:8510") {
             *state.active_pane2.lock().unwrap() = "cesium".to_string();
             update_splitter_internal(&app_handle, &state);
             "pane2_cesium"
@@ -899,7 +899,7 @@ fn open_in_pane3(
             *state.active_pane2.lock().unwrap() = "yahoo".to_string();
             update_splitter_internal(&app_handle, &state);
             "pane2_yahoo"
-        } else if url.contains("cesium.html") {
+        } else if url.contains("cesium.html") || url.contains("127.0.0.1:8510") {
             *state.active_pane2.lock().unwrap() = "cesium".to_string();
             update_splitter_internal(&app_handle, &state);
             "pane2_cesium"
@@ -2010,7 +2010,7 @@ fn main() {
             pane2_current_host: Mutex::new(None),
             reearth_email: Mutex::new(None),
             box_email: Mutex::new(None),
-            active_pane2: Mutex::new("default".to_string()),
+            active_pane2: Mutex::new("cesium".to_string()),
             pane3_active_tab: Mutex::new("default".to_string()),
             pane3_tabs: Mutex::new(Vec::new()),
             pane4_ratio: Mutex::new(0.2),
@@ -2287,7 +2287,7 @@ fn main() {
                     tauri::webview::NewWindowResponse::Deny
                 });
 
-            let webview_cesium = WebviewBuilder::new("pane2_cesium", WebviewUrl::App("cesium.html".into()))
+            let webview_cesium = WebviewBuilder::new("pane2_cesium", WebviewUrl::External(tauri::Url::parse("http://127.0.0.1:8510/").unwrap()))
                 .initialization_script(r#"
                     window.addEventListener('dblclick', function(e) {
                         if (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke) {
@@ -2356,7 +2356,7 @@ fn main() {
             let _wv3 = window.add_child(webview3_builder, PhysicalPosition::new(0, 0), PhysicalSize::new(0, 0))?;
 
             let state = app.state::<SplitterState>();
-            recalculate_webview_bounds(&window, width, height, 0.1, 0.8, "default", &state);
+            recalculate_webview_bounds(&window, width, height, 0.1, 0.8, "cesium", &state);
 
             // KASUGAI 起動時に KASUGAI_BOX サイドカーを自動起動（未起動の場合のみ）
             auto_start_kasugai_box();
