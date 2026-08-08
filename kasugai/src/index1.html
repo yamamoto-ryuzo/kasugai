@@ -132,7 +132,7 @@
                     lat = Number(matchEarth[1]).toFixed(6);
                     lng = Number(matchEarth[2]).toFixed(6);
                     const distance = parseFloat(matchEarth[3]);
-                    zoom = Number(27 - Math.log2(distance || 5000)).toFixed(4);
+                    zoom = Number(25.5 - Math.log2(distance || 5000)).toFixed(4);
                     const pitchMatch = urlStr.match(/,(-?\d+(?:\.\d+)?)t/);
                     const bearingMatch = urlStr.match(/,(-?\d+(?:\.\d+)?)h/);
                     const result = { lat, lng, zoom, originalUrl: urlStr };
@@ -479,7 +479,7 @@
                                 targetUrl = `https://map.yahoo.co.jp/?lat=${lat}&lon=${lng}&zoom=${zoom}`;
                             } else if (currentUrlStr.includes('earth.google.com')) {
                                 // Google Earth 用に標準のZoom値からカメラ距離(d)へ簡易逆変換
-                                const distance = Math.pow(2, 27 - Number(zoom)).toFixed(2);
+                                const distance = Math.pow(2, 25.5 - Number(zoom)).toFixed(2);
                                 let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
                                 let rawBearing = document.getElementById('input-bearing').value.trim() || '0.00';
                                 const pitch = isNaN(Number(rawPitch)) ? '0.00' : Number(rawPitch).toFixed(2);
