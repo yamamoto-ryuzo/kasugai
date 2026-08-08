@@ -122,37 +122,21 @@
     </div>
 
     <script>
-        // 始点から距離・方位を進んだ地点の緯度経度を求める（haversine）
-        function destinationPoint(lat, lng, distanceMeters, bearing) {
-            const R = 6371000;
-            const lat1 = lat * Math.PI / 180;
-            const lng1 = lng * Math.PI / 180;
-            const brng = bearing * Math.PI / 180;
-            const d = distanceMeters / R;
-            const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
-            const lng2 = lng1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
-            return { lat: lat2 * 180 / Math.PI, lng: lng2 * 180 / Math.PI };
-        }
-
         function parseLocation(urlStr) {
             try {
                 let lat = null, lng = null, zoom = null;
 
-                // 1) Google Earth 形式: /@target_lat,target_lng,...,<distance>d,35y,<bearing>h,<pitch>t,...
-                // Google Earth の lat/lng はターゲット（画面中央）。CANVAS との互換でカメラ位置を返す
+                // 1) Google Earth 形式: /@lat,lng,...,<distance>d,35y,<bearing>h,<pitch>t,...
+                // Google Earth の lat/lng は LookAt ターゲット（画面中央）
                 const matchEarth = urlStr.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?).*?,(\d+(?:\.\d+)?)d/);
                 if (matchEarth) {
-                    const targetLat = parseFloat(matchEarth[1]);
-                    const targetLng = parseFloat(matchEarth[2]);
+                    lat = Number(matchEarth[1]).toFixed(6);
+                    lng = Number(matchEarth[2]).toFixed(6);
                     const distance = parseFloat(matchEarth[3]);
                     zoom = Number(25.5 - Math.log2(distance || 5000)).toFixed(4);
                     const pitchMatch = urlStr.match(/,(-?\d+(?:\.\d+)?)t/);
                     const bearingMatch = urlStr.match(/,(-?\d+(?:\.\d+)?)h/);
-                    const pitch = pitchMatch ? parseFloat(pitchMatch[1]) : 0;
-                    const bearing = bearingMatch ? parseFloat(bearingMatch[1]) : 0;
-                    const ground = distance * Math.sin(pitch * Math.PI / 180);
-                    const cam = destinationPoint(targetLat, targetLng, ground, bearing + 180);
-                    const result = { lat: cam.lat.toFixed(6), lng: cam.lng.toFixed(6), zoom, originalUrl: urlStr };
+                    const result = { lat, lng, zoom, originalUrl: urlStr };
                     if (pitchMatch) result.pitch = Number(pitchMatch[1]).toFixed(2);
                     if (bearingMatch) result.bearing = Number(bearingMatch[1]).toFixed(2);
                     return result;
@@ -496,19 +480,12 @@
                                 targetUrl = `https://map.yahoo.co.jp/?lat=${lat}&lon=${lng}&zoom=${zoom}`;
                             } else if (currentUrlStr.includes('earth.google.com')) {
                                 // Google Earth 用に標準のZoom値からカメラ距離(d)へ簡易逆変換
-                                const distance = Number(Math.pow(2, 25.5 - Number(zoom)).toFixed(2));
+                                const distance = Math.pow(2, 25.5 - Number(zoom)).toFixed(2);
                                 let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
                                 let rawBearing = document.getElementById('input-bearing').value.trim() || '0.00';
-                                const pitch = isNaN(Number(rawPitch)) ? 0 : Number(rawPitch);
-                                const bearing = isNaN(Number(rawBearing)) ? 0 : Number(rawBearing);
-                                const pitchStr = pitch.toFixed(2);
-                                const bearingStr = bearing.toFixed(2);
-                                // CANVAS の lat/lng（カメラ位置）から Google Earth のターゲットを計算
-                                const ground = distance * Math.sin(pitch * Math.PI / 180);
-                                const target = destinationPoint(Number(lat), Number(lng), ground, bearing);
-                                const targetLat = target.lat.toFixed(6);
-                                const targetLng = target.lng.toFixed(6);
-                                targetUrl = `https://earth.google.com/web/@${targetLat},${targetLng},0a,${distance}d,35y,${bearingStr}h,${pitchStr}t,0r`;
+                                const pitch = isNaN(Number(rawPitch)) ? '0.00' : Number(rawPitch).toFixed(2);
+                                const bearing = isNaN(Number(rawBearing)) ? '0.00' : Number(rawBearing).toFixed(2);
+                                targetUrl = `https://earth.google.com/web/@${lat},${lng},0a,${distance}d,35y,${bearing}h,${pitch}t,0r`;
                             } else if (currentUrlStr.includes('127.0.0.1:8510')) {
                                 // CANVAS 用のクエリURLを組み立てる
                                 let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
