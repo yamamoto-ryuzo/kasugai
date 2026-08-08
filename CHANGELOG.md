@@ -12,7 +12,7 @@
 ### 追加 (Added)
 - **CANVAS 連携**: 画面2の地図タブを `http://127.0.0.1:8510/` で動作する CANVAS に変更しました。
 - **Google Maps 2D 移動対応**: CANVAS のカメラ位置・pitch・bearing から Google Maps 2D の表示中心 `@lat,lng` とズームレベルを、低ズームにも対応した Google Maps 用カメラ高度 `H = 2^(25.54 - 1.075 * zoom)` で算出。表示中心までの距離を `s = H / tan(pitch)`、ズームを `z = max(7.75, zoom + 1.0 + 0.6 * (pitch/90))` として求めるようにしました。
-- **Yahoo 地図 2D 移動対応**: Google Maps 2D と同じロジックで表示中心 `?lat=&lon=&zoom=` を算出するようにしました。
+- **Yahoo 地図 2D 移動対応**: 提供された 4 ペアに基づき、Yahoo 用カメラ高度 `log2(H_y) = -0.0687*zoom^2 + 0.4568*zoom + 18.0562`、中心距離 `s = H_y / tan(pitch)`、ズーム `z_yahoo = max(8, round(zoom + 0.2))` で `?lat=&lon=&zoom=` を算出するようにしました。
 - **CANVAS 位置情報の取得・移動**: `?latitude=...&longitude=...&zoom=...&pitch=...&bearing=...` 形式の URL を、画面1の「取得」「移動」で解析・生成できるようにしました。
 - **画面1 Pitch/Bearing 入力**: 画面1に `Pitch`・`Bearing` 入力欄を追加し、CANVAS の位置情報取得・移動で反映。2D 地図からの取得は真上（Pitch=0.00、Bearing=0.00）を前提とします。
 - **Google Earth 3D 取得・移動対応**: Google Earth URL 内の `t`（tilt / 上方向からの角度）・`h`（bearing / heading）・`d` 値を取得し、画面1の入力欄に反映。Google Earth の `@lat,lng` は LookAt ターゲットであるため、取得時に `t`/`h`/`d` からカメラ位置を逆算して CANVAS 形式に返すようにしました。CANVAS の `?pitch=` は水平線からの下向き角なので、Google Earth では `t = 90 - pitch`、カメラ高度を `H = 2^(25.2 - zoom)` に換算し、ターゲットまでの斜距離 `d = H / cos(t)`、地面投影距離 `d * sin(t)` を使って LookAt ターゲットを haversine 計算で求めるようにしました。

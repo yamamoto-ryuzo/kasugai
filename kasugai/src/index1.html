@@ -509,25 +509,25 @@
                         if (currentUrlStr) {
                             // URLオブジェクトパース前の生文字列（currentUrlStr）によるより確実なサービス判定
                             if (currentUrlStr.includes('yahoo.co.jp')) {
-                                // Yahoo 地図 2D 用：Google Maps 2D と同じロジックで表示中心を算出
+                                // Yahoo 地図 2D 用：提供された 4 ペアに基づく H_y と z_yahoo
                                 let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
                                 let rawBearing = document.getElementById('input-bearing').value.trim() || '0.00';
                                 const pitch = isNaN(Number(rawPitch)) ? 0 : Number(rawPitch);
                                 const bearing = isNaN(Number(rawBearing)) ? 0 : Number(rawBearing);
                                 let targetLat = Number(lat);
                                 let targetLng = Number(lng);
-                                const H_gm = Math.pow(2, 25.54 - 1.075 * Number(zoom));
+                                const log2H_y = -0.0687 * Math.pow(Number(zoom), 2) + 0.4568 * Number(zoom) + 18.0562;
+                                const H_y = Math.pow(2, log2H_y);
                                 let ground = 0;
                                 if (pitch > 1 && pitch < 89) {
-                                    ground = H_gm / Math.tan(pitch * Math.PI / 180);
+                                    ground = H_y / Math.tan(pitch * Math.PI / 180);
                                 }
                                 if (ground > 0) {
                                     const target = destinationPoint(Number(lat), Number(lng), ground, bearing);
                                     targetLat = target.lat;
                                     targetLng = target.lng;
                                 }
-                                const zOffset = 1.0 + 0.6 * (pitch / 90);
-                                const zY = Math.max(7.75, Number(zoom) + zOffset).toFixed(2);
+                                const zY = Math.max(8, Math.round(Number(zoom) + 0.2));
                                 targetUrl = `https://map.yahoo.co.jp/?lat=${Number(targetLat).toFixed(8)}&lon=${Number(targetLng).toFixed(8)}&zoom=${zY}`;
                             } else if (currentUrlStr.includes('earth.google.com')) {
                                 // Google Earth 用：CANVAS の lat/lng はカメラ。CANVAS pitch は水平線からの下向き角。
