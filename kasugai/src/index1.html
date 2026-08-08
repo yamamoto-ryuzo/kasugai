@@ -545,9 +545,9 @@
                                     targetLat = target.lat;
                                     targetLng = target.lng;
                                 }
-                                // ズームレベル：上から見るほど（pitch 大）2D 地図を拡大
-                                const zOffset = 0.65 + 1.7 * Math.pow(pitch / 90, 2);
-                                const zGm = (Number(zoom) + zOffset).toFixed(2);
+                                // ズームレベル：中心よりサイズ（雰囲気）を優先。低ズームは 7.5 以上を維持
+                                const zOffset = 0.25 + 0.7 * (pitch / 90);
+                                const zGm = Math.max(7.5, Number(zoom) + zOffset).toFixed(2);
                                 targetUrl = `https://www.google.com/maps/@${Number(targetLat).toFixed(8)},${Number(targetLng).toFixed(8)},${zGm}z?entry=ttu`;
                             } else if (currentUrlStr.includes('127.0.0.1:8510')) {
                                 // CANVAS 用のクエリURLを組み立てる
