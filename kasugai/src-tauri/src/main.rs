@@ -384,6 +384,210 @@ fn is_qgis_launcher_running() -> Result<bool, String> {
     Ok(running)
 }
 
+// KASUGAI_CANVAS サイドカーのデフォルトインストール先
+fn kasugai_canvas_default_dir() -> Result<PathBuf, String> {
+    Ok(PathBuf::from(r"C:\kasugai\kasugai_canvas"))
+}
+
+// 指定またはデフォルトの KASUGAI_CANVAS インストール先を解決する
+fn resolve_kasugai_canvas_dir(path: Option<String>) -> Result<PathBuf, String> {
+    if let Some(p) = path {
+        let trimmed = p.trim().to_string();
+        if !trimmed.is_empty() {
+            return Ok(PathBuf::from(trimmed));
+        }
+    }
+    kasugai_canvas_default_dir()
+}
+
+#[tauri::command]
+fn get_kasugai_canvas_default_dir() -> Result<String, String> {
+    Ok(kasugai_canvas_default_dir()?.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn get_kasugai_canvas_status(path: Option<String>) -> Result<String, String> {
+    let dir = resolve_kasugai_canvas_dir(path)?;
+    let exe = dir.join("kasugai_canvas.exe");
+    if exe.exists() {
+        Ok(exe.to_string_lossy().into_owned())
+    } else {
+        Ok(String::new())
+    }
+}
+
+fn find_kasugai_canvas_setup(dir: &std::path::Path) -> Option<PathBuf> {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(found) = find_kasugai_canvas_setup(&path) {
+                    return Some(found);
+                }
+            } else if let Some(name) = path.file_name() {
+                let name = name.to_string_lossy().to_lowercase();
+                if name == "kasugai_canvas_setup.exe" {
+                    return Some(path);
+                }
+            }
+        }
+    }
+    None
+}
+
+#[tauri::command]
+async fn install_kasugai_canvas(path: Option<String>) -> Result<String, String> {
+    const KASUGAI_CANVAS_URL: &str =
+        "https://github.com/yamamoto-ryuzo/kasugai_canvas/raw/main/download/kasugai_canvas_setup.zip";
+
+    let install_dir = resolve_kasugai_canvas_dir(path)?;
+    if install_dir.join("kasugai_canvas.exe").exists() {
+        return Ok(format!(
+            "既にインストールされています: {}",
+            install_dir.display()
+        ));
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(600))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let response = client
+        .get(KASUGAI_CANVAS_URL)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !response.status().is_success() {
+        return Err(format!("ダウンロードに失敗しました: {}", response.status()));
+    }
+
+    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+    let zip_path = std::env::temp_dir().join("kasugai_canvas_setup.zip");
+    let extract_dir = std::env::temp_dir().join("kasugai_canvas_setup");
+
+    tauri::async_runtime::spawn_blocking(move || {
+        std::fs::create_dir_all(&install_dir).map_err(|e| e.to_string())?;
+        std::fs::create_dir_all(&extract_dir).map_err(|e| e.to_string())?;
+        std::fs::write(&zip_path, &bytes).map_err(|e| e.to_string())?;
+
+        // PowerShell で zip を展開
+        let ps = format!(
+            "Expand-Archive -Path '{}' -DestinationPath '{}' -Force",
+            zip_path.display(),
+            extract_dir.display()
+        );
+        let output = std::process::Command::new("powershell")
+            .args(["-Command", &ps])
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!("zip 展開に失敗しました: {}", stderr));
+        }
+
+        // 展開先から setup.exe を探す
+        let setup_path = find_kasugai_canvas_setup(&extract_dir)
+            .ok_or_else(|| "kasugai_canvas_setup.exe が zip 内に見つかりません".to_string())?;
+
+        let mut cmd = std::process::Command::new(&setup_path);
+        cmd.arg("/S");
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.raw_arg(format!("/D={}", install_dir.display()));
+        }
+        #[cfg(not(windows))]
+        {
+            cmd.arg(format!("/D={}", install_dir.display()));
+        }
+        let output = cmd.output().map_err(|e| e.to_string())?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!(
+                "インストーラーが失敗しました (code: {:?}): {}",
+                output.status.code(),
+                stderr
+            ));
+        }
+
+        if !install_dir.join("kasugai_canvas.exe").exists() {
+            return Err("インストール後に kasugai_canvas.exe が見つかりません".to_string());
+        }
+
+        let _ = std::fs::remove_file(&zip_path);
+        let _ = std::fs::remove_dir_all(&extract_dir);
+
+        Ok(format!("インストール完了: {}", install_dir.display()))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn launch_kasugai_canvas(path: Option<String>) -> Result<(), String> {
+    let dir = resolve_kasugai_canvas_dir(path)?;
+    let exe = dir.join("kasugai_canvas.exe");
+    if !exe.exists() {
+        return Err("kasugai_canvas.exe が見つかりません".to_string());
+    }
+
+    Command::new(&exe)
+        .current_dir(&dir)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn is_kasugai_canvas_running() -> Result<bool, String> {
+    Ok(is_port_open(8510))
+}
+
+async fn auto_install_and_start_kasugai_canvas() {
+    if let Ok(dir) = kasugai_canvas_default_dir() {
+        let exe = dir.join("kasugai_canvas.exe");
+        if !exe.exists() {
+            println!("[Kasugai Rust] kasugai_canvas not found, installing...");
+            if let Err(e) = install_kasugai_canvas(Some(dir.to_string_lossy().into_owned())).await {
+                eprintln!("[Kasugai Rust] failed to install kasugai_canvas: {}", e);
+                return;
+            }
+        }
+
+        if is_port_open(8510) {
+            println!("[Kasugai Rust] kasugai_canvas already running, skipping auto-start");
+            return;
+        }
+
+        match Command::new(&exe)
+            .current_dir(&dir)
+            .spawn()
+        {
+            Ok(mut child) => {
+                for i in 0..40 {
+                    std::thread::sleep(Duration::from_millis(500));
+                    if is_port_open(8510) {
+                        println!("[Kasugai Rust] kasugai_canvas is ready ({} ms)", (i + 1) * 500);
+                        return;
+                    }
+                }
+                let exit_status = child.try_wait();
+                eprintln!(
+                    "[Kasugai Rust] kasugai_canvas did not become ready on port 8510. child status: {:?}",
+                    exit_status
+                );
+            }
+            Err(e) => {
+                eprintln!("[Kasugai Rust] failed to spawn kasugai_canvas: {}", e);
+            }
+        }
+    }
+}
+
 // デフォルトブラウザでURLを開く
 #[tauri::command]
 fn open_in_default_browser(url: String) -> Result<(), String> {
@@ -2078,6 +2282,11 @@ fn main() {
             launch_kasugai_box,
             is_kasugai_box_running,
             is_qgis_launcher_running,
+            get_kasugai_canvas_default_dir,
+            get_kasugai_canvas_status,
+            install_kasugai_canvas,
+            launch_kasugai_canvas,
+            is_kasugai_canvas_running,
             update_splitter,
             update_pane4_ratio,
             toggle_pane3,
@@ -2409,6 +2618,9 @@ fn main() {
 
             // KASUGAI 起動時に KASUGAI_QGIS ランチャーを自動起動（未起動の場合のみ）
             auto_start_qgis_launcher();
+
+            // KASUGAI 起動時に KASUGAI_CANVAS を自動インストール・起動（未起動の場合のみ）
+            tauri::async_runtime::spawn(auto_install_and_start_kasugai_canvas());
 
             Ok(())
         })

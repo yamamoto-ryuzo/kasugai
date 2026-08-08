@@ -4,6 +4,11 @@
 
 このプロジェクトは [Semantic Versioning](https://semver.org/spec/v2.0.0.html) に準拠しています。
 
+## [Unreleased]
+
+### 追加 (Added)
+- **KASUGAI_CANVAS 自動インストール・自動起動**: KASUGAI 起動時に `kasugai_canvas.exe` が未インストールであれば、GitHub から `kasugai_canvas_setup.zip` をダウンロード・展開・サイレントインストールし、ポート 8510 が応答するまで自動起動するようにしました。
+
 ## [2.5.6] - 2026-08-08
 
 ### 概要
