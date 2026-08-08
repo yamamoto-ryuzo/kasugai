@@ -474,7 +474,7 @@
             'google': '🗺️ Google Map',
             'googleearth': '🌍 Google Earth',
             'yahoo': '🗾 Yahoo Map',
-            'cesium': '🌌 CesiumJS',
+            'cesium': '🎨 CANVAS',
             'reearth': '🌐 Re:Earth'
         };
         let hiddenTabs = new Set();
@@ -796,7 +796,12 @@
             applyHiddenTabs();
             broadcastHiddenTabs();
 
-            // デフォルトで CANVAS タブをアクティブにする
+            // デフォルトで CANVAS タブをアクティブにする前に、KASUGAI_CANVAS のインストール・起動を確認
+            try {
+                if (window.__TAURI__ && window.__TAURI__.core) {
+                    await window.__TAURI__.core.invoke('ensure_kasugai_canvas');
+                }
+            } catch (e) { console.warn('KASUGAI_CANVAS 起動確認失敗:', e); }
             switchTab('cesium');
             // 内部の設定タブをデフォルトで プラットフォーム にする
             if (typeof switchSettingsTab === 'function') switchSettingsTab('platform');

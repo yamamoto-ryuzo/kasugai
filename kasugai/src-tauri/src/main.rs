@@ -426,7 +426,7 @@ fn find_kasugai_canvas_setup(dir: &std::path::Path) -> Option<PathBuf> {
                 }
             } else if let Some(name) = path.file_name() {
                 let name = name.to_string_lossy().to_lowercase();
-                if name == "kasugai_canvas_setup.exe" {
+                if name.ends_with(".exe") && name.contains("canvas") && name.contains("setup") {
                     return Some(path);
                 }
             }
@@ -438,7 +438,7 @@ fn find_kasugai_canvas_setup(dir: &std::path::Path) -> Option<PathBuf> {
 #[tauri::command]
 async fn install_kasugai_canvas(path: Option<String>) -> Result<String, String> {
     const KASUGAI_CANVAS_URL: &str =
-        "https://github.com/yamamoto-ryuzo/kasugai_canvas/raw/main/download/kasugai_canvas_setup.zip";
+        "https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai_canvas/main/download/kasugai_canvas_setup.zip";
 
     let install_dir = resolve_kasugai_canvas_dir(path)?;
     if install_dir.join("kasugai_canvas.exe").exists() {
@@ -544,6 +544,12 @@ fn launch_kasugai_canvas(path: Option<String>) -> Result<(), String> {
 
 #[tauri::command]
 fn is_kasugai_canvas_running() -> Result<bool, String> {
+    Ok(is_port_open(8510))
+}
+
+#[tauri::command]
+async fn ensure_kasugai_canvas() -> Result<bool, String> {
+    auto_install_and_start_kasugai_canvas().await;
     Ok(is_port_open(8510))
 }
 
@@ -2287,6 +2293,7 @@ fn main() {
             install_kasugai_canvas,
             launch_kasugai_canvas,
             is_kasugai_canvas_running,
+            ensure_kasugai_canvas,
             update_splitter,
             update_pane4_ratio,
             toggle_pane3,
