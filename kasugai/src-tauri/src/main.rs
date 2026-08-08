@@ -556,18 +556,54 @@ fn is_kasugai_canvas_running() -> Result<bool, String> {
 }
 
 #[tauri::command]
-async fn ensure_kasugai_canvas() -> Result<bool, String> {
-    auto_install_and_start_kasugai_canvas().await;
+async fn ensure_kasugai_canvas(app_handle: tauri::AppHandle) -> Result<bool, String> {
+    auto_install_and_start_kasugai_canvas(app_handle).await;
     Ok(is_port_open(8510))
 }
 
-async fn auto_install_and_start_kasugai_canvas() {
+fn announce_canvas_install(app_handle: &tauri::AppHandle) {
+    let app_handle_for_thread = app_handle.clone();
+    let app_handle_for_window = app_handle.clone();
+    let _ = app_handle_for_thread.run_on_main_thread(move || {
+        if let Some(window) = app_handle_for_window.get_window("main") {
+            if let Some(wv) = window.get_webview("pane2_cesium") {
+                let script = r###"(function() {
+  var html = '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><style>' +
+    'body{margin:0;padding:40px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#f0f9ff;color:#1e3a5f;}' +
+    '.box{max-width:640px;margin:0 auto;background:#fff;border-radius:8px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.15);}' +
+    'h1{font-size:22px;color:#0c4a6e;border-bottom:2px solid #38bdf8;padding-bottom:12px;margin-top:0;}' +
+    '.path{background:#e0f2fe;padding:12px;border-radius:6px;font-family:monospace;font-size:15px;word-break:break-all;margin:16px 0;}' +
+    '</style></head><body>' +
+    '<div class="box">' +
+    '<h1>KASUGAI_CANVAS の自動インストールができませんでした</h1>' +
+    '<p>イントラネットなど、外部への通信が制限されている環境では、KASUGAI_CANVAS の自動インストールが行えない場合があります。</p>' +
+    '<p>次のフォルダへ KASUGAI_CANVAS を手動でインストールしてください。</p>' +
+    '<div class="path">C:/kasugai/kasugai_canvas</div>' +
+    '<p>インストール後、このアプリケーションを再起動してください。</p>' +
+    '</div>' +
+    '</body></html>';
+  if (document.documentElement) {
+    document.documentElement.innerHTML = html;
+  } else {
+    document.write(html);
+    document.close();
+  }
+})();"###;
+                let _ = wv.eval(script);
+            }
+        }
+    });
+}
+
+async fn auto_install_and_start_kasugai_canvas(app_handle: tauri::AppHandle) {
     if let Ok(dir) = kasugai_canvas_default_dir() {
         let exe = dir.join("kasugai_canvas.exe");
         if !exe.exists() {
             println!("[Kasugai Rust] kasugai_canvas not found, installing...");
             if let Err(e) = install_kasugai_canvas(Some(dir.to_string_lossy().into_owned())).await {
                 eprintln!("[Kasugai Rust] failed to install kasugai_canvas: {}", e);
+                println!("[Kasugai Rust] イントラネット等では自動インストールができないため、CANVAS の手動インストールを案内します。");
+                announce_canvas_install(&app_handle);
                 return;
             }
         }
@@ -2635,7 +2671,7 @@ fn main() {
             auto_start_qgis_launcher();
 
             // KASUGAI 起動時に KASUGAI_CANVAS を自動インストール・起動（未起動の場合のみ）
-            tauri::async_runtime::spawn(auto_install_and_start_kasugai_canvas());
+            tauri::async_runtime::spawn(auto_install_and_start_kasugai_canvas(app.handle().clone()));
 
             Ok(())
         })
