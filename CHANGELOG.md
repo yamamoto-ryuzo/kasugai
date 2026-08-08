@@ -19,6 +19,9 @@
 - **タブラベル**: `CesiumJS` から `CANVAS` に表示名を変更しました。
 - **タブ配置・初期表示**: CANVAS タブをタブバー左端に配置し、起動時の初期表示タブとしました。
 
+### 修正 (Fixed)
+- **CANVAS 取得の URL 更新**: CANVAS 側が URL クエリを更新しないため、`get_pane2_url` 実行時に Cesium カメラ (`window.viewer.camera`) から現在の緯度・経度・高度・pitch・heading を算出し、URL を `history.replaceState` で更新してから取得するようにしました。これにより、CANVAS 内で手動移動した後も KASUGAI の「取得」で現在の値が取得できるようになりました。
+
 ### 削除 (Removed)
 - **不要な cesium.html の削除**: CesiumJS タブを CANVAS に変更したため、使用しなくなった `kasugai/src/cesium.html` を削除しました。
 

@@ -1636,17 +1636,63 @@ async fn get_pane2_url(
 
     let (tx, rx) = std::sync::mpsc::channel();
     let app_clone = app_handle.clone();
+    let app_handle2 = app_handle.clone();
 
     let _ = app_handle.run_on_main_thread(move || {
-        let mut result = Err("Could not get URL".to_string());
-        if let Some(window) = app_clone.get_window("main") {
-            if let Some(wv) = window.get_webview(&target_str) {
-                if let Ok(url) = wv.url() {
-                    result = Ok(url.to_string());
+        if target_str == "pane2_cesium" {
+            // Cesium(CANVAS) は URL クエリを更新しないため、カメラから直接算出して replaceState する
+            let script = r#"
+                (function(){
+                    try {
+                        const v = window.viewer || window.cesiumViewer;
+                        if (!v) return;
+                        const c = v.camera;
+                        const p = c.positionCartographic;
+                        const lat = p.latitude * 180 / Math.PI;
+                        const lng = p.longitude * 180 / Math.PI;
+                        const H = p.height;
+                        const C = 591657550.5;
+                        const zoom = Math.max(0, Math.log2(C / Math.max(1, H)) - 3);
+                        const pitch = -c.pitch * 180 / Math.PI;
+                        const bearing = ((c.heading * 180 / Math.PI) % 360 + 360) % 360;
+                        const q = `?latitude=${lat.toFixed(6)}&longitude=${lng.toFixed(6)}&zoom=${zoom.toFixed(4)}&pitch=${pitch.toFixed(2)}&bearing=${bearing.toFixed(2)}`;
+                        history.replaceState(null, '', q);
+                    } catch(e) { console.error(e); }
+                })();
+            "#;
+            if let Some(window) = app_clone.get_window("main") {
+                if let Some(wv) = window.get_webview(&target_str) {
+                    let _ = wv.eval(script);
                 }
             }
+            let target = target_str.clone();
+            let tx2 = tx.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                let app_handle3 = app_handle2.clone();
+                let _ = app_handle2.run_on_main_thread(move || {
+                    let mut res = Err("Could not get URL".to_string());
+                    if let Some(window) = app_handle3.get_window("main") {
+                        if let Some(wv) = window.get_webview(&target) {
+                            if let Ok(url) = wv.url() {
+                                res = Ok(url.to_string());
+                            }
+                        }
+                    }
+                    let _ = tx2.send(res);
+                });
+            });
+        } else {
+            let mut result = Err("Could not get URL".to_string());
+            if let Some(window) = app_clone.get_window("main") {
+                if let Some(wv) = window.get_webview(&target_str) {
+                    if let Ok(url) = wv.url() {
+                        result = Ok(url.to_string());
+                    }
+                }
+            }
+            let _ = tx.send(result);
         }
-        let _ = tx.send(result);
     });
 
     rx.recv()
