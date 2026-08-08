@@ -1651,8 +1651,9 @@ async fn get_pane2_url(
                         const lat = p.latitude * 180 / Math.PI;
                         const lng = p.longitude * 180 / Math.PI;
                         const H = p.height;
-                        const C = 591657550.5;
-                        const zoom = Math.max(0, Math.log2(C / Math.max(1, H)) - 3);
+                        const A = 35.07;
+                        const B = 1.645;
+                        const zoom = Math.max(0, (A - Math.log2(Math.max(1, H))) / B);
                         const pitch = -c.pitch * 180 / Math.PI;
                         const bearing = ((c.heading * 180 / Math.PI) % 360 + 360) % 360;
                         const q = `?latitude=${lat.toFixed(6)}&longitude=${lng.toFixed(6)}&zoom=${zoom.toFixed(4)}&pitch=${pitch.toFixed(2)}&bearing=${bearing.toFixed(2)}`;
