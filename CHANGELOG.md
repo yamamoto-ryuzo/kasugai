@@ -13,7 +13,7 @@
 - **CANVAS 連携**: 画面2の地図タブを `http://127.0.0.1:8510/` で動作する CANVAS に変更しました。
 - **CANVAS 位置情報の取得・移動**: `?latitude=...&longitude=...&zoom=...&pitch=...&bearing=...` 形式の URL を、画面1の「取得」「移動」で解析・生成できるようにしました。
 - **画面1 Pitch/Bearing 入力**: 画面1に `Pitch`・`Bearing` 入力欄を追加し、CANVAS の位置情報取得・移動で反映。2D 地図からの取得は真上（Pitch=0.00、Bearing=0.00）を前提とします。
-- **Google Earth 3D 取得・移動対応**: Google Earth URL 内の `t`（pitch / tilt）・`h`（bearing / heading）値を取得し、画面1の入力欄に反映。移動時も `t` と `h` へ入力値を反映し、FOV (`y`) は `35` を固定。カメラ距離 `d` の換算を調整。Google Earth の `@lat,lng` は LookAt ターゲットであり、CANVAS の `?latitude=&longitude=` も同様に画面中央のターゲットを表している前提で共通化しました。
+- **Google Earth 3D 取得・移動対応**: Google Earth URL 内の `t`（pitch / tilt）・`h`（bearing / heading）値を取得し、画面1の入力欄に反映。移動時も `t` と `h` へ入力値を反映し、FOV (`y`) は `35` を固定。Google Earth のカメラ距離 `d` は、CANVAS の `zoom` から Mapbox 系標準の `H = 591657550.5 / 2^(zoom+3)` に換算した高度を、`d = H / cos(t)` で傾き `t` から斜距離に変換して求めるようにしました。Google Earth の `@lat,lng` は LookAt ターゲットであり、CANVAS の `?latitude=&longitude=` も同様に画面中央のターゲットを表している前提で共通化しました。
 
 ### 変更 (Changed)
 - **タブラベル**: `CesiumJS` から `CANVAS` に表示名を変更しました。
