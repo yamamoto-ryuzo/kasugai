@@ -453,8 +453,14 @@ async fn install_kasugai_canvas(path: Option<String>) -> Result<String, String> 
         .build()
         .map_err(|e| e.to_string())?;
 
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let download_url = format!("{}?t={}", KASUGAI_CANVAS_URL, timestamp);
+
     let response = client
-        .get(KASUGAI_CANVAS_URL)
+        .get(&download_url)
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -469,6 +475,8 @@ async fn install_kasugai_canvas(path: Option<String>) -> Result<String, String> 
 
     tauri::async_runtime::spawn_blocking(move || {
         std::fs::create_dir_all(&install_dir).map_err(|e| e.to_string())?;
+        let _ = std::fs::remove_file(&zip_path);
+        let _ = std::fs::remove_dir_all(&extract_dir);
         std::fs::create_dir_all(&extract_dir).map_err(|e| e.to_string())?;
         std::fs::write(&zip_path, &bytes).map_err(|e| e.to_string())?;
 
