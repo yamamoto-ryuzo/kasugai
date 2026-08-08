@@ -159,17 +159,17 @@
                     const bearingMatch = urlStr.match(/,(-?\d+(?:\.\d+)?)h/);
                     const t = pitchMatch ? parseFloat(pitchMatch[1]) : 0;
                     const h = bearingMatch ? parseFloat(bearingMatch[1]) : 0;
-                    const A = 35.07;
-                    const B = 1.645;
                     // カメラはターゲットから見て h+180 方向に、地面投影距離 d*sin(t) 離れている
                     const ground = distance * Math.sin(t * Math.PI / 180);
                     const cam = destinationPoint(targetLat, targetLng, ground, h + 180);
                     lat = Number(cam.lat).toFixed(6);
                     lng = Number(cam.lng).toFixed(6);
                     const H = distance * Math.cos(t * Math.PI / 180) + a;
-                    zoom = Number((A - Math.log2(H)) / B).toFixed(4);
+                    // CANVAS pitch は水平線からの下向き角。Google Earth t は上方向からの角度。
+                    const canvasPitch = 90 - t;
+                    zoom = Number(25.2 - Math.log2(H)).toFixed(4);
                     const result = { lat, lng, zoom, originalUrl: urlStr };
-                    if (pitchMatch) result.pitch = Number(t).toFixed(2);
+                    if (pitchMatch) result.pitch = Number(canvasPitch).toFixed(2);
                     if (bearingMatch) result.bearing = Number(normalizeBearing(h)).toFixed(2);
                     return result;
                 }
@@ -511,16 +511,14 @@
                             if (currentUrlStr.includes('yahoo.co.jp')) {
                                 targetUrl = `https://map.yahoo.co.jp/?lat=${lat}&lon=${lng}&zoom=${zoom}`;
                             } else if (currentUrlStr.includes('earth.google.com')) {
-                                // Google Earth 用：CANVAS の lat/lng はカメラ。カメラ高さ H=C/2^(zoom+3) から
-                                // ターゲットまでの斜距離 d=H/cos(t)、地面投影距離 d*sin(t) を使ってターゲットをずらす。
+                                // Google Earth 用：CANVAS の lat/lng はカメラ。CANVAS pitch は水平線からの下向き角。
+                                // Google Earth t = 90 - pitch、H = 2^(25.2 - zoom) としてターゲットを計算。
                                 let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
                                 let rawBearing = document.getElementById('input-bearing').value.trim() || '0.00';
                                 const pitch = isNaN(Number(rawPitch)) ? 0 : Number(rawPitch);
                                 const bearing = isNaN(Number(rawBearing)) ? 0 : Number(rawBearing);
-                                const A = 35.07;
-                                const B = 1.645;
-                                const height = Math.pow(2, A - B * Number(zoom));
-                                const t = pitch;
+                                const t = 90 - pitch;
+                                const height = Math.pow(2, 25.2 - Number(zoom));
                                 const distanceNum = height / Math.cos(t * Math.PI / 180);
                                 const distance = distanceNum.toFixed(2);
                                 const ground = distanceNum * Math.sin(t * Math.PI / 180);
