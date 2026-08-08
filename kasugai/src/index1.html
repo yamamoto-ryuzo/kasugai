@@ -126,14 +126,14 @@
             try {
                 let lat = null, lng = null, zoom = null;
 
-                // 1) Google Earth 形式: /@lat,lng,...,<distance>d,<pitch>y,<bearing>h,...
+                // 1) Google Earth 形式: /@lat,lng,...,<distance>d,35y,<bearing>h,<pitch>t,...
                 const matchEarth = urlStr.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?).*?,(\d+(?:\.\d+)?)d/);
                 if (matchEarth) {
                     lat = Number(matchEarth[1]).toFixed(6);
                     lng = Number(matchEarth[2]).toFixed(6);
                     const distance = parseFloat(matchEarth[3]);
                     zoom = Number(27 - Math.log2(distance || 5000)).toFixed(4);
-                    const pitchMatch = urlStr.match(/,(-?\d+(?:\.\d+)?)y/);
+                    const pitchMatch = urlStr.match(/,(-?\d+(?:\.\d+)?)t/);
                     const bearingMatch = urlStr.match(/,(-?\d+(?:\.\d+)?)h/);
                     const result = { lat, lng, zoom, originalUrl: urlStr };
                     if (pitchMatch) result.pitch = Number(pitchMatch[1]).toFixed(2);
@@ -484,7 +484,7 @@
                                 let rawBearing = document.getElementById('input-bearing').value.trim() || '0.00';
                                 const pitch = isNaN(Number(rawPitch)) ? '0.00' : Number(rawPitch).toFixed(2);
                                 const bearing = isNaN(Number(rawBearing)) ? '0.00' : Number(rawBearing).toFixed(2);
-                                targetUrl = `https://earth.google.com/web/@${lat},${lng},0a,${distance}d,${pitch}y,${bearing}h,0t,0r`;
+                                targetUrl = `https://earth.google.com/web/@${lat},${lng},0a,${distance}d,35y,${bearing}h,${pitch}t,0r`;
                             } else if (currentUrlStr.includes('127.0.0.1:8510')) {
                                 // CANVAS 用のクエリURLを組み立てる
                                 let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
