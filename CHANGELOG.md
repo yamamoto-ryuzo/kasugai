@@ -4,7 +4,7 @@
 
 このプロジェクトは [Semantic Versioning](https://semver.org/spec/v2.0.0.html) に準拠しています。
 
-## [Unreleased]
+## [2.5.6] - 2026-08-08
 
 ### 概要
 画面2の CesiumJS タブを CANVAS (`http://127.0.0.1:8510/`) に変更し、起動時の初期表示・最左配置としました。CANVAS の位置情報形式に対応した取得・移動も可能になっています。
