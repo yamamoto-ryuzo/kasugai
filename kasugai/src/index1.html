@@ -519,7 +519,7 @@
             }
         }
 
-        async function moveMap(event, simulatedCurrentUrl = null) {
+        async function moveMap(event, simulatedCurrentUrl = null, doNotOpen = false) {
             if (event) event.preventDefault();
             const statusDiv = document.getElementById('location-status');
             
@@ -698,6 +698,9 @@
                         // パース失敗時はデフォルトのGoogle Mapsを使用
                     }
 
+                    if (doNotOpen) {
+                        return targetUrl;
+                    }
                     await window.__TAURI__.core.invoke('open_in_pane2', { url: targetUrl });
                     statusDiv.style.display = 'none';
                 } catch (e) {
@@ -788,7 +791,16 @@
 
             // 4. 切り替え先タブに移動を適用
             try {
-                await moveMap(null, dummyUrl);
+                const targetUrl = await moveMap(null, dummyUrl, true);
+                if (!targetUrl) {
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.color = '#dc2626';
+                    statusDiv.textContent = '自動同期: URLを生成できませんでした。';
+                    return;
+                }
+                // 切り替え先 WebView を表示してから URL を開く
+                await window.__TAURI__.core.invoke('switch_pane2_tab', { tab: to });
+                await window.__TAURI__.core.invoke('open_in_pane2', { url: targetUrl });
                 statusDiv.style.display = 'block';
                 statusDiv.style.color = '#15803d';
                 statusDiv.textContent = '自動同期: ' + to + ' へ移動しました。';

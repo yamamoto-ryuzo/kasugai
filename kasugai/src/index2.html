@@ -638,9 +638,9 @@
             if (isAutoSyncEnabled && window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.event) {
                 try {
                     let fromUrl = await window.__TAURI__.core.invoke('get_pane2_url');
-                    // Google Earthの場合、URLに座標(@...)が含まれるまで最大3秒待機
+                    // Google Earthの場合、URLに座標(@...)が含まれるまで最大15秒待機
                     if (fromUrl && fromUrl.includes('earth.google.com') && !fromUrl.includes('@')) {
-                        for (let i = 0; i < 10; i++) {
+                        for (let i = 0; i < 50; i++) {
                             await new Promise(r => setTimeout(r, 300));
                             fromUrl = await window.__TAURI__.core.invoke('get_pane2_url');
                             if (fromUrl.includes('@')) break;
@@ -687,7 +687,10 @@
 
             // Rustバックエンドにタブ切り替え・ロードを指示
             if (window.__TAURI__ && window.__TAURI__.core) {
-                if (isLocal) {
+                const autoSyncTargets = ['google', 'googleearth', 'yahoo', 'cesium'];
+                if (isAutoSyncEnabled && autoSyncTargets.includes(tabName)) {
+                    // 自動同期対象タブは index1 側の open_in_pane2 で URL を開く
+                } else if (isLocal) {
                     window.__TAURI__.core.invoke('switch_pane2_tab', { tab: 'default' });
                 } else if (tabName === 'box') {
                     const email = document.getElementById("box-email-input")?.value || "";

@@ -14,8 +14,9 @@
 ### 追加 (Added)
 - **自動同期トグル UI**: 画面1の緯度/経度/縮尺/傾斜/方位入力欄をクリックすると「自動同期」ボタンを表示。自動同期モードでは「取得」「移動」ボタンを非表示にして UI を縮小化。
 - **タブ切り替え時の自動同期**: 自動同期モード中に画面2の GIS タブを切り替えると、切り替え前のタブ URL から座標を取得し、切り替え後のタブに移動を適用。自動同期対象は **CANVAS / Google Maps / Google Earth / Yahoo Map** のみ。
-- **Google Earth URL 待機取得**: Google Earth の URL に座標（`@...`）が含まれるまで最大 3 秒待機してから自動同期を実行。
+- **Google Earth URL 待機取得**: Google Earth の URL に座標（`@...`）が含まれるまで最大 15 秒待機してから自動同期を実行。
 - **対象外タブの通常切り替え**: CANVAS / Google Maps / Google Earth / Yahoo Map 以外のタブでは緯度経度を反映せず、`index2` 側の通常タブ切り替え処理（移動先タブの持つ URL・データ）で移動する。
+- **WebView 切り替え後の URL オープン**: 自動同期時に `switch_pane2_tab` で切り替え先 WebView を表示してから `open_in_pane2` で URL を開くよう順序を制御。これにより Google Earth への自動同期も安定して動作。
 
 ### 変更 (Changed)
 - **Yahoo Map / Google Map の pitch/bearing 固定**: Yahoo Map / Google Map からの位置取得時、平面表示を前提として常に `pitch=90.00`、`bearing=0.00` とするよう各パース経路を統一。
