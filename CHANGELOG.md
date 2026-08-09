@@ -6,8 +6,20 @@
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-08-09
+
+### 概要
+CANVAS（CesiumJS）を基準に、Google Maps / Yahoo 地図 / Google Earth 間の位置同期・移動ロジックを統一・整理しました。標高を考慮した中心位置計算、Google Maps `m` 値との双方向換算、および仕様書の更新を行いました。
+
 ### 追加 (Added)
-- **KASUGAI_CANVAS 自動インストール・自動起動**: KASUGAI 起動時に `kasugai_canvas.exe` が未インストールであれば、GitHub から `kasugai_canvas_setup.zip` をダウンロード・展開・サイレントインストールし、ポート 8510 が応答するまで自動起動するようにしました。
+- **CANVAS 基準の位置同期統一**: 全地図サービスの取得・移動を CANVAS のカメラ（オービット）位置を基準に正規化。
+- **Google Maps `m` 値 ↔ CANVAS `zoom` 換算**: 実測データに基づき、`zoom = 23.663 - 0.9561 * log2(m)`、`m = 2 ^ ((23.663 - zoom) / 0.9561)` を導入。
+- **標高考慮の中心位置計算**: CANVAS カメラ高度から `0.83` 倍補正とターゲット点の標高を差し引いた有効高度 `H_effective = max(0, 0.83 * 2^(25.2 - zoom) - terrainAlt)` で `ground = H_effective / tan(pitch)` を算出。
+- **Google Maps 2D 傾斜表示範囲**: `pitch` に応じて `m` 値を `1/sin(pitch)` 倍（最大20倍）で広げる。
+- **Yahoo 地図への CANVAS 基準ロジック適用**: Google Maps 2D と同じく標高・0.83補正を Yahoo 地図 2D 移動にも適用。
+
+### 変更 (Changed)
+- **仕様書更新**: `kasugai.md` の位置同期セクションを CANVAS 基準の最新ロジックに更新。
 
 ## [2.5.6] - 2026-08-08
 

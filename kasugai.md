@@ -69,14 +69,30 @@ graph TD
 ### 同期アルゴリズム概要
 - 1) WebView の現在URLを監視し、既知のパターン（Google Maps/GE/Cesium/Yahoo）と照合して `lat, lng, zoom/height` を抽出。
 - 2) 抽出に失敗した場合は、クリップボード・テキストやページ内に残る数値列からフォールバックで抽出。
-- 3) 取得した `height` は経験式で `zoom` に変換、また `zoom` から `height` を逆算して各サービス向けパラメータを生成。
+- 3) 取得した値はすべて **CANVAS（CesiumJS）のカメラ位置を基準** に正規化し、各サービス向けパラメータを生成する。
+- 4) 移動時は CANVAS カメラ（オービット）位置から `pitch`・`bearing` を使い、標高を考慮して **地表（テレイン）上のターゲット点** を算出し、その点を各 2D 地図の中心とする。
 
-### 高度 ↔ ズームの近似式
-- 採用式（経験則）:
-  $$zoom \approx 27 - \log_2(height)$$
+### CANVAS 基準の高度 ↔ ズーム換算
+- CANVAS（CesiumJS）では、カメラ高度 `H`（m）からズームを以下で算出:
+  $$zoom \approx 25.2 - \log_2(H)$$
   逆変換:
-  $$height \approx 2^{27 - zoom}$$
-  - `height` はメートル単位のカメラ高度を想定。実運用では目視で微調整を推奨します。
+  $$H \approx 2^{25.2 - zoom}$$
+- Google Maps 2D では、`m` 値（表示幅）と CANVAS `zoom` を以下で双方向変換:
+  $$zoom \approx 23.663 - 0.9561 \cdot \log_2(m)$$
+  逆変換:
+  $$m \approx 2^{(23.663 - zoom) / 0.9561}$$
+
+### 中心位置計算ロジック（CANVAS 基準）
+- 入力 `lat/lng` は **CANVAS のカメラ（オービット）位置**。
+- 有効カメラ高度:
+  $$H_{\text{effective}} = \max(0,\ 0.83 \cdot 2^{25.2 - zoom} - \text{terrainAlt})$$
+  - `0.83` は Google Maps 実測データに基づく補正係数。
+  - `terrainAlt` はターゲット点の標高（OpenTopoData API 経由）。
+- 地表までの水平距離:
+  $$ground = H_{\text{effective}} \cdot \cot(pitch)$$
+- 中心点（Google Maps / Yahoo 地図）:
+  $$target = \text{destinationPoint}(lat,\ lng,\ ground,\ bearing)$$
+- Google Maps 2D では傾斜がある場合、表示範囲 `m` を `1/\sin(pitch)` 倍（最大20倍）で広げる。
 
 ### 具体的運用手順（ユーザー向け）
 - **位置取得（Re:Earth）**: Re:Earth プラグインで permalink を「COPY」→ Kasugai の画面1「取得」を押下 → `Lat/Lng/Zoom` が自動入力される。
