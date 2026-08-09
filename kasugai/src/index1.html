@@ -73,11 +73,11 @@
             <div style="display: flex; flex-direction: column; gap: 8px;">
                 <div style="font-size: 13px; font-weight: bold; color: #1e293b; text-align: center; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">🗺️ 連携</div>
                 
-                <button class="portal-btn" onclick="getLocation(event)" style="width: 95%; background-color: #22c55e; color: white; border-color: #16a34a; cursor: pointer;" title="位置情報を取得">
+                <button class="portal-btn" id="btn-get-location" onclick="getLocation(event)" style="width: 95%; background-color: #22c55e; color: white; border-color: #16a34a; cursor: pointer;" title="位置情報を取得">
                     取得
                 </button>
 
-                <div style="display: flex; flex-direction: column; gap: 6px; width: 95%;">
+                <div id="manual-inputs" style="display: flex; flex-direction: column; gap: 6px; width: 95%; cursor: pointer;" onclick="showAutoSync()" title="クリックで自動同期へ移行">
                     <div title="緯度">
                         <input type="text" id="input-lat" placeholder="Lat">
                     </div>
@@ -96,7 +96,11 @@
                     <input type="hidden" id="input-alt" value="0">
                 </div>
 
-                <button class="portal-btn" onclick="moveMap(event)" style="width: 95%; background-color: #3b82f6; color: white; border-color: #2563eb; cursor: pointer;" title="地図を移動">
+                <button class="portal-btn" id="auto-sync-btn" onclick="autoSync(event)" style="width: 95%; background-color: #22c55e; color: white; border-color: #16a34a; cursor: pointer; display: none;" title="現在のGISタブの座標を取得し、表示中のGISタブに反映します">
+                    自動同期
+                </button>
+
+                <button class="portal-btn" id="btn-move-map" onclick="moveMap(event)" style="width: 95%; background-color: #3b82f6; color: white; border-color: #2563eb; cursor: pointer;" title="地図を移動">
                     移動
                 </button>
 
@@ -231,8 +235,8 @@
                                 }
                             }
                             const result = { lat, lng, zoom, originalUrl: urlStr };
-                            // Google Maps 2D は真上からの俯瞰（CANVAS pitch = 90°）として扱う
-                            if (urlStr.includes('google.com/maps')) {
+                            // Google Maps 2D / Yahoo Map は真上からの俯瞰（CANVAS pitch = 90°）として扱う
+                            if (urlStr.includes('google.com/maps') || urlStr.includes('yahoo.co.jp')) {
                                 result.pitch = '90.00';
                                 result.bearing = '0.00';
                             }
@@ -276,6 +280,11 @@
                     const result = { lat, lng, zoom, originalUrl: urlStr };
                     if (qPitch) result.pitch = Number(qPitch[1]).toFixed(2);
                     if (qBearing) result.bearing = Number(qBearing[1]).toFixed(2);
+                    // Yahoo Map は平面表示なので常に pitch=90, bearing=0 とする
+                    if (urlStr.includes('yahoo.co.jp')) {
+                        result.pitch = '90.00';
+                        result.bearing = '0.00';
+                    }
                     return result;
                 }
 
@@ -318,7 +327,12 @@
                     const zz = 27 - Math.log2(Math.max(1, h || 5000));
                     z = Number(zz).toFixed(4);
                 }
-                return { lat: Number(kvLat[1]).toFixed(6), lng: Number(kvLng[1]).toFixed(6), zoom: z };
+                const result = { lat: Number(kvLat[1]).toFixed(6), lng: Number(kvLng[1]).toFixed(6), zoom: z };
+                if (text.includes('yahoo.co.jp') || text.includes('google.com/maps') || text.includes('maps.app.goo.gl')) {
+                    result.pitch = '90.00';
+                    result.bearing = '0.00';
+                }
+                return result;
             }
 
             // 3) テキスト中の浮動小数点数列から最初の2つを lat/lng として使う
@@ -333,7 +347,12 @@
                     lat = b; lng = a;
                 }
                 const maybeZoom = nums[2] ? String(nums[2]) : '';
-                return { lat: Number(lat).toFixed(6), lng: Number(lng).toFixed(6), zoom: maybeZoom };
+                const result = { lat: Number(lat).toFixed(6), lng: Number(lng).toFixed(6), zoom: maybeZoom };
+                if (text.includes('yahoo.co.jp') || text.includes('google.com/maps') || text.includes('maps.app.goo.gl')) {
+                    result.pitch = '90.00';
+                    result.bearing = '0.00';
+                }
+                return result;
             }
 
             // 4) 整数のみ（ズームなど）が混ざる場合は整数列を抽出して最後の数値をズームに使う
@@ -343,48 +362,63 @@
                 const b = Number(ints[1]);
                 if (Math.abs(a) <= 90 && Math.abs(b) <= 180) {
                     const zoom = ints.length >= 3 ? String(ints[2]) : '';
-                    return { lat: Number(a).toFixed(6), lng: Number(b).toFixed(6), zoom };
+                    const result = { lat: Number(a).toFixed(6), lng: Number(b).toFixed(6), zoom };
+                    if (text.includes('yahoo.co.jp') || text.includes('google.com/maps') || text.includes('maps.app.goo.gl')) {
+                        result.pitch = '90.00';
+                        result.bearing = '0.00';
+                    }
+                    return result;
                 }
             }
 
             return null;
         }
 
-        async function getLocation(event) {
+        async function getLocation(event, providedUrl = null) {
             if (event) event.preventDefault();
             const statusDiv = document.getElementById('location-status');
             statusDiv.style.display = 'none';
 
-            // GIS URL入力欄を優先的にチェック
+            // 指定URLまたはGIS URL入力欄を優先的にチェック
             const urlInput = document.getElementById('input-gis-url');
-            const gisUrl = urlInput.value.trim();
+            const gisUrl = providedUrl || urlInput.value.trim();
+            const autoSyncMode = !!providedUrl;
             
             if (gisUrl) {
-                // GIS URL入力欄がある場合はそこから取得
+                // 指定URLまたはGIS URL入力欄がある場合はそこから取得
                 let loc = parseLocation(gisUrl);
                 if (!loc) {
                     loc = extractLatLngZoomFromText(gisUrl);
                 }
                 
                 if (loc) {
+                    // Yahoo / Google Map は平面表示なので pitch=90, bearing=0 に固定
+                    if (gisUrl.includes('yahoo.co.jp') || gisUrl.includes('google.com/maps') || gisUrl.includes('maps.app.goo.gl')) {
+                        loc.pitch = '90.00';
+                        loc.bearing = '0.00';
+                    }
                     document.getElementById('input-lat').value = loc.lat;
                     document.getElementById('input-lng').value = loc.lng;
                     document.getElementById('input-zoom').value = loc.zoom || '';
                     document.getElementById('input-pitch').value = loc.pitch || '0.00';
                     document.getElementById('input-bearing').value = loc.bearing || '0.00';
                     document.getElementById('input-alt').value = loc.alt || '0.00';
-                    // 取得完了後にURL入力欄をクリア
-                    urlInput.value = '';
-                    urlInput.title = 'GIS URL';
-                    statusDiv.style.display = 'block';
-                    statusDiv.style.color = '#15803d';
-                    statusDiv.textContent = 'URLから座標を取得しました。';
-                    setTimeout(() => { statusDiv.style.display = 'none'; }, 2000);
+                    // 取得完了後にGIS URL入力欄をクリア（手動取得時のみ）
+                    if (!autoSyncMode) {
+                        urlInput.value = '';
+                        urlInput.title = 'GIS URL';
+                        statusDiv.style.display = 'block';
+                        statusDiv.style.color = '#15803d';
+                        statusDiv.textContent = 'URLから座標を取得しました。';
+                        setTimeout(() => { statusDiv.style.display = 'none'; }, 2000);
+                    }
                     return;
                 } else {
-                    statusDiv.style.display = 'block';
-                    statusDiv.style.color = '#dc2626';
-                    statusDiv.textContent = "GIS URLから位置情報を解析できませんでした。";
+                    if (!autoSyncMode) {
+                        statusDiv.style.display = 'block';
+                        statusDiv.style.color = '#dc2626';
+                        statusDiv.textContent = "GIS URLから位置情報を解析できませんでした。";
+                    }
                     return;
                 }
             }
@@ -418,6 +452,11 @@
                         loc = extractLatLngZoomFromText(url);
                     }
                     if (loc) {
+                        // Yahoo / Google Map は平面表示なので pitch=90, bearing=0 に固定
+                        if (url.includes('yahoo.co.jp') || url.includes('google.com/maps') || url.includes('maps.app.goo.gl')) {
+                            loc.pitch = '90.00';
+                            loc.bearing = '0.00';
+                        }
                         document.getElementById('input-lat').value = loc.lat;
                         document.getElementById('input-lng').value = loc.lng;
                         document.getElementById('input-zoom').value = loc.zoom || '';
@@ -480,7 +519,7 @@
             }
         }
 
-        async function moveMap(event) {
+        async function moveMap(event, simulatedCurrentUrl = null) {
             if (event) event.preventDefault();
             const statusDiv = document.getElementById('location-status');
             
@@ -498,11 +537,18 @@
 
             if (window.__TAURI__ && window.__TAURI__.core) {
                 try {
-                    // 判定: 現在のアクティブタブ種別を問い合わせ（reearth のときはクリップボードへコピー）
+                    // 判定: 現在または切り替え先のアクティブタブ種別を問い合わせ（reearth のときはクリップボードへコピー）
                     let activeTab = '';
-                    try {
-                        activeTab = await window.__TAURI__.core.invoke('get_active_pane2');
-                    } catch (e) { /* ignore */ }
+                    if (simulatedCurrentUrl) {
+                        // タブ切り替え時はダミーURLからタブ種別を判定
+                        if (simulatedCurrentUrl.includes('reearth.io') || simulatedCurrentUrl.includes('visualizer.reearth')) {
+                            activeTab = 'reearth';
+                        }
+                    } else {
+                        try {
+                            activeTab = await window.__TAURI__.core.invoke('get_active_pane2');
+                        } catch (e) { /* ignore */ }
+                    }
 
                     // Re:Earth タブがアクティブな場合は Re:Earth 用 URL を組み立ててクリップボードへコピー
                     if (activeTab === 'reearth') {
@@ -534,11 +580,13 @@
                     }
 
                     // デフォルトはGoogle Maps 等へ遷移
-                    // 現在画面2で開いている地図サービスを判定
-                    let currentUrlStr = "";
-                    try {
-                        currentUrlStr = await window.__TAURI__.core.invoke('get_pane2_url');
-                    } catch(err) {}
+                    // 現在画面2で開いている地図サービスを判定（タブ切り替え時はダミーURLで上書き）
+                    let currentUrlStr = simulatedCurrentUrl || "";
+                    if (!currentUrlStr) {
+                        try {
+                            currentUrlStr = await window.__TAURI__.core.invoke('get_pane2_url');
+                        } catch(err) {}
+                    }
 
                     // デフォルトはGoogle Maps
                     let targetUrl = `https://www.google.com/maps/@${lat},${lng},${zoom}z`;
@@ -663,6 +711,113 @@
                 statusDiv.textContent = "Tauri環境で実行してください。";
             }
         }
+
+        // 入力欄と自動同期ボタンの表示切り替え
+        function showAutoSync() {
+            document.getElementById('manual-inputs').style.display = 'none';
+            document.getElementById('auto-sync-btn').style.display = 'flex';
+            document.getElementById('btn-get-location').style.display = 'none';
+            document.getElementById('btn-move-map').style.display = 'none';
+            if (window.__TAURI__ && window.__TAURI__.event) {
+                window.__TAURI__.event.emit('pane1_auto_sync_state', { enabled: true });
+            }
+        }
+
+        function showManualInputs() {
+            document.getElementById('manual-inputs').style.display = 'flex';
+            document.getElementById('auto-sync-btn').style.display = 'none';
+            document.getElementById('btn-get-location').style.display = 'flex';
+            document.getElementById('btn-move-map').style.display = 'flex';
+            if (window.__TAURI__ && window.__TAURI__.event) {
+                window.__TAURI__.event.emit('pane1_auto_sync_state', { enabled: false });
+            }
+        }
+
+        // 切り替え先タブに応じたダミーURLを返す（URL判定用）
+        function getDummyUrlForTab(tabName) {
+            switch (tabName) {
+                case 'google':
+                    return 'https://www.google.com/maps/';
+                case 'googleearth':
+                    return 'https://earth.google.com/web/';
+                case 'yahoo':
+                    return 'https://map.yahoo.co.jp/';
+                case 'cesium':
+                    return 'http://127.0.0.1:8510/';
+                default:
+                    return null;
+            }
+        }
+
+        // タブ切り替え時の自動同期：切り替え前のURLから取得し、切り替え先に移動
+        async function handleAutoSyncTabChange(payload) {
+            const { fromUrl, to } = payload;
+            const statusDiv = document.getElementById('location-status');
+            statusDiv.style.display = 'none';
+
+            if (!fromUrl) {
+                statusDiv.style.display = 'block';
+                statusDiv.style.color = '#dc2626';
+                statusDiv.textContent = '自動同期: 切り替え前のURLを取得できません。';
+                return;
+            }
+
+            // 1. 切り替え前のタブのURLから座標を取得
+            await getLocation(null, fromUrl);
+
+            // 2. 取得できなければ処理を中止
+            const lat = document.getElementById('input-lat').value.trim();
+            const lng = document.getElementById('input-lng').value.trim();
+            if (!lat || !lng) {
+                statusDiv.style.display = 'block';
+                statusDiv.style.color = '#dc2626';
+                statusDiv.textContent = '自動同期: 座標を解析できませんでした。';
+                return;
+            }
+
+            // 3. 切り替え先タブに応じたダミーURLを生成
+            const dummyUrl = getDummyUrlForTab(to);
+            if (!dummyUrl) {
+                statusDiv.style.display = 'block';
+                statusDiv.style.color = '#dc2626';
+                statusDiv.textContent = '自動同期: 切り替え先タブ ' + to + ' は対象外です。';
+                return;
+            }
+
+            // 4. 切り替え先タブに移動を適用
+            try {
+                await moveMap(null, dummyUrl);
+                statusDiv.style.display = 'block';
+                statusDiv.style.color = '#15803d';
+                statusDiv.textContent = '自動同期: ' + to + ' へ移動しました。';
+                setTimeout(() => { statusDiv.style.display = 'none'; }, 1500);
+            } catch (e) {
+                statusDiv.style.display = 'block';
+                statusDiv.style.color = '#dc2626';
+                statusDiv.textContent = '自動同期: 移動に失敗しました: ' + e;
+            }
+        }
+
+        // 自動同期：現在のGISタブの座標を取得し、そのまま移動を適用する
+        async function autoSync(event) {
+            if (event) event.preventDefault();
+            const statusDiv = document.getElementById('location-status');
+            statusDiv.style.display = 'none';
+
+            // 1. 現在のGISタブから座標を取得
+            await getLocation(null);
+
+            // 2. 取得に成功している場合のみ移動を適用
+            const lat = document.getElementById('input-lat').value.trim();
+            const lng = document.getElementById('input-lng').value.trim();
+            if (lat && lng) {
+                await moveMap(null);
+            }
+
+            // 3. 自動同期後は入力欄に戻す
+            showManualInputs();
+        }
+
         // 1. BOX専用のオープン関数
         async function openBox(event, url, target) {
             if (event) event.preventDefault();
@@ -753,6 +908,12 @@
             // 画面2で非表示にされたタブ一覧の受信
             window.__TAURI__.event.listen('pane2_hidden_tabs_state', (e) => {
                 renderHiddenTabs((e.payload && e.payload.tabs) || []);
+            });
+            // 画面2のGISタブ切り替え時の自動同期
+            window.__TAURI__.event.listen('pane2_before_tab_change', (e) => {
+                if (document.getElementById('auto-sync-btn').style.display !== 'none') {
+                    handleAutoSyncTabChange(e.payload);
+                }
             });
         }
 

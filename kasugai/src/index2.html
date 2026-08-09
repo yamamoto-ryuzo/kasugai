@@ -482,6 +482,9 @@
             hiddenTabs = new Set(JSON.parse(localStorage.getItem('pane2_hidden_tabs') || '[]'));
         } catch (e) { hiddenTabs = new Set(); }
 
+        // 画面1の自動同期モード状態
+        let isAutoSyncEnabled = false;
+
         function applyHiddenTabs() {
             Object.keys(HIDEABLE_TAB_TITLES).forEach(id => {
                 const btn = document.getElementById('tab-' + id);
@@ -631,6 +634,26 @@
 
         // タブ切り替え処理
         async function switchTab(tabName) {
+            // 自動同期モード中は、切り替え前のURLを取得して画面1へ通知
+            if (isAutoSyncEnabled && window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.event) {
+                try {
+                    let fromUrl = await window.__TAURI__.core.invoke('get_pane2_url');
+                    // Google Earthの場合、URLに座標(@...)が含まれるまで最大3秒待機
+                    if (fromUrl && fromUrl.includes('earth.google.com') && !fromUrl.includes('@')) {
+                        for (let i = 0; i < 10; i++) {
+                            await new Promise(r => setTimeout(r, 300));
+                            fromUrl = await window.__TAURI__.core.invoke('get_pane2_url');
+                            if (fromUrl.includes('@')) break;
+                        }
+                    }
+                    if (fromUrl) {
+                        window.__TAURI__.event.emit('pane2_before_tab_change', { fromUrl, to: tabName });
+                    }
+                } catch (e) {
+                    console.warn('自動同期: 切り替え前URL取得失敗', e);
+                }
+            }
+
             // UIのアクティブ状態の更新
             const tabs = ['settings', 'box', 'boxapp', 'qgis', 'reearth', 'google', 'googleearth', 'yahoo', 'cesium'];
             tabs.forEach(t => {
@@ -1358,6 +1381,10 @@
 
         // --- イベントリスナー ---
         if (window.__TAURI__ && window.__TAURI__.event) {
+            // 画面1の自動同期モード状態の受信
+            window.__TAURI__.event.listen('pane1_auto_sync_state', (event) => {
+                isAutoSyncEnabled = event.payload && event.payload.enabled;
+            });
             // ウィンドウが閉じられた際の復元通知
             window.__TAURI__.event.listen('window_restored', (event) => {
                 const label = event.payload.label;
