@@ -733,7 +733,9 @@
             }
         }
 
-        // 切り替え先タブに応じたダミーURLを返す（URL判定用）
+        // 自動同期対象のGISタブに応じたダミーURLを返す（URL判定用）
+        // 対象: CANVAS(cesium)、Google Maps(google)、Google Earth(googleearth)、Yahoo Map(yahoo)
+        // 対象外は null を返し、handleAutoSyncTabChange では何もせず index2 側の通常タブ切り替えに任せる
         function getDummyUrlForTab(tabName) {
             switch (tabName) {
                 case 'google':
@@ -750,10 +752,16 @@
         }
 
         // タブ切り替え時の自動同期：切り替え前のURLから取得し、切り替え先に移動
+        // 対象外タブでは緯度経度を反映せず、index2 側の通常タブ切り替え処理（移動先タブのデータ）に任せる
         async function handleAutoSyncTabChange(payload) {
             const { fromUrl, to } = payload;
             const statusDiv = document.getElementById('location-status');
             statusDiv.style.display = 'none';
+
+            // 対象外タブは自動同期しない（index2 側の通常切り替えに任せる）
+            if (!getDummyUrlForTab(to)) {
+                return;
+            }
 
             if (!fromUrl) {
                 statusDiv.style.display = 'block';
@@ -777,12 +785,6 @@
 
             // 3. 切り替え先タブに応じたダミーURLを生成
             const dummyUrl = getDummyUrlForTab(to);
-            if (!dummyUrl) {
-                statusDiv.style.display = 'block';
-                statusDiv.style.color = '#dc2626';
-                statusDiv.textContent = '自動同期: 切り替え先タブ ' + to + ' は対象外です。';
-                return;
-            }
 
             // 4. 切り替え先タブに移動を適用
             try {
