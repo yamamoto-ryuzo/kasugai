@@ -267,7 +267,7 @@
                     return { lat, lng, zoom, originalUrl: urlStr };
                 }
 
-                // 4) クエリパラメータ形式: ?lat=...&lon=...&zoom=... または CANVAS の ?latitude=...&longitude=...&zoom=...&pitch=...&bearing=...
+                // 4) クエリ/ハッシュパラメータ形式: ?lat=...&lon=...&zoom=... または CANVAS の #latitude=...&longitude=...&zoom=...&pitch=...&bearing=...
                 const qLat = urlStr.match(/[?&#](?:lat|latitude)=(-?\d+(?:\.\d+)?)/);
                 const qLon = urlStr.match(/[?&#](?:lon|lng|longitude)=(-?\d+(?:\.\d+)?)/);
                 const qZoom = urlStr.match(/[?&#](?:zoom|z)=(\d+(?:\.\d+)?)/);
@@ -689,7 +689,7 @@
                                 let rawBearing = document.getElementById('input-bearing').value.trim() || '0.00';
                                 const pitch = isNaN(Number(rawPitch)) ? '0.00' : Number(rawPitch).toFixed(2);
                                 const bearing = isNaN(Number(rawBearing)) ? '0.00' : Number(rawBearing).toFixed(2);
-                                targetUrl = `http://127.0.0.1:8510/?latitude=${lat}&longitude=${lng}&zoom=${zoom}&pitch=${pitch}&bearing=${bearing}`;
+                                targetUrl = `http://127.0.0.1:8510/#latitude=${lat}&longitude=${lng}&zoom=${zoom}&pitch=${pitch}&bearing=${bearing}`;
                             } else if (currentUrlStr.includes('index2.html')) {
                                 // index2.htmlの場合は何もしない（設定画面などのため）
                             }

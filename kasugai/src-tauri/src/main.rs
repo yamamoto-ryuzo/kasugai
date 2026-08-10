@@ -1909,8 +1909,8 @@ async fn get_pane2_url(
                         const zoom = Math.max(0, ZA - Math.log2(Math.max(1, H)));
                         const pitch = -c.pitch * 180 / Math.PI;
                         const bearing = ((c.heading * 180 / Math.PI) % 360 + 360) % 360;
-                        const q = `?latitude=${lat.toFixed(6)}&longitude=${lng.toFixed(6)}&zoom=${zoom.toFixed(4)}&pitch=${pitch.toFixed(2)}&bearing=${bearing.toFixed(2)}`;
-                        history.replaceState(null, '', q);
+                        const q = `#latitude=${lat.toFixed(6)}&longitude=${lng.toFixed(6)}&zoom=${zoom.toFixed(4)}&pitch=${pitch.toFixed(2)}&bearing=${bearing.toFixed(2)}`;
+                        history.replaceState(null, '', location.pathname + q);
                     } catch(e) { console.error(e); }
                 })();
             "#;

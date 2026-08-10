@@ -102,6 +102,7 @@ graph TD
 ### サンプル（permalink 例）
 - Re:Earth サンプル: `https://reearth.io/permalink?lat=35.6809591&lng=139.7673068&height=1200&heading=0&pitch=-90`
 - Google Maps（ハッシュ）: `https://www.google.com/maps/@35.6809591,139.7673068,15z`
+- CANVAS（ハッシュ）: `http://127.0.0.1:8510/#latitude=35.892029&longitude=139.610299&zoom=14.986629&pitch=90.00&bearing=360.00`（v2.6.4 以降。旧 `?latitude=...` クエリ形式の解析も後方互換で対応）
 
 ### 制約と推奨
 - Re:Earth は iframe サンドボックスのため「貼付」操作をユーザーが行う運用が必要（自動直接注入は不可）。

@@ -1,10 +1,10 @@
-﻿{
-  "version": "2.6.3",
-  "notes": "Kasugai バージョン 2.6.3\n\n- 画面2のタブ表示設定を拡張し、GIS/クラウドストレージのON/OFFを追加",
-  "pub_date": "2026-08-10T11:09:02Z",
+{
+  "version": "2.6.4",
+  "notes": "Kasugai バージョン 2.6.4\n\n- CANVAS の URL 座標付加仕様の変更（クエリ ? → ハッシュ #）に対応",
+  "pub_date": "2026-08-10T13:20:27Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhOcFoyNWhkSFZ5WlNCbWNtOXRJSFJoZFhKcElITmxZM0psZENCclpYa0tVbFZVUlc5Wk1WSjNWSFJTWnpSc2NVNDJOMUJyYW1WUWNqRXZjVVF3UTJNMlJEQmtaR2hVUldKNWRGZDFXWFZEYmtadVowMVRabkpPVFZWMU5qbGFhbXBHWlVWdE5ESk9lalpGTW5wQmNIaDFXV1JDYVVvdldXNWljR2xHUmpKNlNHZHJQUXAwY25WemRHVmtJR052YlcxbGJuUTZJSFJwYldWemRHRnRjRG94TnpnMk16VTVOemN3Q1dacGJHVTZhMkZ6ZFdkaGFWOHlMall1TTE5NE5qUXRjMlYwZFhBdVpYaGxDbk5LV21sNlRubEJkRk56WWxGWVNraFBja0pYWW1KWFVHeExVa0ZFYW1GNVdVdHVTVEZYZEUxbFVUYzBjelJoVjJWTU1IaEpNMWRsUVV0WE1FdFJhVzh4VEZaSVpTOXdjM0JxYzFoc2JYYzViQzlhUlVOblBUMEs=",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVURW9ZMVJ3VHRSZ3p0QUpVZzBQS1RobDBUcUZjRUd4dHRlb3Q2WW9PcFdyZFlCa2ZZdXBhT2Z5MXNWT00rMnRqa2VwOWtKb3FZMHlKdisrbk5jNUJ3SkRud3pQODM2Q0FFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MzY4MDI3CWZpbGU6a2FzdWdhaV8yLjYuNF94NjQtc2V0dXAuZXhlCi9wQjE3OWFWVDRQRWxXNEtKSHBZdERIajJhVmZiMzJLNHlKdHVHOGxjbkNrVGpwZzdaZUFQMUQ5SVkvQ3BjU1ZnVTMxUmkvZzk3TE5PNjAzY3FIZERnPT0K",
       "url": "https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai/main/download/kasugai.exe"
     }
   }

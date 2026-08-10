@@ -6,6 +6,16 @@
 
 ## [Unreleased]
 
+## [2.6.4] - 2026-08-10
+
+### 概要
+CANVAS の URL 座標付加仕様の変更（クエリ `?` → ハッシュ `#`）に対応しました。
+
+### 変更 (Changed)
+- **CANVAS URL 形式の変更対応**: CANVAS への移動 URL を `http://127.0.0.1:8510/#latitude=...&longitude=...&zoom=...&pitch=...&bearing=...` のハッシュ形式で生成するように変更（従来はクエリ `?latitude=...` 形式）。
+- **CANVAS 取得時の URL 更新**: `get_pane2_url` での `history.replaceState` もハッシュ形式で付加するように変更。旧形式のクエリが URL に残らないよう `location.pathname` を基準に置き換え。
+- **解析の後方互換**: 位置情報のパースは `?` / `#` のどちらの形式も引き続き解析可能。
+
 ## [2.6.3] - 2026-08-10
 
 ### 概要
