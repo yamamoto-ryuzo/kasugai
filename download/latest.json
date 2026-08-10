@@ -1,10 +1,10 @@
 {
-  "version": "2.6.4",
-  "notes": "Kasugai バージョン 2.6.4\n\n- CANVAS の URL 座標付加仕様の変更（クエリ ? → ハッシュ #）に対応",
-  "pub_date": "2026-08-10T13:20:27Z",
+  "version": "2.6.5",
+  "notes": "Kasugai バージョン 2.6.5\n\n- 最新の更新内容",
+  "pub_date": "2026-08-10T13:40:01Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVURW9ZMVJ3VHRSZ3p0QUpVZzBQS1RobDBUcUZjRUd4dHRlb3Q2WW9PcFdyZFlCa2ZZdXBhT2Z5MXNWT00rMnRqa2VwOWtKb3FZMHlKdisrbk5jNUJ3SkRud3pQODM2Q0FFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MzY4MDI3CWZpbGU6a2FzdWdhaV8yLjYuNF94NjQtc2V0dXAuZXhlCi9wQjE3OWFWVDRQRWxXNEtKSHBZdERIajJhVmZiMzJLNHlKdHVHOGxjbkNrVGpwZzdaZUFQMUQ5SVkvQ3BjU1ZnVTMxUmkvZzk3TE5PNjAzY3FIZERnPT0K",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVURW9ZMVJ3VHRSZzZiKzRMcFFuZlg5aTB4V3dvd0pMWFY5SkZYMmNyaTZOeTRiQlJXWUpRNWdwK2NoUFNIcFdjSUZqbm1Pbm5BM3U0Nm9xSzVhNFJORm5VUVhrRHZqSWdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MzY5MTk5CWZpbGU6a2FzdWdhaV8yLjYuNV94NjQtc2V0dXAuZXhlCjJrbEorMTcvQ0pKVXZ2bGl0Z0tybElocXJaK3Rvc1F2b1lPTjNPVjlnZVBzWlZVVnRnVmRsdjlLMVlrQ01SYXVKV1BaUUtLYm4vTVoycURCM0dINENBPT0K",
       "url": "https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai/main/download/kasugai.exe"
     }
   }

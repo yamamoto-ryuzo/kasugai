@@ -392,7 +392,7 @@
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">現在のバージョン</label>
-                            <div id="current-version" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px;">2.6.4</div>
+                            <div id="current-version" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px;">2.6.5</div>
                         </div>
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">起動中のインストール先</label>
@@ -519,7 +519,7 @@
         } catch (e) { hiddenTabs = new Set(); }
 
         // 画面1の自動同期モード状態
-        let isAutoSyncEnabled = false;
+        let isAutoSyncEnabled = true;
 
         function applyHiddenTabs() {
             Object.keys(HIDEABLE_TAB_TITLES).forEach(id => {
