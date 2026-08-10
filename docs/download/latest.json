@@ -1,11 +1,11 @@
-{
-  "version": "2.5.5",
-  "notes": "Kasugai バージョン 2.5.5\n\n- 最新の更新内容",
-  "pub_date": "2026-08-01T02:06:15Z",
+﻿{
+  "version": "2.6.3",
+  "notes": "Kasugai バージョン 2.6.3\n\n- 画面2のタブ表示設定を拡張し、GIS/クラウドストレージのON/OFFを追加",
+  "pub_date": "2026-08-10T11:09:02Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVURW9ZMVJ3VHRSZ3pwbVkwRTFjTmpJeDlEd3U1TkdyVXhFWjNvSzZYYTJySXhLNklwSy91VzRqczV5ZHZiV0k3SVNaTVJDNlR1MEFiMk5wWDhxQ2JyQlJNRUdTbHNneGc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1NTQ5OTc0CWZpbGU6a2FzdWdhaV8yLjUuNV94NjQtc2V0dXAuZXhlCitzS0ZDaFdybFptTVlMUjh6R0hXdXZHSHowR0Y2c1p4N3J2WmJVUGFBVFVvU21vdDVEUFlHSW9UMVZuS2t2L3ljVGVuNUFMZzlldjVXZUJBeUw0T0J3PT0K",
-      "url": "https://yamamoto-ryuzo.github.io/kasugai/download/kasugai.exe"
+      "signature": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhOcFoyNWhkSFZ5WlNCbWNtOXRJSFJoZFhKcElITmxZM0psZENCclpYa0tVbFZVUlc5Wk1WSjNWSFJTWnpSc2NVNDJOMUJyYW1WUWNqRXZjVVF3UTJNMlJEQmtaR2hVUldKNWRGZDFXWFZEYmtadVowMVRabkpPVFZWMU5qbGFhbXBHWlVWdE5ESk9lalpGTW5wQmNIaDFXV1JDYVVvdldXNWljR2xHUmpKNlNHZHJQUXAwY25WemRHVmtJR052YlcxbGJuUTZJSFJwYldWemRHRnRjRG94TnpnMk16VTVOemN3Q1dacGJHVTZhMkZ6ZFdkaGFWOHlMall1TTE5NE5qUXRjMlYwZFhBdVpYaGxDbk5LV21sNlRubEJkRk56WWxGWVNraFBja0pYWW1KWFVHeExVa0ZFYW1GNVdVdHVTVEZYZEUxbFVUYzBjelJoVjJWTU1IaEpNMWRsUVV0WE1FdFJhVzh4VEZaSVpTOXdjM0JxYzFoc2JYYzViQzlhUlVOblBUMEs=",
+      "url": "https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai/main/download/kasugai.exe"
     }
   }
 }
