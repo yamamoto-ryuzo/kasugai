@@ -264,6 +264,41 @@
                 <!-- プラットフォーム設定 -->
                 <div id="settings-panel-platform" class="settings-panel" style="display:none;">
                     <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🔧 プラットフォーム設定</h3>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <button type="button" id="platform-group-tab-cloud" onclick="switchPlatformGroup('cloud')" style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #15803d; color: #ffffff; cursor: pointer; font-size: 14px;">クラウドストレージ</button>
+                        <button type="button" id="platform-group-tab-gis" onclick="switchPlatformGroup('gis')" style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #15803d; cursor: pointer; font-size: 14px;">GIS グループ</button>
+                    </div>
+                    <div id="platform-group-cloud" style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 15px;">
+                        <div style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 8px;">クラウドストレージ</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #15803d; cursor: pointer;">
+                                <input type="checkbox" id="tab-enabled-box" onchange="onTabEnabledChanged('box')"> BOX
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #15803d; cursor: pointer;">
+                                <input type="checkbox" id="tab-enabled-boxapp" onchange="onTabEnabledChanged('boxapp')"> BOX_APP
+                            </label>
+                        </div>
+                    </div>
+                    <div id="platform-group-gis" style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 15px; display: none;">
+                        <div style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 8px;">GIS グループ</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #15803d; cursor: pointer;">
+                                <input type="checkbox" id="tab-enabled-qgis" onchange="onTabEnabledChanged('qgis')"> QGIS
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #15803d; cursor: pointer;">
+                                <input type="checkbox" id="tab-enabled-google" onchange="onTabEnabledChanged('google')"> Google Map
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #15803d; cursor: pointer;">
+                                <input type="checkbox" id="tab-enabled-googleearth" onchange="onTabEnabledChanged('googleearth')"> Google Earth
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #15803d; cursor: pointer;">
+                                <input type="checkbox" id="tab-enabled-yahoo" onchange="onTabEnabledChanged('yahoo')"> Yahoo Map
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #15803d; cursor: pointer;">
+                                <input type="checkbox" id="tab-enabled-reearth" onchange="onTabEnabledChanged('reearth')"> Re:Earth
+                            </label>
+                        </div>
+                    </div>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">プラットフォーム固有の設定</label>
@@ -477,6 +512,7 @@
             'cesium': '🎨 CANVAS',
             'reearth': '🌐 Re:Earth'
         };
+        const TAB_ENABLED_IDS = ['box','boxapp','qgis','google','googleearth','yahoo','reearth'];
         let hiddenTabs = new Set();
         try {
             hiddenTabs = new Set(JSON.parse(localStorage.getItem('pane2_hidden_tabs') || '[]'));
@@ -488,22 +524,71 @@
         function applyHiddenTabs() {
             Object.keys(HIDEABLE_TAB_TITLES).forEach(id => {
                 const btn = document.getElementById('tab-' + id);
-                if (btn) btn.style.display = hiddenTabs.has(id) ? 'none' : '';
+                if (!btn) return;
+                const hidden = hiddenTabs.has(id) || !isTabEnabled(id);
+                btn.style.display = hidden ? 'none' : '';
             });
             // Google Map再読み込みボタンはGoogle Mapタブと連動して表示・非表示
             const reloadBtn = document.getElementById('tab-google-reload');
-            if (reloadBtn) reloadBtn.style.display = hiddenTabs.has('google') ? 'none' : '';
+            if (reloadBtn) reloadBtn.style.display = (hiddenTabs.has('google') || !isTabEnabled('google')) ? 'none' : '';
         }
 
         function persistHiddenTabs() {
             try { localStorage.setItem('pane2_hidden_tabs', JSON.stringify([...hiddenTabs])); } catch (e) {}
         }
 
+        function isTabEnabled(tabId) {
+            const v = localStorage.getItem('tab_enabled_' + tabId);
+            return v !== '0';
+        }
+
+        function initTabVisibility() {
+            const ids = TAB_ENABLED_IDS;
+            ids.forEach(id => {
+                const chk = document.getElementById('tab-enabled-' + id);
+                if (chk) chk.checked = isTabEnabled(id);
+            });
+            applyAllTabVisibility();
+        }
+
+        function onTabEnabledChanged(tabId) {
+            const chk = document.getElementById('tab-enabled-' + tabId);
+            if (chk) localStorage.setItem('tab_enabled_' + tabId, chk.checked ? '1' : '0');
+            const enabled = isTabEnabled(tabId);
+            const btn = document.getElementById('tab-' + tabId);
+            if (btn) {
+                btn.style.display = enabled ? '' : 'none';
+                if (!enabled && btn.classList.contains('active')) {
+                    switchTab('settings');
+                }
+            }
+            applyAllTabVisibility();
+        }
+
+        function applyAllTabVisibility() {
+            applyHiddenTabs();
+            broadcastHiddenTabs();
+        }
+
+        // プラットフォーム設定内のGIS/クラウドグループ切り替え
+        function switchPlatformGroup(group) {
+            ['gis','cloud'].forEach(g => {
+                const panel = document.getElementById('platform-group-' + g);
+                const btn = document.getElementById('platform-group-tab-' + g);
+                if (panel) panel.style.display = (g === group) ? 'block' : 'none';
+                if (btn) {
+                    btn.classList.toggle('active', g === group);
+                    btn.style.background = (g === group) ? '#15803d' : '#f1f5f9';
+                    btn.style.color = (g === group) ? '#ffffff' : '#15803d';
+                }
+            });
+        }
+
         // 画面1へ非表示タブの一覧を通知（画面2のタブの並び順で送る）
         function broadcastHiddenTabs() {
             if (window.__TAURI__ && window.__TAURI__.event) {
                 const tabs = Object.keys(HIDEABLE_TAB_TITLES)
-                    .filter(id => hiddenTabs.has(id))
+                    .filter(id => hiddenTabs.has(id) && isTabEnabled(id))
                     .map(id => ({ id: id, title: HIDEABLE_TAB_TITLES[id] }));
                 window.__TAURI__.event.emit('pane2_hidden_tabs_state', { tabs: tabs });
             }
@@ -634,6 +719,9 @@
 
         // タブ切り替え処理
         async function switchTab(tabName) {
+            if (tabName in HIDEABLE_TAB_TITLES && !isTabEnabled(tabName)) {
+                tabName = 'settings';
+            }
             // 自動同期モード中は、切り替え前のURLを取得して画面1へ通知
             if (isAutoSyncEnabled && window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.event) {
                 try {
@@ -818,9 +906,8 @@
             const platformEl = document.getElementById('platform-setting-input');
             if (platformEl) platformEl.value = savedPlatform;
 
-            // 非表示タブ状態の復元と画面1への通知
-            applyHiddenTabs();
-            broadcastHiddenTabs();
+            // 各GISタブ表示設定の復元（非表示タブ状態にも反映）
+            initTabVisibility();
 
             // デフォルトで CANVAS タブをアクティブにする前に、KASUGAI_CANVAS のインストール・起動を確認
             try {
@@ -983,6 +1070,11 @@
                 kv.push(['platform_setting', platform.replace(/\r?\n/g,'\\n')]);
                 const qgisPath = document.getElementById('qgis-install-path-input')?.value ?? localStorage.getItem('qgis_launcher_install_path') ?? '';
                 kv.push(['qgis_launcher_install_path', qgisPath.trim()]);
+                TAB_ENABLED_IDS.forEach(id => {
+                    const chk = document.getElementById('tab-enabled-' + id);
+                    const enabled = chk ? (chk.checked ? '1' : '0') : (localStorage.getItem('tab_enabled_' + id) ?? '1');
+                    kv.push(['tab_enabled_' + id, enabled]);
+                });
             } catch (e) { console.warn('collect settings error', e); }
 
             // build INI content with explanatory comments
@@ -1113,6 +1205,17 @@
                     if (qgisInput) qgisInput.value = qgisPath;
                     updateQgisStatus(qgisPath);
                 }
+
+                TAB_ENABLED_IDS.forEach(id => {
+                    const key = 'tab_enabled_' + id;
+                    if (Object.prototype.hasOwnProperty.call(parsed, key)) {
+                        const enabled = parsed[key] !== '0' && parsed[key] !== 'false';
+                        localStorage.setItem(key, enabled ? '1' : '0');
+                        const chk = document.getElementById('tab-enabled-' + id);
+                        if (chk) chk.checked = enabled;
+                    }
+                });
+                applyAllTabVisibility();
             } catch (e) {
                 console.warn('INI適用中にエラー:', e);
             }
@@ -1248,6 +1351,13 @@
                     const platformVal = document.getElementById('platform-setting-input').value || '';
                     localStorage.setItem('platform_setting', platformVal);
                 } catch (e) { console.warn('platform_setting 保存に失敗:', e); }
+                try {
+                    TAB_ENABLED_IDS.forEach(id => {
+                        const chk = document.getElementById('tab-enabled-' + id);
+                        if (chk) localStorage.setItem('tab_enabled_' + id, chk.checked ? '1' : '0');
+                    });
+                    applyAllTabVisibility();
+                } catch (e) { console.warn('tab_enabled 保存に失敗:', e); }
 
                 // 7. QGISランチャー インストール先の保存
                 try {
@@ -1347,6 +1457,7 @@
             localStorage.removeItem("box_email");
             localStorage.removeItem("reearth_email");
             localStorage.removeItem("platform_setting");
+            TAB_ENABLED_IDS.forEach(id => localStorage.removeItem('tab_enabled_' + id));
             localStorage.removeItem("qgis_launcher_install_path");
 
             // 3. 入力項目の初期化
@@ -1364,6 +1475,11 @@
                 document.getElementById("qgis-install-path-input").value = defaultQgis;
             } catch(_) { document.getElementById("qgis-install-path-input").value = ""; }
             updateQgisStatus();
+            TAB_ENABLED_IDS.forEach(id => {
+                const chk = document.getElementById('tab-enabled-' + id);
+                if (chk) chk.checked = true;
+            });
+            applyAllTabVisibility();
 
             // 4. 他のウィンドウ/コンポーネントへの変更イベント通知
             if (window.__TAURI__ && window.__TAURI__.event) {
