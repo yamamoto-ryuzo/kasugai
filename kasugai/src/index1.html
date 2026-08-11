@@ -554,12 +554,22 @@
 
             if (window.__TAURI__ && window.__TAURI__.core) {
                 try {
-                    // 判定: 現在または切り替え先のアクティブタブ種別を問い合わせ（reearth のときはクリップボードへコピー）
+                    // 判定: 現在または切り替え先のアクティブタブ種別を問い合わせ
                     let activeTab = '';
                     if (simulatedCurrentUrl) {
                         // タブ切り替え時はダミーURLからタブ種別を判定
                         if (simulatedCurrentUrl.includes('reearth.io') || simulatedCurrentUrl.includes('visualizer.reearth')) {
                             activeTab = 'reearth';
+                        } else if (simulatedCurrentUrl.includes('127.0.0.1:8510') || simulatedCurrentUrl.includes('cesium')) {
+                            activeTab = 'cesium';
+                        } else if (simulatedCurrentUrl.includes('earth.google.com')) {
+                            activeTab = 'googleearth';
+                        } else if (simulatedCurrentUrl.includes('google.com/maps') || simulatedCurrentUrl.includes('maps.app.goo.gl')) {
+                            activeTab = 'google';
+                        } else if (simulatedCurrentUrl.includes('map.yahoo.co.jp')) {
+                            activeTab = 'yahoo';
+                        } else if (simulatedCurrentUrl.includes('index2.html')) {
+                            activeTab = 'settings';
                         }
                     } else {
                         try {
@@ -593,127 +603,104 @@
                         }
                     }
 
-                    // デフォルトはGoogle Maps 等へ遷移
-                    // 現在画面2で開いている地図サービスを判定（タブ切り替え時はダミーURLで上書き）
-                    let currentUrlStr = simulatedCurrentUrl || "";
-                    if (!currentUrlStr) {
-                        try {
-                            currentUrlStr = await window.__TAURI__.core.invoke('get_pane2_url');
-                        } catch(err) {}
+                    // 対応GISタブに応じたURLを組み立てる（フォールバック無し）
+                    let targetUrl = null;
+
+                    if (activeTab === 'cesium') {
+                        let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
+                        let rawBearing = document.getElementById('input-bearing').value.trim() || '0.00';
+                        const pitch = isNaN(Number(rawPitch)) ? '0.00' : Number(rawPitch).toFixed(2);
+                        const bearing = isNaN(Number(rawBearing)) ? '0.00' : Number(rawBearing).toFixed(2);
+                        targetUrl = `http://127.0.0.1:8510/#latitude=${lat}&longitude=${lng}&height=${Number(height).toFixed(4)}&pitch=${pitch}&heading=${bearing}`;
+                    } else if (activeTab === 'googleearth') {
+                        let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
+                        let rawBearing = document.getElementById('input-bearing').value.trim() || '0.00';
+                        const pitch = isNaN(Number(rawPitch)) ? 0 : Number(rawPitch);
+                        const bearing = isNaN(Number(rawBearing)) ? 0 : Number(rawBearing);
+                        let t = 90 - pitch;
+                        if (t < 0) t = 0;
+                        if (t > 89.9) t = 89.9;
+                        const tRad = t * Math.PI / 180;
+                        const H = Math.pow(2, 25.2 - Number(zoom));
+                        const ground0 = H * Math.tan(tRad);
+                        const target0 = destinationPoint(Number(lat), Number(lng), ground0, bearing);
+                        const terrainAlt = await getTerrainElevation(target0.lat, target0.lng);
+                        const camAltAboveTerrain = Math.max(1, H - terrainAlt);
+                        const ground = camAltAboveTerrain * Math.tan(tRad);
+                        const target = destinationPoint(Number(lat), Number(lng), ground, bearing);
+                        const distanceNum = camAltAboveTerrain / Math.cos(tRad);
+                        const tStr = t.toFixed(2);
+                        const h = normalizeHeading(bearing).toFixed(2);
+                        targetUrl = `https://earth.google.com/web/@${Number(target.lat).toFixed(8)},${Number(target.lng).toFixed(8)},${Number(terrainAlt).toFixed(2)}a,${distanceNum.toFixed(2)}d,35y,${h}h,${tStr}t,0r`;
+                    } else if (activeTab === 'yahoo') {
+                        let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
+                        let rawBearing = document.getElementById('input-bearing').value.trim() || '0.00';
+                        const pitch = isNaN(Number(rawPitch)) ? 0 : Number(rawPitch);
+                        const bearing = isNaN(Number(rawBearing)) ? 0 : Number(rawBearing);
+                        let targetLat = Number(lat);
+                        let targetLng = Number(lng);
+                        const log2H_y = -0.0687 * Math.pow(Number(zoom), 2) + 0.4568 * Number(zoom) + 18.0562;
+                        const H_y = Math.pow(2, log2H_y) * 0.83;
+                        let ground = 0;
+                        if (pitch > 0.01 && pitch < 89.99) {
+                            const ground0 = H_y / Math.tan(pitch * Math.PI / 180);
+                            let terrainAlt = 0;
+                            if (ground0 > 0) {
+                                const target0 = destinationPoint(Number(lat), Number(lng), ground0, bearing);
+                                terrainAlt = await getTerrainElevation(target0.lat, target0.lng);
+                            }
+                            const H_effective = Math.max(0, H_y - terrainAlt);
+                            ground = H_effective / Math.tan(pitch * Math.PI / 180);
+                        }
+                        if (ground > 0) {
+                            const target = destinationPoint(Number(lat), Number(lng), ground, bearing);
+                            targetLat = target.lat;
+                            targetLng = target.lng;
+                        }
+                        const zY = Math.max(8, Math.round(Number(zoom) + 0.2));
+                        targetUrl = `https://map.yahoo.co.jp/?lat=${Number(targetLat).toFixed(8)}&lon=${Number(targetLng).toFixed(8)}&zoom=${zY}`;
+                    } else if (activeTab === 'google') {
+                        let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
+                        let rawBearing = document.getElementById('input-bearing').value.trim() || '0.00';
+                        const pitch = isNaN(Number(rawPitch)) ? 0 : Number(rawPitch);
+                        const bearing = isNaN(Number(rawBearing)) ? 0 : Number(rawBearing);
+                        let targetLat = Number(lat);
+                        let targetLng = Number(lng);
+                        const H_canvas = Math.pow(2, 25.2 - Number(zoom)) * 0.83;
+                        let ground = 0;
+                        let terrainAlt = 0;
+                        if (pitch > 0.01 && pitch < 89.99) {
+                            const ground0 = H_canvas / Math.tan(pitch * Math.PI / 180);
+                            if (ground0 > 0) {
+                                const target0 = destinationPoint(Number(lat), Number(lng), ground0, bearing);
+                                terrainAlt = await getTerrainElevation(target0.lat, target0.lng);
+                            }
+                            const H_effective = Math.max(0, H_canvas - terrainAlt);
+                            ground = H_effective / Math.tan(pitch * Math.PI / 180);
+                        } else if (pitch >= 89.99) {
+                            terrainAlt = await getTerrainElevation(Number(lat), Number(lng));
+                        }
+                        if (ground > 0) {
+                            const target = destinationPoint(Number(lat), Number(lng), ground, bearing);
+                            targetLat = target.lat;
+                            targetLng = target.lng;
+                        }
+                        const H_eff_for_m = Math.max(1, Number(height) - terrainAlt);
+                        const zoom_for_m = 24.965015935602526 - Math.log2(H_eff_for_m);
+                        const mGm = Math.max(1, Math.pow(2, (GM_M_TO_ZOOM_A - zoom_for_m) / GM_M_TO_ZOOM_B));
+                        const pitchRad = Math.max(0.01, Math.min(89.99, pitch)) * Math.PI / 180;
+                        const spread = Math.min(20, Math.max(1, 1 / Math.sin(pitchRad)));
+                        const mGmSpread = mGm * spread;
+                        targetUrl = `https://www.google.com/maps/@${Number(targetLat).toFixed(8)},${Number(targetLng).toFixed(8)},${Math.round(mGmSpread)}m?entry=ttu`;
                     }
 
-                    // デフォルトはGoogle Maps
-                    let targetUrl = `https://www.google.com/maps/@${lat},${lng},${zoom}z`;
-
-                    try {
-                        if (currentUrlStr) {
-                            // URLオブジェクトパース前の生文字列（currentUrlStr）によるより確実なサービス判定
-                            if (currentUrlStr.includes('yahoo.co.jp')) {
-                                // Yahoo 地図 2D 用：提供された 4 ペアに基づく H_y と z_yahoo
-                                let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
-                                let rawBearing = document.getElementById('input-bearing').value.trim() || '0.00';
-                                const pitch = isNaN(Number(rawPitch)) ? 0 : Number(rawPitch);
-                                const bearing = isNaN(Number(rawBearing)) ? 0 : Number(rawBearing);
-                                let targetLat = Number(lat);
-                                let targetLng = Number(lng);
-                                const log2H_y = -0.0687 * Math.pow(Number(zoom), 2) + 0.4568 * Number(zoom) + 18.0562;
-                                // Yahoo 用 H も CANVAS 実測補正 0.83 を適用
-                                const H_y = Math.pow(2, log2H_y) * 0.83;
-                                let ground = 0;
-                                if (pitch > 0.01 && pitch < 89.99) {
-                                    // 標高 0m で仮ターゲットを求め、その点の標高を取得してから ground を再計算
-                                    const ground0 = H_y / Math.tan(pitch * Math.PI / 180);
-                                    let terrainAlt = 0;
-                                    if (ground0 > 0) {
-                                        const target0 = destinationPoint(Number(lat), Number(lng), ground0, bearing);
-                                        terrainAlt = await getTerrainElevation(target0.lat, target0.lng);
-                                    }
-                                    const H_effective = Math.max(0, H_y - terrainAlt);
-                                    ground = H_effective / Math.tan(pitch * Math.PI / 180);
-                                }
-                                if (ground > 0) {
-                                    const target = destinationPoint(Number(lat), Number(lng), ground, bearing);
-                                    targetLat = target.lat;
-                                    targetLng = target.lng;
-                                }
-                                const zY = Math.max(8, Math.round(Number(zoom) + 0.2));
-                                targetUrl = `https://map.yahoo.co.jp/?lat=${Number(targetLat).toFixed(8)}&lon=${Number(targetLng).toFixed(8)}&zoom=${zY}`;
-                            } else if (currentUrlStr.includes('earth.google.com')) {
-                                // Google Earth 用：入力 lat/lng はカメラ（オービット）位置。
-                                // テレイン高さを取得して、視線とテレインの交点（LookAt ターゲット）を算出。
-                                // そのターゲットとテレイン高さから、Google Earth の a/d/h/t を再構成する。
-                                let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
-                                let rawBearing = document.getElementById('input-bearing').value.trim() || '0.00';
-                                const pitch = isNaN(Number(rawPitch)) ? 0 : Number(rawPitch);
-                                const bearing = isNaN(Number(rawBearing)) ? 0 : Number(rawBearing);
-                                let t = 90 - pitch;
-                                if (t < 0) t = 0;
-                                if (t > 89.9) t = 89.9;
-                                const tRad = t * Math.PI / 180;
-                                const H = Math.pow(2, 25.2 - Number(zoom));
-                                // 一旦標高 0m で仮ターゲットを求め、その地点の標高を取得する
-                                const ground0 = H * Math.tan(tRad);
-                                const target0 = destinationPoint(Number(lat), Number(lng), ground0, bearing);
-                                const terrainAlt = await getTerrainElevation(target0.lat, target0.lng);
-                                // テレイン高さを考慮して実際のターゲットを再計算
-                                const camAltAboveTerrain = Math.max(1, H - terrainAlt);
-                                const ground = camAltAboveTerrain * Math.tan(tRad);
-                                const target = destinationPoint(Number(lat), Number(lng), ground, bearing);
-                                const distanceNum = camAltAboveTerrain / Math.cos(tRad);
-                                const tStr = t.toFixed(2);
-                                const h = normalizeHeading(bearing).toFixed(2);
-                                targetUrl = `https://earth.google.com/web/@${Number(target.lat).toFixed(8)},${Number(target.lng).toFixed(8)},${Number(terrainAlt).toFixed(2)}a,${distanceNum.toFixed(2)}d,35y,${h}h,${tStr}t,0r`;
-                            } else if (currentUrlStr.includes('www.google.com/maps')) {
-                                // Google Maps 2D 用：画面1のオービット位置から CANVAS テレイン上のターゲットを算出
-                                let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
-                                let rawBearing = document.getElementById('input-bearing').value.trim() || '0.00';
-                                const pitch = isNaN(Number(rawPitch)) ? 0 : Number(rawPitch);
-                                const bearing = isNaN(Number(rawBearing)) ? 0 : Number(rawBearing);
-                                let targetLat = Number(lat);
-                                let targetLng = Number(lng);
-                                // CANVAS の換算縮尺に基づくカメラ高度：H = 2^(25.2 - zoom) * 補正係数（実測 pitch=30° のデータに合わせて 0.83）
-                                const H_canvas = Math.pow(2, 25.2 - Number(zoom)) * 0.83;
-                                let ground = 0;
-                                let terrainAlt = 0;
-                                if (pitch > 0.01 && pitch < 89.99) {
-                                    // 標高 0m で仮ターゲットを求め、その点の標高を取得してから ground を再計算
-                                    const ground0 = H_canvas / Math.tan(pitch * Math.PI / 180);
-                                    if (ground0 > 0) {
-                                        const target0 = destinationPoint(Number(lat), Number(lng), ground0, bearing);
-                                        terrainAlt = await getTerrainElevation(target0.lat, target0.lng);
-                                    }
-                                    const H_effective = Math.max(0, H_canvas - terrainAlt);
-                                    ground = H_effective / Math.tan(pitch * Math.PI / 180);
-                                } else if (pitch >= 89.99) {
-                                    terrainAlt = await getTerrainElevation(Number(lat), Number(lng));
-                                }
-                                if (ground > 0) {
-                                    const target = destinationPoint(Number(lat), Number(lng), ground, bearing);
-                                    targetLat = target.lat;
-                                    targetLng = target.lng;
-                                }
-                                // CANVAS 高さ → Google Maps m 値（ターゲット点の標高を差し引いた有効高度で換算）
-                                const H_eff_for_m = Math.max(1, Number(height) - terrainAlt);
-                                const zoom_for_m = 24.965015935602526 - Math.log2(H_eff_for_m);
-                                const mGm = Math.max(1, Math.pow(2, (GM_M_TO_ZOOM_A - zoom_for_m) / GM_M_TO_ZOOM_B));
-                                // 3D 傾斜があれば表示範囲を広げる（pitch 小さいほど遠くまで見える）
-                                const pitchRad = Math.max(0.01, Math.min(89.99, pitch)) * Math.PI / 180;
-                                const spread = Math.min(20, Math.max(1, 1 / Math.sin(pitchRad)));
-                                const mGmSpread = mGm * spread;
-                                targetUrl = `https://www.google.com/maps/@${Number(targetLat).toFixed(8)},${Number(targetLng).toFixed(8)},${Math.round(mGmSpread)}m?entry=ttu`;
-                            } else if (currentUrlStr.includes('127.0.0.1:8510')) {
-                                // CANVAS 用のクエリURLを組み立てる
-                                let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
-                                let rawBearing = document.getElementById('input-bearing').value.trim() || '0.00';
-                                const pitch = isNaN(Number(rawPitch)) ? '0.00' : Number(rawPitch).toFixed(2);
-                                const bearing = isNaN(Number(rawBearing)) ? '0.00' : Number(rawBearing).toFixed(2);
-                                targetUrl = `http://127.0.0.1:8510/#latitude=${lat}&longitude=${lng}&height=${Number(height).toFixed(4)}&pitch=${pitch}&heading=${heading}`;
-                            } else if (currentUrlStr.includes('index2.html')) {
-                                // index2.htmlの場合は何もしない（設定画面などのため）
-                            }
+                    if (!targetUrl) {
+                        if (!doNotOpen) {
+                            statusDiv.style.display = 'block';
+                            statusDiv.style.color = '#dc2626';
+                            statusDiv.textContent = '移動: 対応していないタブです。';
                         }
-                    } catch(err) {
-                        // パース失敗時はデフォルトのGoogle Mapsを使用
+                        return null;
                     }
 
                     if (doNotOpen) {
