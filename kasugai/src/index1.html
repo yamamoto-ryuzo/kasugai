@@ -84,8 +84,8 @@
                     <div title="経度">
                         <input type="text" id="input-lng" placeholder="Lng">
                     </div>
-                    <div title="縮尺 (Zoom)">
-                        <input type="text" id="input-zoom" placeholder="Zoom">
+                    <div title="高さ (m)">
+                        <input type="text" id="input-height" placeholder="Height (m)">
                     </div>
                     <div title="傾斜 (Pitch)">
                         <input type="text" id="input-pitch" placeholder="Pitch">
@@ -197,7 +197,7 @@
                     lat = Number(cam.lat).toFixed(6);
                     lng = Number(cam.lng).toFixed(6);
                     const H = distance * Math.cos(t * Math.PI / 180) + a;
-                    // CANVAS pitch は水平線からの下向き角。Google Earth t は上方向からの角度。
+                    // CANVAS pitch（真上を 90°、水平を 0°）に変換。Google Earth t は上方向からの角度。
                     const canvasPitch = 90 - t;
                     zoom = Number(25.2 - Math.log2(H)).toFixed(4);
                     const result = { lat, lng, zoom, originalUrl: urlStr };
@@ -235,7 +235,7 @@
                                 }
                             }
                             const result = { lat, lng, zoom, originalUrl: urlStr };
-                            // Google Maps 2D / Yahoo Map は真上からの俯瞰（CANVAS pitch = 90°）として扱う
+                            // Google Maps 2D / Yahoo Map は真上からの俯瞰（Cesium lookAt pitch = 90°）として扱う
                             if (urlStr.includes('google.com/maps') || urlStr.includes('yahoo.co.jp')) {
                                 result.pitch = '90.00';
                                 result.bearing = '0.00';
@@ -259,25 +259,37 @@
                         // Re:Earth の height を地図ズームに近似変換
                         const height = parseFloat(matchHeight[1]);
                         // 同様の原理で距離->ズーム変換 (Google Earth に合わせた経験的変換)
-                        const z = 27 - Math.log2(Math.max(1, height || 5000));
+                        const z = 24.965015935602526 - Math.log2(Math.max(1, height || 5000));
                         zoom = Number(z).toFixed(4);
                     } else {
                         zoom = "15.0000";
                     }
-                    return { lat, lng, zoom, originalUrl: urlStr };
+                    const result = { lat, lng, zoom, originalUrl: urlStr };
+                    if (matchHeight) result.height = Number(matchHeight[1]).toFixed(4);
+                    return result;
                 }
 
                 // 4) クエリ/ハッシュパラメータ形式: ?lat=...&lon=...&zoom=... または CANVAS の #latitude=...&longitude=...&zoom=...&pitch=...&bearing=...
                 const qLat = urlStr.match(/[?&#](?:lat|latitude)=(-?\d+(?:\.\d+)?)/);
                 const qLon = urlStr.match(/[?&#](?:lon|lng|longitude)=(-?\d+(?:\.\d+)?)/);
                 const qZoom = urlStr.match(/[?&#](?:zoom|z)=(\d+(?:\.\d+)?)/);
+                const qHeight = urlStr.match(/[?&#]height=(-?\d+(?:\.\d+)?)/);
                 const qPitch = urlStr.match(/[?&#]pitch=(-?\d+(?:\.\d+)?)/);
-                const qBearing = urlStr.match(/[?&#]bearing=(-?\d+(?:\.\d+)?)/);
+                const qBearing = urlStr.match(/[?&#](?:bearing|heading)=(-?\d+(?:\.\d+)?)/);
                 if (qLat && qLon) {
                     lat = Number(qLat[1]).toFixed(6);
                     lng = Number(qLon[1]).toFixed(6);
-                    zoom = qZoom ? Number(qZoom[1]).toFixed(4) : "15.0000";
+                    if (qZoom) {
+                        zoom = Number(qZoom[1]).toFixed(4);
+                    } else if (qHeight) {
+                        const h = parseFloat(qHeight[1]);
+                        const z = 24.965015935602526 - Math.log2(Math.max(1, h || 5000));
+                        zoom = Number(z).toFixed(4);
+                    } else {
+                        zoom = "15.0000";
+                    }
                     const result = { lat, lng, zoom, originalUrl: urlStr };
+                    if (qHeight) result.height = Number(qHeight[1]).toFixed(4);
                     if (qPitch) result.pitch = Number(qPitch[1]).toFixed(2);
                     if (qBearing) result.bearing = Number(qBearing[1]).toFixed(2);
                     // Yahoo Map は平面表示なので常に pitch=90, bearing=0 とする
@@ -324,10 +336,11 @@
                 let z = kvZoom ? String(kvZoom[1]) : '';
                 if (!z && kvHeight) {
                     const h = parseFloat(kvHeight[1]);
-                    const zz = 27 - Math.log2(Math.max(1, h || 5000));
+                    const zz = 24.965015935602526 - Math.log2(Math.max(1, h || 5000));
                     z = Number(zz).toFixed(4);
                 }
                 const result = { lat: Number(kvLat[1]).toFixed(6), lng: Number(kvLng[1]).toFixed(6), zoom: z };
+                if (kvHeight) result.height = Number(kvHeight[1]).toFixed(4);
                 if (text.includes('yahoo.co.jp') || text.includes('google.com/maps') || text.includes('maps.app.goo.gl')) {
                     result.pitch = '90.00';
                     result.bearing = '0.00';
@@ -399,10 +412,11 @@
                     }
                     document.getElementById('input-lat').value = loc.lat;
                     document.getElementById('input-lng').value = loc.lng;
-                    document.getElementById('input-zoom').value = loc.zoom || '';
+
                     document.getElementById('input-pitch').value = loc.pitch || '0.00';
                     document.getElementById('input-bearing').value = loc.bearing || '0.00';
                     document.getElementById('input-alt').value = loc.alt || '0.00';
+                    document.getElementById('input-height').value = loc.height || (loc.zoom ? Number(Math.pow(2, 24.965015935602526 - Number(loc.zoom))).toFixed(4) : '0.00');
                     // 取得完了後にGIS URL入力欄をクリア（手動取得時のみ）
                     if (!autoSyncMode) {
                         urlInput.value = '';
@@ -459,10 +473,11 @@
                         }
                         document.getElementById('input-lat').value = loc.lat;
                         document.getElementById('input-lng').value = loc.lng;
-                        document.getElementById('input-zoom').value = loc.zoom || '';
+    
                         document.getElementById('input-pitch').value = loc.pitch || '0.00';
                         document.getElementById('input-bearing').value = loc.bearing || '0.00';
                         document.getElementById('input-alt').value = loc.alt || '0.00';
+                        document.getElementById('input-height').value = loc.height || (loc.zoom ? Number(Math.pow(2, 24.965015935602526 - Number(loc.zoom))).toFixed(4) : '0.00');
                         statusDiv.style.display = 'none';
                     } else {
                         statusDiv.style.display = 'block';
@@ -525,8 +540,10 @@
             
             const lat = document.getElementById('input-lat').value.trim();
             const lng = document.getElementById('input-lng').value.trim();
-            let zoom = document.getElementById('input-zoom').value.trim();
-            if (!zoom) zoom = '15'; // デフォルト
+            const rawHeight = document.getElementById('input-height').value.trim();
+            let height = Number(rawHeight);
+            if (isNaN(height) || height <= 0) height = 1000;
+            const zoom = (24.965015935602526 - Math.log2(height)).toFixed(4);
 
             if (!lat || !lng) {
                 statusDiv.style.display = 'block';
@@ -550,31 +567,28 @@
                         } catch (e) { /* ignore */ }
                     }
 
-                    // Re:Earth タブがアクティブな場合は Re:Earth 用 URL を組み立ててクリップボードへコピー
+                    // Re:Earth タブがアクティブな場合は URL を組み立てて直接移動
                     if (activeTab === 'reearth') {
                         try {
                             const base = (localStorage.getItem('reearth_url') || 'https://reearth.io/').split('?')[0];
-                            // height を zoom から逆算
-                            const height = Math.pow(2, 27 - Number(zoom));
-                            const reearthUrl = `${base}?lat=${lat}&lng=${lng}&height=${Number(height).toFixed(4)}&heading=0&pitch=-90`;
-                            if (navigator.clipboard && navigator.clipboard.writeText) {
-                                await navigator.clipboard.writeText(reearthUrl);
-                                statusDiv.style.display = 'block';
-                                statusDiv.style.color = '#15803d';
-                                statusDiv.textContent = 'Re:Earth 用 URL をクリップボードへコピーしました。プラグインで貼り付けてください。';
-                                setTimeout(() => { statusDiv.style.display = 'none'; }, 2500);
-                                return;
-                            } else {
-                                // フォールバック: Rust 経由でクリップボードに書き込むことも可能だが、ここでは通知する
-                                statusDiv.style.display = 'block';
-                                statusDiv.style.color = '#dc2626';
-                                statusDiv.textContent = 'クリップボードへコピーできませんでした。ブラウザの権限を確認してください。';
-                                return;
+                            const rawHeading = document.getElementById('input-bearing').value.trim() || '0';
+                            const rawPitch = document.getElementById('input-pitch').value.trim() || '0';
+                            const heading = isNaN(Number(rawHeading)) ? '0.00' : Number(rawHeading).toFixed(2);
+                            const pitch = isNaN(Number(rawPitch)) ? '0.00' : Number(rawPitch).toFixed(2);
+                            const reearthUrl = `${base}?lat=${lat}&lng=${lng}&height=${Number(height).toFixed(4)}&heading=${heading}&pitch=${pitch}`;
+                            if (doNotOpen) {
+                                return reearthUrl;
                             }
+                            await window.__TAURI__.core.invoke('open_in_pane2', { url: reearthUrl });
+                            statusDiv.style.display = 'block';
+                            statusDiv.style.color = '#15803d';
+                            statusDiv.textContent = 'Re:Earth へ移動しました。';
+                            setTimeout(() => { statusDiv.style.display = 'none'; }, 2500);
+                            return;
                         } catch (e) {
                             statusDiv.style.display = 'block';
                             statusDiv.style.color = '#dc2626';
-                            statusDiv.textContent = 'Re:Earth URL の生成/コピーに失敗しました: ' + e;
+                            statusDiv.textContent = 'Re:Earth への移動に失敗しました: ' + e;
                             return;
                         }
                     }
@@ -689,7 +703,7 @@
                                 let rawBearing = document.getElementById('input-bearing').value.trim() || '0.00';
                                 const pitch = isNaN(Number(rawPitch)) ? '0.00' : Number(rawPitch).toFixed(2);
                                 const bearing = isNaN(Number(rawBearing)) ? '0.00' : Number(rawBearing).toFixed(2);
-                                targetUrl = `http://127.0.0.1:8510/#latitude=${lat}&longitude=${lng}&zoom=${zoom}&pitch=${pitch}&bearing=${bearing}`;
+                                targetUrl = `http://127.0.0.1:8510/#latitude=${lat}&longitude=${lng}&height=${Number(height).toFixed(4)}&pitch=${pitch}&heading=${heading}`;
                             } else if (currentUrlStr.includes('index2.html')) {
                                 // index2.htmlの場合は何もしない（設定画面などのため）
                             }
@@ -737,7 +751,7 @@
         }
 
         // 自動同期対象のGISタブに応じたダミーURLを返す（URL判定用）
-        // 対象: CANVAS(cesium)、Google Maps(google)、Google Earth(googleearth)、Yahoo Map(yahoo)
+        // 対象: CANVAS(cesium)、Google Maps(google)、Google Earth(googleearth)、Yahoo Map(yahoo)、Re:Earth(reearth)
         // 対象外は null を返し、handleAutoSyncTabChange では何もせず index2 側の通常タブ切り替えに任せる
         function getDummyUrlForTab(tabName) {
             switch (tabName) {
@@ -749,6 +763,8 @@
                     return 'https://map.yahoo.co.jp/';
                 case 'cesium':
                     return 'http://127.0.0.1:8510/';
+                case 'reearth':
+                    return (localStorage.getItem('reearth_url') || 'https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/').split('?')[0];
                 default:
                     return null;
             }

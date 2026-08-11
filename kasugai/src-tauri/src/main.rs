@@ -1894,7 +1894,7 @@ async fn get_pane2_url(
 
     let _ = app_handle.run_on_main_thread(move || {
         if target_str == "pane2_cesium" {
-            // Cesium(CANVAS) は URL クエリを更新しないため、カメラから直接算出して replaceState する
+            // Cesium(CANVAS) は URL クエリを更新しないため、カメラから直接算出してハッシュ差し替え
             let script = r#"
                 (function(){
                     try {
@@ -1905,12 +1905,10 @@ async fn get_pane2_url(
                         const lat = p.latitude * 180 / Math.PI;
                         const lng = p.longitude * 180 / Math.PI;
                         const H = p.height;
-                        const ZA = 25.2;
-                        const zoom = Math.max(0, ZA - Math.log2(Math.max(1, H)));
                         const pitch = -c.pitch * 180 / Math.PI;
-                        const bearing = ((c.heading * 180 / Math.PI) % 360 + 360) % 360;
-                        const q = `#latitude=${lat.toFixed(6)}&longitude=${lng.toFixed(6)}&zoom=${zoom.toFixed(4)}&pitch=${pitch.toFixed(2)}&bearing=${bearing.toFixed(2)}`;
-                        history.replaceState(null, '', location.pathname + q);
+                        const heading = ((c.heading * 180 / Math.PI) % 360 + 360) % 360;
+                        const q = `#latitude=${lat.toFixed(6)}&longitude=${lng.toFixed(6)}&height=${H.toFixed(4)}&pitch=${pitch.toFixed(2)}&heading=${heading.toFixed(2)}`;
+                        window.location.replace(location.origin + location.pathname + q);
                     } catch(e) { console.error(e); }
                 })();
             "#;
@@ -1919,10 +1917,11 @@ async fn get_pane2_url(
                     let _ = wv.eval(script);
                 }
             }
-            let target = target_str.clone();
+            // 差し替え後の URL を wv.url() で取得
+            let target = target_str;
             let tx2 = tx.clone();
             std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_millis(100));
+                std::thread::sleep(std::time::Duration::from_millis(300));
                 let app_handle3 = app_handle2.clone();
                 let _ = app_handle2.run_on_main_thread(move || {
                     let mut res = Err("Could not get URL".to_string());
@@ -1949,8 +1948,10 @@ async fn get_pane2_url(
         }
     });
 
-    rx.recv()
-        .unwrap_or(Err("Thread communication error".to_string()))
+    match rx.recv_timeout(std::time::Duration::from_millis(2000)) {
+        Ok(res) => res,
+        Err(_) => Err("Could not get URL".to_string()),
+    }
 }
 
 #[tauri::command]

@@ -60,11 +60,10 @@ graph TD
 ## 位置同期（緯度/経度ベース）
 
 ### 目的
-- 異なる地図サービス間（Google Maps / Google Earth / CesiumJS / Yahoo / Re:Earth）の現在位置を、緯度・経度・ズーム（または高さ）で正確に同期すること。
+- 異なる地図サービス間（Google Maps / Google Earth / CesiumJS / Yahoo / Re:Earth）の現在位置を、緯度・経度・高さ・ピッチ・方位で正確に同期すること。
 
 ### 対応方式
-- **URLハッシュ／パラメータ解析**: Google系・Cesium・Yahoo等はURL（ハッシュやクエリ）に位置情報を含むため、これをパースして同期。 
-- **クリップボード経由（Re:Earth）**: Re:Earth は iframe サンドボックスの制約があるため、プラグインが生成する permalink をユーザーがコピー → 本アプリが clipboard を read して解析・同期／作成する運用を採用。
+- **URLハッシュ／パラメータ解析**: Google系・Cesium・Yahoo等はURL（ハッシュやクエリ）に位置情報を含むため、これをパースして同期。Re:Earth も URL クエリパラメータ経由で直接カメラ位置を指定・取得する。
 
 ### 同期アルゴリズム概要
 - 1) WebView の現在URLを監視し、既知のパターン（Google Maps/GE/Cesium/Yahoo）と照合して `lat, lng, zoom/height` を抽出。
@@ -72,15 +71,10 @@ graph TD
 - 3) 取得した値はすべて **CANVAS（CesiumJS）のカメラ位置を基準** に正規化し、各サービス向けパラメータを生成する。
 - 4) 移動時は CANVAS カメラ（オービット）位置から `pitch`・`bearing` を使い、標高を考慮して **地表（テレイン）上のターゲット点** を算出し、その点を各 2D 地図の中心とする。
 
-### CANVAS 基準の高度 ↔ ズーム換算
-- CANVAS（CesiumJS）では、カメラ高度 `H`（m）からズームを以下で算出:
-  $$zoom \approx 25.2 - \log_2(H)$$
-  逆変換:
-  $$H \approx 2^{25.2 - zoom}$$
-- Google Maps 2D では、`m` 値（表示幅）と CANVAS `zoom` を以下で双方向変換:
-  $$zoom \approx 23.663 - 0.9561 \cdot \log_2(m)$$
-  逆変換:
-  $$m \approx 2^{(23.663 - zoom) / 0.9561}$$
+### CANVAS 基準の高度管理
+- KASUGAI 内部ではカメラ高度を **CANVAS（CesiumJS）の `camera.positionCartographic.height`（m）** のまま保持する。
+- CANVAS / Re:Earth 間の移動では `height` をそのまま URL パラメータでやり取りする。
+- 2D 地図（Google Maps / Yahoo Map）へ移動する際に限り、`height` から表示縮尺を推定する補助換算を行う。これはサービス固有のロジックであり、KASUGAI 内部の正規 `height` には影響しない。
 
 ### 中心位置計算ロジック（CANVAS 基準）
 - 入力 `lat/lng` は **CANVAS のカメラ（オービット）位置**。
@@ -95,14 +89,24 @@ graph TD
 - Google Maps 2D では傾斜がある場合、表示範囲 `m` を `1/\sin(pitch)` 倍（最大20倍）で広げる。
 
 ### 具体的運用手順（ユーザー向け）
-- **位置取得（Re:Earth）**: Re:Earth プラグインで permalink を「COPY」→ Kasugai の画面1「取得」を押下 → `Lat/Lng/Zoom` が自動入力される。
-- **移動（Re:Earth）**: 画面1 で `Lat/Lng/Zoom` を決め「移動」→ Re:Earth 用 permalink を生成（`height` を逆算）し、`&heading=0&pitch=-90` を付与してクリップボードへコピー。Re:Earth プラグイン側で貼り付けて適用する。
-- **他地図サービス間の移動**: 画面1 の移動で、各サービス固有のURLパターンへ変換して直接そのWebViewをナビゲートする（Google, Cesium, Yahoo, Google Earth対応）。
+- **位置取得**: 各ペインの現在位置を画面1「取得」で読み込む。CANVAS はカメラから直接 URL ハッシュを取得し、他のタブは `wv.url()` を解析する。Re:Earth も URL パラメータ経由で直接取得する。
+- **移動**: 画面1 で `Lat/Lng/Height/Pitch/Bearing` を決め「移動」→ 各 GIS サービス向けに URL を生成し、`open_in_pane2` で直接 WebView をナビゲートする（Google, Cesium, Yahoo, Google Earth, Re:Earth 対応）。
+- **他地図サービス間の移動**: 画面1 の移動で、各サービス固有のURLパターンへ変換して直接そのWebViewをナビゲートする。
 
 ### サンプル（permalink 例）
-- Re:Earth サンプル: `https://reearth.io/permalink?lat=35.6809591&lng=139.7673068&height=1200&heading=0&pitch=-90`
+- Re:Earth サンプル: `https://<project-id>.visualizer.reearth.io/?lat=35.6809591&lng=139.7673068&height=1200&heading=0&pitch=90`
 - Google Maps（ハッシュ）: `https://www.google.com/maps/@35.6809591,139.7673068,15z`
-- CANVAS（ハッシュ）: `http://127.0.0.1:8510/#latitude=35.892029&longitude=139.610299&zoom=14.986629&pitch=90.00&bearing=360.00`（v2.6.4 以降。旧 `?latitude=...` クエリ形式の解析も後方互換で対応）
+- CANVAS（ハッシュ）: `http://127.0.0.1:8510/#latitude=35.892029&longitude=139.610299&height=2200.60&pitch=24.72&heading=348.92`（v2.6.4 以降。旧 `?latitude=...` クエリ形式の解析も後方互換で対応）
+
+### Cesium ネイティブのピッチ表記
+
+KASUGAI および CANVAS / Re:Earth URL の `pitch` は **Cesium `lookAt` / `lookAtTransform` 方式** に基づきます。
+
+- `0°` = 水平
+- `+90°` = 真下からの俯瞰
+- 下向きを **正**、上向きを **負** とする
+
+Cesium 公式では `lookAt` offset の `pitch` について **Positive pitch angles are below the plane** と定義されています。本システムはこれを Cesium ネイティブとして採用し、CANVAS / Re:Earth URL の `pitch` も同じく下向きを正で扱います。
 
 ### 制約と推奨
 - Re:Earth は iframe サンドボックスのため「貼付」操作をユーザーが行う運用が必要（自動直接注入は不可）。
