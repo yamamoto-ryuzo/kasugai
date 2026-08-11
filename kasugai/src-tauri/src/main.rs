@@ -1905,7 +1905,7 @@ async fn get_pane2_url(
                         const lat = p.latitude * 180 / Math.PI;
                         const lng = p.longitude * 180 / Math.PI;
                         const H = p.height;
-                        const pitch = -c.pitch * 180 / Math.PI;
+                        const pitch = c.pitch * 180 / Math.PI;
                         const heading = ((c.heading * 180 / Math.PI) % 360 + 360) % 360;
                         const q = `#latitude=${lat.toFixed(6)}&longitude=${lng.toFixed(6)}&height=${H.toFixed(4)}&pitch=${pitch.toFixed(2)}&heading=${heading.toFixed(2)}`;
                         window.location.replace(location.origin + location.pathname + q);

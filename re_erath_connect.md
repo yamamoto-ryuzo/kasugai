@@ -68,12 +68,12 @@ https://<project-id>.visualizer.reearth.io/
 例：
 
 ```
-?lat=35.188733&lng=138.610404&height=9807.7&heading=28.56&pitch=24.72
+?lat=35.188733&lng=138.610404&height=9807.7&heading=28.56&pitch=-24.72
 ```
 
 ### パラメータの意味
 
-すべて Cesium ネイティブの値を使用します。Cesium の `lookAt` / `lookAtTransform` では公式に **Positive pitch angles are below the plane** と定義されており、本連携ではこれを **Cesium ネイティブ** として採用します（0°=水平、真下 90°、下向きを正）。
+すべて Cesium ネイティブの値を使用します。Cesium の `camera.pitch` をそのまま採用し（0°=水平、真下 -90°、下向きを負）、本連携でも同じ表記を使います。
 
 | パラメータ | Cesium ソース | 説明 |
 |---|---|---|
@@ -81,7 +81,7 @@ https://<project-id>.visualizer.reearth.io/
 | `lng` | `positionCartographic.longitude` | 経度（度） |
 | `height` | `positionCartographic.height` | カメラ高度（楕円体からの高さ、m） |
 | `heading` | `camera.heading` | 方位角（度、0°=北） |
-| `pitch` | `camera.pitch` の符号反転（`-camera.pitch`） | 傾斜（度、0°=水平、真下 90°、下向きを正） |
+| `pitch` | `camera.pitch` | 傾斜（度、0°=水平、真下 -90°、下向きを負） |
 
 ---
 

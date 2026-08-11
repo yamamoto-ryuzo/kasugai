@@ -6,6 +6,24 @@
 
 ## [Unreleased]
 
+## [2.6.7] - 2026-08-11
+
+### 概要
+ピッチを Cesium `camera.pitch` ネイティブに統一し、入力欄・移動処理・取得処理を見直しました。
+
+### 変更 (Changed)
+- **ピッチの Cesium ネイティブ化**: 画面1の入力欄と各パーサーの `pitch` を Cesium `camera.pitch` 方式（0°=水平、真下 -90°、下向きを負）に統一。
+- **方位入力を Heading に変更**: 入力欄 `Bearing` を `Heading` に変更し、URL パラメータ・内部プロパティも `heading` に統一。
+- **Re:Earth 取得を非対応化**: 画面2の取得ボタンで Re:Earth タブがアクティブな場合は「Re:Earth からの位置情報取得は非対応です。」と表示し、取得を行わないようにしました。
+- **Google Maps 3D 取得対応**: `@lat,lng,alta,...,tiltt,headingh` 形式の Google Maps 3D/Earth view URL から tilt/heading を解析し、Cesium ネイティブの pitch/heading として反映。
+- **ドキュメント更新**: `kasugai.md` / `re_erath_connect.md` の pitch 表記を Cesium ネイティブに合わせて更新。
+
+### 修正 (Fixed)
+- `get_pane2_url` での Cesium 取得時、pitch の符号反転を廃止し、Cesium `camera.pitch` をそのまま URL に反映。
+- Re:Earth への移動 URL の pitch から符号反転を削除。
+
+## [2.6.4] - 2026-08-10
+
 ## [2.6.4] - 2026-08-10
 
 ### 概要

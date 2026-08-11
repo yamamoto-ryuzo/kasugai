@@ -69,7 +69,7 @@ graph TD
 - 1) WebView の現在URLを監視し、既知のパターン（Google Maps/GE/Cesium/Yahoo）と照合して `lat, lng, zoom/height` を抽出。
 - 2) 抽出に失敗した場合は、クリップボード・テキストやページ内に残る数値列からフォールバックで抽出。
 - 3) 取得した値はすべて **CANVAS（CesiumJS）のカメラ位置を基準** に正規化し、各サービス向けパラメータを生成する。
-- 4) 移動時は CANVAS カメラ（オービット）位置から `pitch`・`bearing` を使い、標高を考慮して **地表（テレイン）上のターゲット点** を算出し、その点を各 2D 地図の中心とする。
+- 4) 移動時は CANVAS カメラ（オービット）位置から `pitch`・`heading` を使い、標高を考慮して **地表（テレイン）上のターゲット点** を算出し、その点を各 2D 地図の中心とする。
 
 ### CANVAS 基準の高度管理
 - KASUGAI 内部ではカメラ高度を **CANVAS（CesiumJS）の `camera.positionCartographic.height`（m）** のまま保持する。
@@ -83,10 +83,10 @@ graph TD
   - `0.83` は Google Maps 実測データに基づく補正係数。
   - `terrainAlt` はターゲット点の標高（OpenTopoData API 経由）。
 - 地表までの水平距離:
-  $$ground = H_{\text{effective}} \cdot \cot(pitch)$$
+  $$ground = H_{\text{effective}} \cdot \cot(-pitch)$$
 - 中心点（Google Maps / Yahoo 地図）:
   $$target = \text{destinationPoint}(lat,\ lng,\ ground,\ bearing)$$
-- Google Maps 2D では傾斜がある場合、表示範囲 `m` を `1/\sin(pitch)` 倍（最大20倍）で広げる。
+- Google Maps 2D では傾斜がある場合、表示範囲 `m` を `1/\sin(-pitch)` 倍（最大20倍）で広げる。
 
 ### 具体的運用手順（ユーザー向け）
 - **位置取得**: 各ペインの現在位置を画面1「取得」で読み込む。CANVAS はカメラから直接 URL ハッシュを取得し、他のタブは `wv.url()` を解析する。Re:Earth も URL パラメータ経由で直接取得する。
@@ -94,19 +94,19 @@ graph TD
 - **他地図サービス間の移動**: 画面1 の移動で、各サービス固有のURLパターンへ変換して直接そのWebViewをナビゲートする。
 
 ### サンプル（permalink 例）
-- Re:Earth サンプル: `https://<project-id>.visualizer.reearth.io/?lat=35.6809591&lng=139.7673068&height=1200&heading=0&pitch=90`
+- Re:Earth サンプル: `https://<project-id>.visualizer.reearth.io/?lat=35.6809591&lng=139.7673068&height=1200&heading=0&pitch=-90`
 - Google Maps（ハッシュ）: `https://www.google.com/maps/@35.6809591,139.7673068,15z`
-- CANVAS（ハッシュ）: `http://127.0.0.1:8510/#latitude=35.892029&longitude=139.610299&height=2200.60&pitch=24.72&heading=348.92`（v2.6.4 以降。旧 `?latitude=...` クエリ形式の解析も後方互換で対応）
+- CANVAS（ハッシュ）: `http://127.0.0.1:8510/#latitude=35.892029&longitude=139.610299&height=2200.60&pitch=-24.72&heading=348.92`（v2.6.4 以降。旧 `?latitude=...` クエリ形式の解析も後方互換で対応）
 
 ### Cesium ネイティブのピッチ表記
 
-KASUGAI および CANVAS / Re:Earth URL の `pitch` は **Cesium `lookAt` / `lookAtTransform` 方式** に基づきます。
+KASUGAI および CANVAS / Re:Earth URL の `pitch` は **Cesium `camera.pitch`** に基づきます。
 
 - `0°` = 水平
-- `+90°` = 真下からの俯瞰
-- 下向きを **正**、上向きを **負** とする
+- `-90°` = 真下からの俯瞰
+- 下向きを **負**、上向きを **正** とする
 
-Cesium 公式では `lookAt` offset の `pitch` について **Positive pitch angles are below the plane** と定義されています。本システムはこれを Cesium ネイティブとして採用し、CANVAS / Re:Earth URL の `pitch` も同じく下向きを正で扱います。
+本システムでは Cesium `camera.pitch` をそのまま採用し、CANVAS / Re:Earth URL の `pitch` も同じく下向きを負で扱います。
 
 ### 制約と推奨
 - Re:Earth は iframe サンドボックスのため「貼付」操作をユーザーが行う運用が必要（自動直接注入は不可）。
