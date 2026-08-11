@@ -674,24 +674,28 @@
                                 // CANVAS の換算縮尺に基づくカメラ高度：H = 2^(25.2 - zoom) * 補正係数（実測 pitch=30° のデータに合わせて 0.83）
                                 const H_canvas = Math.pow(2, 25.2 - Number(zoom)) * 0.83;
                                 let ground = 0;
+                                let terrainAlt = 0;
                                 if (pitch > 0.01 && pitch < 89.99) {
                                     // 標高 0m で仮ターゲットを求め、その点の標高を取得してから ground を再計算
                                     const ground0 = H_canvas / Math.tan(pitch * Math.PI / 180);
-                                    let terrainAlt = 0;
                                     if (ground0 > 0) {
                                         const target0 = destinationPoint(Number(lat), Number(lng), ground0, bearing);
                                         terrainAlt = await getTerrainElevation(target0.lat, target0.lng);
                                     }
                                     const H_effective = Math.max(0, H_canvas - terrainAlt);
                                     ground = H_effective / Math.tan(pitch * Math.PI / 180);
+                                } else if (pitch >= 89.99) {
+                                    terrainAlt = await getTerrainElevation(Number(lat), Number(lng));
                                 }
                                 if (ground > 0) {
                                     const target = destinationPoint(Number(lat), Number(lng), ground, bearing);
                                     targetLat = target.lat;
                                     targetLng = target.lng;
                                 }
-                                // CANVAS zoom → Google Maps m 値（双方向で同じ定数使用）
-                                const mGm = Math.max(1, Math.pow(2, (GM_M_TO_ZOOM_A - Number(zoom)) / GM_M_TO_ZOOM_B));
+                                // CANVAS 高さ → Google Maps m 値（ターゲット点の標高を差し引いた有効高度で換算）
+                                const H_eff_for_m = Math.max(1, Number(height) - terrainAlt);
+                                const zoom_for_m = 24.965015935602526 - Math.log2(H_eff_for_m);
+                                const mGm = Math.max(1, Math.pow(2, (GM_M_TO_ZOOM_A - zoom_for_m) / GM_M_TO_ZOOM_B));
                                 // 3D 傾斜があれば表示範囲を広げる（pitch 小さいほど遠くまで見える）
                                 const pitchRad = Math.max(0.01, Math.min(89.99, pitch)) * Math.PI / 180;
                                 const spread = Math.min(20, Math.max(1, 1 / Math.sin(pitchRad)));
