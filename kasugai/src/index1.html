@@ -175,7 +175,18 @@
             return 0;
         }
 
-        function parseLocation(urlStr) {
+        async function getGeoidUndulation(lat, lng) {
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                try {
+                    return await window.__TAURI__.core.invoke('get_geoid_undulation', { lat: Number(lat), lon: Number(lng) });
+                } catch (e) {
+                    console.warn('getGeoidUndulation failed:', e);
+                }
+            }
+            return 0;
+        }
+
+        async function parseLocation(urlStr) {
             try {
                 let lat = null, lng = null, zoom = null;
 
@@ -199,13 +210,15 @@
                     const H = distance * Math.cos(t * Math.PI / 180) + a;
                     // Cesium ネイティブのピッチ（水平 0°、真下 -90°）に変換。Google Earth t は上方向からの角度。
                     const cesiumPitch = t - 90;
-                    // H はカメラの標高。ズーム表示用と取得後の input-height 用に両方保持。
+                    const n = await getGeoidUndulation(cam.lat, cam.lng);
+                    const hEllipsoid = H + n;
+                    // H（MSL）をズーム表示用、hEllipsoid（楕円体高）を取得後の input-height 用に保持。
                     zoom = Number(25.2 - Math.log2(H)).toFixed(4);
                     const result = { lat, lng, zoom, originalUrl: urlStr };
                     if (pitchMatch) result.pitch = Number(cesiumPitch).toFixed(2);
                     if (bearingMatch) result.heading = Number(normalizeBearing(h)).toFixed(2);
                     result.alt = Number(a).toFixed(2);
-                    result.height = Number(H).toFixed(2);
+                    result.height = Number(hEllipsoid).toFixed(2);
                     return result;
                 }
 
@@ -418,7 +431,7 @@
             
             if (gisUrl) {
                 // 指定URLまたはGIS URL入力欄がある場合はそこから取得
-                let loc = parseLocation(gisUrl);
+                let loc = await parseLocation(gisUrl);
                 if (!loc) {
                     loc = extractLatLngZoomFromText(gisUrl);
                 }
@@ -481,7 +494,7 @@
                         url = await window.__TAURI__.core.invoke('get_pane2_url');
                     }
 
-                    let loc = parseLocation(url);
+                    let loc = await parseLocation(url);
                     if (!loc) {
                         // 直接URL解析が失敗したら、クリップボード内の任意テキストから抽出を試みる
                         loc = extractLatLngZoomFromText(url);
@@ -643,18 +656,26 @@
                         if (t < 0) t = 0;
                         if (t > 89.9) t = 89.9;
                         const tRad = t * Math.PI / 180;
-                        // 入力された高さをカメラの絶対標高として使い、ズーム換算ではない正確な距離を求める
-                        const camAlt = Number(height);
-                        const ground0 = Math.max(0, camAlt * Math.tan(tRad));
+                        // 入力 height は Cesium 楕円体高。MSL 基準の地上高に変換してから距離を求める。
+                        const camAltEllipsoid = Number(height);
+                        const [nNadir, terrainAltNadir] = await Promise.all([
+                            getGeoidUndulation(Number(lat), Number(lng)),
+                            getTerrainElevation(Number(lat), Number(lng))
+                        ]);
+                        const hAboveNadir = Math.max(1, camAltEllipsoid - nNadir - terrainAltNadir);
+                        const ground0 = hAboveNadir * Math.tan(tRad);
                         const target0 = destinationPoint(Number(lat), Number(lng), ground0, heading);
-                        const terrainAlt = await getTerrainElevation(target0.lat, target0.lng);
-                        const camAltAboveTerrain = Math.max(1, camAlt - terrainAlt);
-                        const ground = camAltAboveTerrain * Math.tan(tRad);
+                        const [nTarget, terrainAltTarget] = await Promise.all([
+                            getGeoidUndulation(target0.lat, target0.lng),
+                            getTerrainElevation(target0.lat, target0.lng)
+                        ]);
+                        const hAboveTarget = Math.max(1, camAltEllipsoid - nTarget - terrainAltTarget);
+                        const ground = hAboveTarget * Math.tan(tRad);
                         const target = destinationPoint(Number(lat), Number(lng), ground, heading);
-                        const distanceNum = camAltAboveTerrain / Math.cos(tRad);
+                        const distanceNum = hAboveTarget / Math.cos(tRad);
                         const tStr = t.toFixed(2);
                         const h = normalizeBearing(heading).toFixed(2);
-                        targetUrl = `https://earth.google.com/web/@${Number(target.lat).toFixed(8)},${Number(target.lng).toFixed(8)},${Number(terrainAlt).toFixed(2)}a,${distanceNum.toFixed(2)}d,35y,${h}h,${tStr}t,0r`;
+                        targetUrl = `https://earth.google.com/web/@${Number(target.lat).toFixed(8)},${Number(target.lng).toFixed(8)},${Number(terrainAltTarget).toFixed(2)}a,${distanceNum.toFixed(2)}d,35y,${h}h,${tStr}t,0r`;
                     } else if (activeTab === 'yahoo') {
                         let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
                         let rawHeading = document.getElementById('input-heading').value.trim() || '0.00';

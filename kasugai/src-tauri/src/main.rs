@@ -1960,6 +1960,13 @@ fn get_active_pane2(state: tauri::State<'_, SplitterState>) -> String {
 }
 
 #[tauri::command]
+fn get_geoid_undulation(lat: f64, lon: f64) -> Result<f64, String> {
+    egm2008::geoid_height(lat as f32, lon as f32)
+        .map(|v| v as f64)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn preload_webview(app_handle: tauri::AppHandle, target: String, url: String) {
     if target == "pane2_reearth" || target == "pane2_box" {
         // Re:EarthとBOXは起動時の自動ログイン（タイピング/DOM操作）を確実にするためプレロード（裏読み）をスキップします。
@@ -2364,6 +2371,7 @@ fn main() {
             close_pane3_tab,
             get_pane2_url,
             get_active_pane2,
+            get_geoid_undulation,
             reload_pane2_google,
             reload_pane2,
             call_gemini,

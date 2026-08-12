@@ -7,7 +7,15 @@
 ## [Unreleased]
 
 ### 概要
-Google Earth との双方向変換の高さ計算を修正し、Cesium カメラ高さをそのまま使用するようにしました。
+Google Earth との双方向変換にジオイド補正を導入し、Cesium（WGS84 楕円体高）と Google Earth（MSL）間の高さ変換を正確化しました。
+
+### 追加 (Added)
+- Rust 側に `egm2008` クレートを追加し、`get_geoid_undulation(lat, lon)` コマンドを実装。EGM2008 モデルでジオイド高を取得可能に。
+- `index1.html` に `getGeoidUndulation()` ヘルパーを追加し、Rust コマンドを非同期で呼び出せるように。
+
+### 変更 (Changed)
+- `parseLocation()` を非同期化。Google Earth URL 取得時にカメラ位置のジオイド高を取得し、楕円体高（Cesium 基準）へ変換した `height` を返すように。
+- `moveMap()` の Google Earth 移動で、カメラ直下とターゲット地点のジオイド高を考慮。`height - geoid - terrain` から真の地上高を算出し、`distance`/`target`/`a` を決定するように。
 
 ### 修正 (Fixed)
 - `parseLocation()` の Google Earth 解析で、カメラ標高 `H` を `result.height` に追加。`getLocation()` が正確なカメラ高さを `input-height` に保持するよう修正。
