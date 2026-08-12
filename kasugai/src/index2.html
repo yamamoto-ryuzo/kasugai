@@ -727,16 +727,25 @@
             // 自動同期モード中は、切り替え前のURLを取得して画面1へ通知
             if (isAutoSyncEnabled && window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.event) {
                 try {
-                    const active = await window.__TAURI__.core.invoke('get_active_pane2');
+                    const active = await Promise.race([
+                        window.__TAURI__.core.invoke('get_active_pane2'),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('get_active_pane2 timeout')), 500))
+                    ]);
                     // settings など WebView を持たないタブでは URL 取得をスキップ
                     if (active && !['settings', 'default', ''].includes(active)) {
-                        fromUrl = await window.__TAURI__.core.invoke('get_pane2_url');
+                        fromUrl = await Promise.race([
+                            window.__TAURI__.core.invoke('get_pane2_url'),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('get_pane2_url timeout')), 2000))
+                        ]);
                         // Google Earthの場合、URLに座標(@...)が含まれるまで最大15秒待機
                         if (fromUrl && fromUrl.includes('earth.google.com') && !fromUrl.includes('@')) {
                             for (let i = 0; i < 50; i++) {
                                 await new Promise(r => setTimeout(r, 300));
-                                fromUrl = await window.__TAURI__.core.invoke('get_pane2_url');
-                                if (fromUrl.includes('@')) break;
+                                fromUrl = await Promise.race([
+                                    window.__TAURI__.core.invoke('get_pane2_url'),
+                                    new Promise((_, reject) => setTimeout(() => reject(new Error('get_pane2_url timeout')), 2000))
+                                ]);
+                                if (fromUrl && fromUrl.includes('@')) break;
                             }
                         }
                         canAutoSync = !!fromUrl && fromUrl !== 'about:blank' && !fromUrl.startsWith('tauri://') && !fromUrl.includes('tauri.localhost');

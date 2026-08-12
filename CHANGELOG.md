@@ -29,6 +29,8 @@ Yahoo Map との Cesium 双方向同期を見直し、緯度を考慮した高�
 ### 修正 (Fixed)
 - `get_pane2_url` が `settings` など非 WebView タブで失敗して `自動同期: 切り替え前URL取得失敗` となる問題を軽減。
 - Yahoo Map 自動同期で `canvasZoom` 未取得時に `URLを生成できませんでした` となる問題を修正（`hAboveTarget` 方式に切り替え）。
+- `main.rs` の Cesium URL 取得処理を軽量化。`computeViewRectangle` / `pickEllipsoid` / `canvasZoom` 計算を削除し、タブ切替がブロックされる問題を修正。
+- `index2.html` の自動同期で `get_active_pane2` / `get_pane2_url` に JS 側タイムアウトを追加。取得失敗時でもタブ切替を継続するように。
 - `main.rs` の `get_geoid_undulation` に `#[allow(dead_code)]` を付与し、コンパイル時の未使用警告を抑制。
 
 ## [2.6.8] - 2026-08-12
