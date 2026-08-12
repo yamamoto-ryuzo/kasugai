@@ -199,11 +199,13 @@
                     const H = distance * Math.cos(t * Math.PI / 180) + a;
                     // Cesium ネイティブのピッチ（水平 0°、真下 -90°）に変換。Google Earth t は上方向からの角度。
                     const cesiumPitch = t - 90;
+                    // H はカメラの標高。ズーム表示用と取得後の input-height 用に両方保持。
                     zoom = Number(25.2 - Math.log2(H)).toFixed(4);
                     const result = { lat, lng, zoom, originalUrl: urlStr };
                     if (pitchMatch) result.pitch = Number(cesiumPitch).toFixed(2);
                     if (bearingMatch) result.heading = Number(normalizeBearing(h)).toFixed(2);
                     result.alt = Number(a).toFixed(2);
+                    result.height = Number(H).toFixed(2);
                     return result;
                 }
 
@@ -632,6 +634,7 @@
                         const heading = isNaN(Number(rawHeading)) ? '0.00' : Number(rawHeading).toFixed(2);
                         targetUrl = `http://127.0.0.1:8510/#latitude=${lat}&longitude=${lng}&height=${Number(height).toFixed(4)}&pitch=${pitch}&heading=${heading}`;
                     } else if (activeTab === 'googleearth') {
+                        // Cesium ネイティブ pitch（0°=水平、-90°=真下） → Google Earth tilt（0°=真下、90°=水平）
                         let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
                         let rawHeading = document.getElementById('input-heading').value.trim() || '0.00';
                         const pitch = isNaN(Number(rawPitch)) ? 0 : Number(rawPitch);
@@ -640,16 +643,17 @@
                         if (t < 0) t = 0;
                         if (t > 89.9) t = 89.9;
                         const tRad = t * Math.PI / 180;
-                        const H = Math.pow(2, 25.2 - Number(zoom));
-                        const ground0 = H * Math.tan(tRad);
+                        // 入力された高さをカメラの絶対標高として使い、ズーム換算ではない正確な距離を求める
+                        const camAlt = Number(height);
+                        const ground0 = Math.max(0, camAlt * Math.tan(tRad));
                         const target0 = destinationPoint(Number(lat), Number(lng), ground0, heading);
                         const terrainAlt = await getTerrainElevation(target0.lat, target0.lng);
-                        const camAltAboveTerrain = Math.max(1, H - terrainAlt);
+                        const camAltAboveTerrain = Math.max(1, camAlt - terrainAlt);
                         const ground = camAltAboveTerrain * Math.tan(tRad);
                         const target = destinationPoint(Number(lat), Number(lng), ground, heading);
                         const distanceNum = camAltAboveTerrain / Math.cos(tRad);
                         const tStr = t.toFixed(2);
-                        const h = normalizeHeading(heading).toFixed(2);
+                        const h = normalizeBearing(heading).toFixed(2);
                         targetUrl = `https://earth.google.com/web/@${Number(target.lat).toFixed(8)},${Number(target.lng).toFixed(8)},${Number(terrainAlt).toFixed(2)}a,${distanceNum.toFixed(2)}d,35y,${h}h,${tStr}t,0r`;
                     } else if (activeTab === 'yahoo') {
                         let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';

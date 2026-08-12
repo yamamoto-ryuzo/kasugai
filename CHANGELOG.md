@@ -6,6 +6,14 @@
 
 ## [Unreleased]
 
+### 概要
+Google Earth との双方向変換の高さ計算を修正し、Cesium カメラ高さをそのまま使用するようにしました。
+
+### 修正 (Fixed)
+- `parseLocation()` の Google Earth 解析で、カメラ標高 `H` を `result.height` に追加。`getLocation()` が正確なカメラ高さを `input-height` に保持するよう修正。
+- `moveMap()` の Google Earth 移動で、`H = 2^(25.2 - zoom)` というズーム換算近似を廃止し、入力された実カメラ高さを直接使用。
+- Google Earth 移動 URL の `heading` を `normalizeBearing()` (0°〜360°) に統一。
+
 ## [2.6.7] - 2026-08-11
 
 ### 概要
