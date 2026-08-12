@@ -727,16 +727,20 @@
             // 自動同期モード中は、切り替え前のURLを取得して画面1へ通知
             if (isAutoSyncEnabled && window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.event) {
                 try {
-                    fromUrl = await window.__TAURI__.core.invoke('get_pane2_url');
-                    // Google Earthの場合、URLに座標(@...)が含まれるまで最大15秒待機
-                    if (fromUrl && fromUrl.includes('earth.google.com') && !fromUrl.includes('@')) {
-                        for (let i = 0; i < 50; i++) {
-                            await new Promise(r => setTimeout(r, 300));
-                            fromUrl = await window.__TAURI__.core.invoke('get_pane2_url');
-                            if (fromUrl.includes('@')) break;
+                    const active = await window.__TAURI__.core.invoke('get_active_pane2');
+                    // settings など WebView を持たないタブでは URL 取得をスキップ
+                    if (active && !['settings', 'default', ''].includes(active)) {
+                        fromUrl = await window.__TAURI__.core.invoke('get_pane2_url');
+                        // Google Earthの場合、URLに座標(@...)が含まれるまで最大15秒待機
+                        if (fromUrl && fromUrl.includes('earth.google.com') && !fromUrl.includes('@')) {
+                            for (let i = 0; i < 50; i++) {
+                                await new Promise(r => setTimeout(r, 300));
+                                fromUrl = await window.__TAURI__.core.invoke('get_pane2_url');
+                                if (fromUrl.includes('@')) break;
+                            }
                         }
+                        canAutoSync = !!fromUrl && fromUrl !== 'about:blank' && !fromUrl.startsWith('tauri://') && !fromUrl.includes('tauri.localhost');
                     }
-                    canAutoSync = !!fromUrl && fromUrl !== 'about:blank' && !fromUrl.startsWith('tauri://') && !fromUrl.includes('tauri.localhost');
                 } catch (e) {
                     console.warn('自動同期: 切り替え前URL取得失敗', e);
                 }

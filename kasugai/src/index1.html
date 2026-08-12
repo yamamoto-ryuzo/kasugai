@@ -135,6 +135,8 @@
         // m = 2 ^ ((GM_M_TO_ZOOM_A - zoom) / GM_M_TO_ZOOM_B)
         const GM_M_TO_ZOOM_A = 23.663;
         const GM_M_TO_ZOOM_B = 0.9561;
+        const YAHOO_ZOOM_BASE = 26.965015935602526;
+        const YAHOO_ZOOM_REF_LAT = 35.0;
 
         function destinationPoint(lat, lng, distanceMeters, bearingDeg) {
             const R = 6371000;
@@ -161,28 +163,34 @@
         async function getTerrainElevation(lat, lng) {
             const cacheKey = `${Number(lat).toFixed(4)},${Number(lng).toFixed(4)}`;
             if (__terrainCache.has(cacheKey)) return __terrainCache.get(cacheKey);
-            const q = `${Number(lat).toFixed(6)},${Number(lng).toFixed(6)}`;
             let elevation = 0;
-            try {
-                const r = await fetch(`https://api.opentopodata.org/v1/srtm90m?locations=${q}`, { headers: { 'Accept': 'application/json' } });
-                if (r.ok) {
-                    const d = await r.json();
-                    const e = d.results?.[0]?.elevation;
-                    if (typeof e === 'number' && !isNaN(e)) elevation = e;
-                }
-            } catch (e) {}
-            if (elevation === 0) {
+            if (window.__TAURI__ && window.__TAURI__.core) {
                 try {
-                    const r = await fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${q}`, { headers: { 'Accept': 'application/json' } });
+                    elevation = await window.__TAURI__.core.invoke('get_terrain_elevation', { lat: Number(lat), lng: Number(lng) });
+                } catch (e) { console.warn('get_terrain_elevation failed:', e); }
+            } else {
+                const q = `${Number(lat).toFixed(6)},${Number(lng).toFixed(6)}`;
+                try {
+                    const r = await fetch(`https://api.opentopodata.org/v1/srtm90m?locations=${q}`, { headers: { 'Accept': 'application/json' } });
                     if (r.ok) {
                         const d = await r.json();
                         const e = d.results?.[0]?.elevation;
                         if (typeof e === 'number' && !isNaN(e)) elevation = e;
                     }
                 } catch (e) {}
+                if (elevation === 0) {
+                    try {
+                        const r = await fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${q}`, { headers: { 'Accept': 'application/json' } });
+                        if (r.ok) {
+                            const d = await r.json();
+                            const e = d.results?.[0]?.elevation;
+                            if (typeof e === 'number' && !isNaN(e)) elevation = e;
+                        }
+                    } catch (e) {}
+                }
             }
-            __terrainCache.set(cacheKey, elevation);
-            return elevation;
+            __terrainCache.set(cacheKey, Number(elevation) || 0);
+            return __terrainCache.get(cacheKey);
         }
 
         async function getGeoidUndulation(lat, lng) {
@@ -331,13 +339,20 @@
                     return result;
                 }
 
-                // 4) クエリ/ハッシュパラメータ形式: ?lat=...&lon=...&zoom=... または CANVAS の #latitude=...&longitude=...&zoom=...&pitch=...&heading=...
+                // 4) クエリ/ハッシュパラメータ形式: ?lat=...&lon=...&zoom=... または CANVAS の #latitude=...&longitude=...&height=...&pitch=...&heading=...&west=...
                 const qLat = urlStr.match(/[?&#](?:lat|latitude)=(-?\d+(?:\.\d+)?)/);
                 const qLon = urlStr.match(/[?&#](?:lon|lng|longitude)=(-?\d+(?:\.\d+)?)/);
                 const qZoom = urlStr.match(/[?&#](?:zoom|z)=(\d+(?:\.\d+)?)/);
                 const qHeight = urlStr.match(/[?&#]height=(-?\d+(?:\.\d+)?)/);
                 const qPitch = urlStr.match(/[?&#]pitch=(-?\d+(?:\.\d+)?)/);
                 const qHeading = urlStr.match(/[?&#](?:bearing|heading)=(-?\d+(?:\.\d+)?)/);
+                const qWest = urlStr.match(/[?&#]west=(-?\d+(?:\.\d+)?)/);
+                const qSouth = urlStr.match(/[?&#]south=(-?\d+(?:\.\d+)?)/);
+                const qEast = urlStr.match(/[?&#]east=(-?\d+(?:\.\d+)?)/);
+                const qNorth = urlStr.match(/[?&#]north=(-?\d+(?:\.\d+)?)/);
+                const qViewportW = urlStr.match(/[?&#]viewportW=(\d+(?:\.\d+)?)/);
+                const qViewportH = urlStr.match(/[?&#]viewportH=(\d+(?:\.\d+)?)/);
+                const qCanvasZoom = urlStr.match(/[?&#]canvasZoom=(-?\d+(?:\.\d+)?)/);
                 if (qLat && qLon) {
                     lat = Number(qLat[1]).toFixed(6);
                     lng = Number(qLon[1]).toFixed(6);
@@ -354,6 +369,15 @@
                     if (qHeight) result.height = Number(qHeight[1]).toFixed(4);
                     if (qPitch) result.pitch = Number(qPitch[1]).toFixed(2);
                     if (qHeading) result.heading = Number(qHeading[1]).toFixed(2);
+                    if (qWest && qSouth && qEast && qNorth && qViewportW) {
+                        result.west = Number(qWest[1]).toFixed(6);
+                        result.south = Number(qSouth[1]).toFixed(6);
+                        result.east = Number(qEast[1]).toFixed(6);
+                        result.north = Number(qNorth[1]).toFixed(6);
+                        result.viewportW = Number(qViewportW[1]).toFixed(0);
+                        result.viewportH = Number(qViewportH?.[1] || 0).toFixed(0);
+                    }
+                    if (qCanvasZoom) result.canvasZoom = Number(qCanvasZoom[1]).toFixed(4);
                     // Yahoo Map は平面表示なので常に pitch=-90, heading=0 とする
                     if (urlStr.includes('yahoo.co.jp')) {
                         result.pitch = '-90.00';
@@ -478,7 +502,32 @@
                     document.getElementById('input-pitch').value = loc.pitch || '0.00';
                     document.getElementById('input-heading').value = loc.heading || '0.00';
                     document.getElementById('input-alt').value = loc.alt || '0.00';
-                    document.getElementById('input-height').value = loc.height || (loc.zoom ? Number(Math.pow(2, 24.965015935602526 - Number(loc.zoom))).toFixed(4) : '0.00');
+                    if (gisUrl.includes('yahoo.co.jp') && loc.zoom !== undefined) {
+                        const rawZoom = Number(loc.zoom);
+                        const latRad = Number(loc.lat) * Math.PI / 180;
+                        const refLatRad = YAHOO_ZOOM_REF_LAT * Math.PI / 180;
+                        const hAboveTarget = Math.pow(2, YAHOO_ZOOM_BASE - rawZoom) * (Math.cos(latRad) / Math.cos(refLatRad));
+                        const geoid = await getGeoidUndulation(loc.lat, loc.lng);
+                        const terrain = await getTerrainElevation(loc.lat, loc.lng);
+                        document.getElementById('input-height').value = Number(Math.max(1, hAboveTarget + geoid + terrain)).toFixed(4);
+                    } else {
+                        document.getElementById('input-height').value = loc.height || (loc.zoom ? Number(Math.pow(2, 24.965015935602526 - Number(loc.zoom))).toFixed(4) : '0.00');
+                    }
+                    if (loc.canvasZoom !== undefined) {
+                        window.__lastCanvasRect = { canvasZoom: Number(loc.canvasZoom) };
+                        if (loc.west !== undefined && loc.south !== undefined && loc.east !== undefined && loc.north !== undefined && loc.viewportW !== undefined) {
+                            window.__lastCanvasRect.west = Number(loc.west);
+                            window.__lastCanvasRect.south = Number(loc.south);
+                            window.__lastCanvasRect.east = Number(loc.east);
+                            window.__lastCanvasRect.north = Number(loc.north);
+                            window.__lastCanvasRect.viewportW = Number(loc.viewportW);
+                            window.__lastCanvasRect.viewportH = Number(loc.viewportH) || 0;
+                        }
+                    } else if (loc.west !== undefined && loc.south !== undefined && loc.east !== undefined && loc.north !== undefined && loc.viewportW !== undefined) {
+                        window.__lastCanvasRect = { west: Number(loc.west), south: Number(loc.south), east: Number(loc.east), north: Number(loc.north), viewportW: Number(loc.viewportW), viewportH: Number(loc.viewportH) || 0 };
+                    } else {
+                        window.__lastCanvasRect = null;
+                    }
                     // 取得完了後にGIS URL入力欄をクリア（手動取得時のみ）
                     if (!autoSyncMode) {
                         urlInput.value = '';
@@ -541,7 +590,32 @@
                         document.getElementById('input-pitch').value = loc.pitch || '0.00';
                         document.getElementById('input-heading').value = loc.heading || '0.00';
                         document.getElementById('input-alt').value = loc.alt || '0.00';
-                        document.getElementById('input-height').value = loc.height || (loc.zoom ? Number(Math.pow(2, 24.965015935602526 - Number(loc.zoom))).toFixed(4) : '0.00');
+                        if (url.includes('yahoo.co.jp') && loc.zoom !== undefined) {
+                            const rawZoom = Number(loc.zoom);
+                            const latRad = Number(loc.lat) * Math.PI / 180;
+                            const refLatRad = YAHOO_ZOOM_REF_LAT * Math.PI / 180;
+                            const hAboveTarget = Math.pow(2, YAHOO_ZOOM_BASE - rawZoom) * (Math.cos(latRad) / Math.cos(refLatRad));
+                            const geoid = await getGeoidUndulation(loc.lat, loc.lng);
+                            const terrain = await getTerrainElevation(loc.lat, loc.lng);
+                            document.getElementById('input-height').value = Number(Math.max(1, hAboveTarget + geoid + terrain)).toFixed(4);
+                        } else {
+                            document.getElementById('input-height').value = loc.height || (loc.zoom ? Number(Math.pow(2, 24.965015935602526 - Number(loc.zoom))).toFixed(4) : '0.00');
+                        }
+                        if (loc.canvasZoom !== undefined) {
+                            window.__lastCanvasRect = { canvasZoom: Number(loc.canvasZoom) };
+                            if (loc.west !== undefined && loc.south !== undefined && loc.east !== undefined && loc.north !== undefined && loc.viewportW !== undefined) {
+                                window.__lastCanvasRect.west = Number(loc.west);
+                                window.__lastCanvasRect.south = Number(loc.south);
+                                window.__lastCanvasRect.east = Number(loc.east);
+                                window.__lastCanvasRect.north = Number(loc.north);
+                                window.__lastCanvasRect.viewportW = Number(loc.viewportW);
+                                window.__lastCanvasRect.viewportH = Number(loc.viewportH) || 0;
+                            }
+                        } else if (loc.west !== undefined && loc.south !== undefined && loc.east !== undefined && loc.north !== undefined && loc.viewportW !== undefined) {
+                            window.__lastCanvasRect = { west: Number(loc.west), south: Number(loc.south), east: Number(loc.east), north: Number(loc.north), viewportW: Number(loc.viewportW), viewportH: Number(loc.viewportH) || 0 };
+                        } else {
+                            window.__lastCanvasRect = null;
+                        }
                         statusDiv.style.display = 'none';
                     } else {
                         statusDiv.style.display = 'block';
@@ -607,7 +681,6 @@
             const rawHeight = document.getElementById('input-height').value.trim();
             let height = Number(rawHeight);
             if (isNaN(height) || height <= 0) height = 1000;
-            const zoom = (24.965015935602526 - Math.log2(height)).toFixed(4);
 
             if (!lat || !lng) {
                 statusDiv.style.display = 'block';
@@ -688,32 +761,16 @@
                         const h = normalizeBearing(heading).toFixed(2);
                         targetUrl = `https://earth.google.com/web/@${Number(target.lat).toFixed(8)},${Number(target.lng).toFixed(8)},${Number(terrainAltTarget).toFixed(2)}a,${distanceNum.toFixed(2)}d,35y,${h}h,${tStr}t,0r`;
                     } else if (activeTab === 'yahoo') {
-                        let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
+                        let rawPitch = document.getElementById('input-pitch').value.trim() || '-90.00';
                         let rawHeading = document.getElementById('input-heading').value.trim() || '0.00';
-                        const pitch = isNaN(Number(rawPitch)) ? 0 : Number(rawPitch);
+                        const pitch = isNaN(Number(rawPitch)) ? -90 : Number(rawPitch);
                         const heading = isNaN(Number(rawHeading)) ? 0 : Number(rawHeading);
-                        let targetLat = Number(lat);
-                        let targetLng = Number(lng);
-                        const log2H_y = -0.0687 * Math.pow(Number(zoom), 2) + 0.4568 * Number(zoom) + 18.0562;
-                        const H_y = Math.pow(2, log2H_y) * 0.83;
-                        let ground = 0;
-                        if (pitch < -0.01 && pitch > -89.99) {
-                            const ground0 = H_y / Math.tan((-pitch) * Math.PI / 180);
-                            let terrainAlt = 0;
-                            if (ground0 > 0) {
-                                const target0 = destinationPoint(Number(lat), Number(lng), ground0, heading);
-                                terrainAlt = await getTerrainElevation(target0.lat, target0.lng);
-                            }
-                            const H_effective = Math.max(0, H_y - terrainAlt);
-                            ground = H_effective / Math.tan((-pitch) * Math.PI / 180);
-                        }
-                        if (ground > 0) {
-                            const target = destinationPoint(Number(lat), Number(lng), ground, heading);
-                            targetLat = target.lat;
-                            targetLng = target.lng;
-                        }
-                        const zY = Math.max(8, Math.round(Number(zoom) + 0.2));
-                        targetUrl = `https://map.yahoo.co.jp/?lat=${Number(targetLat).toFixed(8)}&lon=${Number(targetLng).toFixed(8)}&zoom=${zY}`;
+                        const { target, hAboveTarget } = await calculateLookAtTarget(lat, lng, height, pitch, heading);
+                        const latRad = Number(target.lat) * Math.PI / 180;
+                        const refLatRad = YAHOO_ZOOM_REF_LAT * Math.PI / 180;
+                        const z = YAHOO_ZOOM_BASE + Math.log2(Math.cos(latRad) / Math.cos(refLatRad)) - Math.log2(Math.max(1, hAboveTarget));
+                        const zY = Math.max(2, Math.min(20, Math.round(z)));
+                        targetUrl = `https://map.yahoo.co.jp/?lat=${Number(target.lat).toFixed(8)}&lon=${Number(target.lng).toFixed(8)}&zoom=${zY}`;
                     } else if (activeTab === 'google') {
                         // Google Maps 連携は 2D 俯瞰を基本とするが、
                         // 表示位置は Google Earth 同様、Cesium カメラの LookAt ターゲット点（地表）を使用

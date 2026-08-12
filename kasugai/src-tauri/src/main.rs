@@ -1907,8 +1907,61 @@ async fn get_pane2_url(
                         const H = p.height;
                         const pitch = c.pitch * 180 / Math.PI;
                         const heading = ((c.heading * 180 / Math.PI) % 360 + 360) % 360;
-                        const q = `#latitude=${lat.toFixed(6)}&longitude=${lng.toFixed(6)}&height=${H.toFixed(4)}&pitch=${pitch.toFixed(2)}&heading=${heading.toFixed(2)}`;
-                        window.location.replace(location.origin + location.pathname + q);
+                        let rect = '';
+                        let viewportW = 0;
+                        let viewportH = 0;
+                        let canvasZoom = '';
+                        try {
+                            const r = c.computeViewRectangle(v.scene.globe.ellipsoid);
+                            if (r) {
+                                const w = r.west * 180 / Math.PI;
+                                const s = r.south * 180 / Math.PI;
+                                const e = r.east * 180 / Math.PI;
+                                const n = r.north * 180 / Math.PI;
+                                rect = `&west=${w.toFixed(6)}&south=${s.toFixed(6)}&east=${e.toFixed(6)}&north=${n.toFixed(6)}`;
+                            }
+                            viewportW = v.canvas ? (v.canvas.clientWidth || v.canvas.width || 0) : 0;
+                            viewportH = v.canvas ? (v.canvas.clientHeight || v.canvas.height || 0) : 0;
+                            let groundRes = 0;
+                            let centerLat = p.latitude;
+                            // 1) 画面中央付近の 1px あたりの実際の地上距離を測定
+                            if (viewportW > 0 && viewportH > 0 && Cesium && Cesium.Cartesian2 && Cesium.Cartesian3) {
+                                try {
+                                    const cx = Math.floor(viewportW / 2);
+                                    const cy = Math.floor(viewportH / 2);
+                                    const c0 = c.pickEllipsoid(new Cesium.Cartesian2(cx, cy));
+                                    const c1 = c.pickEllipsoid(new Cesium.Cartesian2(cx, Math.min(cy + 1, viewportH - 1)));
+                                    if (c0 && c1) {
+                                        const d = Cesium.Cartesian3.distance(c0, c1);
+                                        if (d > 0) {
+                                            groundRes = d;
+                                            const c0Cart = Cesium.Cartographic.fromCartesian(c0);
+                                            if (c0Cart) centerLat = c0Cart.latitude;
+                                        }
+                                    }
+                                } catch (e1) { console.warn('pickEllipsoid failed', e1); }
+                            }
+                            // 2) 測定できなければ height/FOV から近似
+                            if (groundRes <= 0) {
+                                const fov = c.frustum && c.frustum.fov;
+                                const fovy = c.frustum && c.frustum.fovy;
+                                const f = (fov > 0) ? fov : ((fovy > 0) ? fovy : 0);
+                                const dim = (viewportW > viewportH) ? viewportW : viewportH;
+                                if (H > 0 && f > 0 && dim > 0) {
+                                    groundRes = 2 * H * Math.tan(f / 2) / dim;
+                                }
+                            }
+                            // 3) それでもなければ高度のみの経験式で最低限 zoom を確保
+                            if (groundRes > 0) {
+                                const z = Math.log2(156543.03392 * Math.cos(centerLat) / groundRes);
+                                canvasZoom = `&canvasZoom=${z.toFixed(4)}`;
+                            } else if (H > 0) {
+                                const z = 24.965015935602526 - Math.log2(H);
+                                canvasZoom = `&canvasZoom=${z.toFixed(4)}`;
+                            }
+                        } catch(e) { console.warn('computeViewRectangle / canvasZoom failed', e); }
+                        const q = `#latitude=${lat.toFixed(6)}&longitude=${lng.toFixed(6)}&height=${H.toFixed(4)}&pitch=${pitch.toFixed(2)}&heading=${heading.toFixed(2)}${rect}&viewportW=${viewportW}&viewportH=${viewportH}${canvasZoom}`;
+                        window.history.replaceState({}, '', location.origin + location.pathname + q);
                     } catch(e) { console.error(e); }
                 })();
             "#;
@@ -1965,6 +2018,46 @@ fn get_geoid_undulation(lat: f64, lon: f64) -> Result<f64, String> {
     egm2008::geoid_height(lat as f32, lon as f32)
         .map(|v| v as f64)
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_terrain_elevation(lat: f64, lng: f64) -> Result<f64, String> {
+    let q = format!("{:.6},{:.6}", lat, lng);
+    // OpenTopodata
+    let url = format!("https://api.opentopodata.org/v1/srtm90m?locations={}", q);
+    if let Ok(resp) = reqwest::get(&url).await {
+        if let Ok(json) = resp.json::<serde_json::Value>().await {
+            if let Some(e) = json
+                .get("results")
+                .and_then(|r| r.as_array())
+                .and_then(|a| a.first())
+                .and_then(|o| o.get("elevation"))
+                .and_then(|v| v.as_f64())
+            {
+                if !e.is_nan() {
+                    return Ok(e);
+                }
+            }
+        }
+    }
+    // Open-Elevation fallback
+    let url = format!("https://api.open-elevation.com/api/v1/lookup?locations={}", q);
+    if let Ok(resp) = reqwest::get(&url).await {
+        if let Ok(json) = resp.json::<serde_json::Value>().await {
+            if let Some(e) = json
+                .get("results")
+                .and_then(|r| r.as_array())
+                .and_then(|a| a.first())
+                .and_then(|o| o.get("elevation"))
+                .and_then(|v| v.as_f64())
+            {
+                if !e.is_nan() {
+                    return Ok(e);
+                }
+            }
+        }
+    }
+    Err("標高データの取得に失敗しました".to_string())
 }
 
 #[tauri::command]
@@ -2373,6 +2466,7 @@ fn main() {
             get_pane2_url,
             get_active_pane2,
             get_geoid_undulation,
+            get_terrain_elevation,
             reload_pane2_google,
             reload_pane2,
             call_gemini,

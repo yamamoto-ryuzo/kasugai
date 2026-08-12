@@ -6,18 +6,29 @@
 
 ## [Unreleased]
 
+## [2.6.9] - 2026-08-13
+
 ### 概要
-Google Earth / Google Maps 間の位置同期精度を向上し、両者の LookAt ターゲット点計算を共通化しました。Google Maps は 2D 俯瞰を基本とし、表示中心はカメラが見ている地表点に統一します。
+Yahoo Map との Cesium 双方向同期を見直し、緯度を考慮した高さ・zoom 換算式を導入しました。Cesium からの URL 取得を `history.replaceState` に変更し、自動同期の失敗を低減。OpenTopodata / Open-Elevation 取得を Rust 側で行うことで CORS 制限を回避。Google Earth / Google Maps 間の LookAt ターゲット点計算共通化も今回のリリースに含まれます。
+
+### 追加 (Added)
+- Rust 側に `get_terrain_elevation(lat, lng)` コマンドを追加。OpenTopodata / Open-Elevation を代理取得し、WebView の CORS 制限を回避。
+- `index1.html` に `YAHOO_ZOOM_BASE` および `YAHOO_ZOOM_REF_LAT` 定数を追加。Yahoo Map の zoom ↔ `hAboveTarget` 換算に緯度補正を可能に。
+- Cesium `get_pane2_url` 出力に `canvasZoom` / `viewportW` / `viewportH` / `computeViewRectangle` の可視範囲を追加（取得補助情報として保持）。
 
 ### 変更 (Changed)
-- `index1.html` に `calculateLookAtTarget()` を追加し、Cesium カメラから地表 LookAt ターゲット点を計算する処理を Google Earth / Google Maps で共有。
-- `moveMap()` の Google Earth 移動を `calculateLookAtTarget()` を使うよう簡潔化。
-- `moveMap()` の Google Maps 移動で、Cesium カメラ位置の水平投影ではなく、Google Earth 同様の地表 LookAt ターゲット点を表示中心に使用。`m` 値はターゲット点に対するカメラ地上高 `hAboveTarget` から算出。
-- `parseLocation()` の Google Maps 解析を 2D 俯瞰前提に整理。3D tilt/heading 解析を削除。
+- `index1.html` の Yahoo Map 移動を `calculateLookAtTarget()` 由来の `hAboveTarget` を使う方式に変更。`YAHOO_ZOOM_BASE + log2(cos(lat)/cos(refLat)) - log2(hAboveTarget)` で整数 zoom を算出。
+- `index1.html` の Yahoo Map 取得時、ジオイド高・地形標高を加味して Cesium 用 `height` を逆算するように変更。
+- `main.rs` の Cesium URL 取得を `window.location.replace` から `window.history.replaceState` に変更。URL 取得失敗を防止。
+- `index2.html` の `switchTab` で `settings` / `default` など WebView を持たないタブからの切り替え時は `get_pane2_url` を呼ばないように変更。
+- `get_pane2_url` の `canvasZoom` 計算を `pickEllipsoid` → `height/FOV` 近似 → `24.965 - log2(height)` の三段階 fallback に拡張。
+- `index1.html` に `calculateLookAtTarget()` を追加し、Cesium カメラから地表 LookAt ターゲット点を計算する処理を Google Earth / Google Maps / Yahoo Map で共有。
+- `moveMap()` の Google Earth / Google Maps 移動を `calculateLookAtTarget()` を使うよう簡潔化。`m` 値は `hAboveTarget` から算出。
 - `getTerrainElevation()` にキャッシュを追加し、同一地点への重複標高 API 呼び出しを削減。
-- `GM_M_TO_ZOOM_*` 定数のコメントに理論式と前提条件を明記。
 
 ### 修正 (Fixed)
+- `get_pane2_url` が `settings` など非 WebView タブで失敗して `自動同期: 切り替え前URL取得失敗` となる問題を軽減。
+- Yahoo Map 自動同期で `canvasZoom` 未取得時に `URLを生成できませんでした` となる問題を修正（`hAboveTarget` 方式に切り替え）。
 - `main.rs` の `get_geoid_undulation` に `#[allow(dead_code)]` を付与し、コンパイル時の未使用警告を抑制。
 
 ## [2.6.8] - 2026-08-12
