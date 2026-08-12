@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [2.6.8] - 2026-08-12
+
 ### 概要
 Google Earth との双方向変換にジオイド補正を導入し、Cesium（WGS84 楕円体高）と Google Earth（MSL）間の高さ変換を正確化しました。
 
