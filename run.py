@@ -3,7 +3,22 @@ import sys
 import subprocess
 import shutil
 import json
+import glob
 from datetime import datetime
+
+def find_rc_exe():
+    """tauri-winres 用に Windows SDK の rc.exe を探す"""
+    patterns = [
+        r'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\rc.exe',
+        r'C:\Program Files\Windows Kits\10\bin\*\x64\rc.exe',
+        r'C:\Program Files (x86)\Windows Kits\11\bin\*\x64\rc.exe',
+        r'C:\Program Files\Windows Kits\11\bin\*\x64\rc.exe',
+    ]
+    for pattern in patterns:
+        matches = sorted(glob.glob(pattern), reverse=True)
+        if matches:
+            return matches[0]
+    return None
 
 def main():
     # スクリプトの格納ディレクトリを取得 (c:\github\kasugai - プロジェクトルート)
@@ -19,6 +34,16 @@ def main():
     # ターゲットディレクトリへ移動
     print(f"[Kasugai] カレントディレクトリを移動中: {target_dir}")
     os.chdir(target_dir)
+    
+    # tauri-winres 用に Windows SDK の rc.exe を環境変数へ設定
+    rc = find_rc_exe()
+    if rc:
+        print(f"[Kasugai] Windows SDK rc.exe を検出: {rc}")
+        os.environ['RC'] = rc
+        rc_dir = os.path.dirname(rc)
+        os.environ['PATH'] = rc_dir + os.pathsep + os.environ.get('PATH', '')
+    else:
+        print("[Kasugai] 警告: Windows SDK rc.exe が見つかりません。ビルドが失敗する可能性があります。")
     
     # コマンド引数の解析
     # 引数がない、または "dev" の場合は開発起動
