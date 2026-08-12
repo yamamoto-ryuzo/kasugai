@@ -1960,6 +1960,7 @@ fn get_active_pane2(state: tauri::State<'_, SplitterState>) -> String {
 }
 
 #[tauri::command]
+#[allow(dead_code)]
 fn get_geoid_undulation(lat: f64, lon: f64) -> Result<f64, String> {
     egm2008::geoid_height(lat as f32, lon as f32)
         .map(|v| v as f64)

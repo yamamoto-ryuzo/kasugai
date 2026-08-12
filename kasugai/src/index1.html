@@ -128,6 +128,9 @@
 
     <script>
         // Google Maps m 値 ↔ CANVAS zoom の換算定数（実測データ線形フィット）
+        // 理論式: m ≈ (2 * pi * R * cos(lat) * screenWidthPx / 256) / 2^zoom
+        // 下記 A, B は緯度35°・画面幅1080px想定で Google Maps 3D 表示域を実測フィットした値
+        // 厳密には緯度・画面幅・tilt に依存するが、連携用にはこの近似で十分
         // CANVAS zoom = GM_M_TO_ZOOM_A - GM_M_TO_ZOOM_B * log2(m)
         // m = 2 ^ ((GM_M_TO_ZOOM_A - zoom) / GM_M_TO_ZOOM_B)
         const GM_M_TO_ZOOM_A = 23.663;
@@ -154,25 +157,32 @@
             return ((deg % 360) + 360) % 360;
         }
 
+        const __terrainCache = new Map();
         async function getTerrainElevation(lat, lng) {
+            const cacheKey = `${Number(lat).toFixed(4)},${Number(lng).toFixed(4)}`;
+            if (__terrainCache.has(cacheKey)) return __terrainCache.get(cacheKey);
             const q = `${Number(lat).toFixed(6)},${Number(lng).toFixed(6)}`;
+            let elevation = 0;
             try {
                 const r = await fetch(`https://api.opentopodata.org/v1/srtm90m?locations=${q}`, { headers: { 'Accept': 'application/json' } });
                 if (r.ok) {
                     const d = await r.json();
                     const e = d.results?.[0]?.elevation;
-                    if (typeof e === 'number' && !isNaN(e)) return e;
+                    if (typeof e === 'number' && !isNaN(e)) elevation = e;
                 }
             } catch (e) {}
-            try {
-                const r = await fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${q}`, { headers: { 'Accept': 'application/json' } });
-                if (r.ok) {
-                    const d = await r.json();
-                    const e = d.results?.[0]?.elevation;
-                    if (typeof e === 'number' && !isNaN(e)) return e;
-                }
-            } catch (e) {}
-            return 0;
+            if (elevation === 0) {
+                try {
+                    const r = await fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${q}`, { headers: { 'Accept': 'application/json' } });
+                    if (r.ok) {
+                        const d = await r.json();
+                        const e = d.results?.[0]?.elevation;
+                        if (typeof e === 'number' && !isNaN(e)) elevation = e;
+                    }
+                } catch (e) {}
+            }
+            __terrainCache.set(cacheKey, elevation);
+            return elevation;
         }
 
         async function getGeoidUndulation(lat, lng) {
@@ -184,6 +194,43 @@
                 }
             }
             return 0;
+        }
+
+        // Cesium ネイティブのカメラ位置から、LookAt ターゲット点（地表）を計算
+        // Google Earth / Google Maps 共通で使用
+        async function calculateLookAtTarget(lat, lng, height, pitch, heading) {
+            const camAltEllipsoid = Number(height);
+            const hRad = normalizeBearing(heading) * Math.PI / 180;
+
+            // Cesium pitch（0°=水平、-90°=真下） → Google Earth tilt（0°=真下、90°=水平）
+            let t = 90 + Number(pitch);
+            if (t < 0.01) t = 0.01;
+            if (t > 89.9) t = 89.9;
+            const tRad = t * Math.PI / 180;
+
+            // カメラ真下のジオイド高と地形高を取得
+            const [nNadir, terrainAltNadir] = await Promise.all([
+                getGeoidUndulation(Number(lat), Number(lng)),
+                getTerrainElevation(Number(lat), Number(lng))
+            ]);
+            const hAboveNadir = Math.max(1, camAltEllipsoid - nNadir - terrainAltNadir);
+
+            // 1 回目の概算ターゲット点
+            const ground0 = hAboveNadir * Math.tan(tRad);
+            const target0 = destinationPoint(Number(lat), Number(lng), ground0, normalizeBearing(heading));
+
+            // ターゲット点でのジオイド高と地形高を取得し、地上高を再計算
+            const [nTarget, terrainAltTarget] = await Promise.all([
+                getGeoidUndulation(target0.lat, target0.lng),
+                getTerrainElevation(target0.lat, target0.lng)
+            ]);
+            const hAboveTarget = Math.max(1, camAltEllipsoid - nTarget - terrainAltTarget);
+
+            // 2 回目の正確なターゲット点
+            const ground = hAboveTarget * Math.tan(tRad);
+            const target = destinationPoint(Number(lat), Number(lng), ground, normalizeBearing(heading));
+
+            return { target, hAboveTarget, t, terrainAltTarget, nTarget };
         }
 
         async function parseLocation(urlStr) {
@@ -250,25 +297,8 @@
                                 }
                             }
                             const result = { lat, lng, zoom, originalUrl: urlStr };
-                            let foundTilt = false;
-                            // Google Maps 3D (Earth view) の場合は tilt/heading を Cesium ネイティブに変換
-                            if (urlStr.includes('google.com/maps') || urlStr.includes('maps.app.goo.gl')) {
-                                for (let i = 3; i < parts.length; i++) {
-                                    const pm = parts[i].match(/^(-?\d+(?:\.\d+)?)([a-zA-Z])$/);
-                                    if (pm) {
-                                        const suffix = pm[2].toLowerCase();
-                                        if (suffix === 't') {
-                                            const t = parseFloat(pm[1]);
-                                            result.pitch = Number(t - 90).toFixed(2);
-                                            foundTilt = true;
-                                        } else if (suffix === 'h') {
-                                            result.heading = Number(normalizeBearing(parseFloat(pm[1]))).toFixed(2);
-                                        }
-                                    }
-                                }
-                            }
-                            // Google Maps 2D / Yahoo Map は真上からの俯瞰（Cesium pitch = -90°）として扱う
-                            if (!foundTilt && (urlStr.includes('google.com/maps') || urlStr.includes('yahoo.co.jp'))) {
+                            // Google Maps / Yahoo Map は 2D 俯瞰を基本とし、常に pitch=-90, heading=0 として扱う
+                            if (urlStr.includes('google.com/maps') || urlStr.includes('maps.app.goo.gl') || urlStr.includes('yahoo.co.jp')) {
                                 result.pitch = '-90.00';
                                 result.heading = '0.00';
                             }
@@ -647,32 +677,13 @@
                         const heading = isNaN(Number(rawHeading)) ? '0.00' : Number(rawHeading).toFixed(2);
                         targetUrl = `http://127.0.0.1:8510/#latitude=${lat}&longitude=${lng}&height=${Number(height).toFixed(4)}&pitch=${pitch}&heading=${heading}`;
                     } else if (activeTab === 'googleearth') {
-                        // Cesium ネイティブ pitch（0°=水平、-90°=真下） → Google Earth tilt（0°=真下、90°=水平）
+                        // Google Earth 用: Cesium カメラから LookAt ターゲット点を計算
                         let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
                         let rawHeading = document.getElementById('input-heading').value.trim() || '0.00';
                         const pitch = isNaN(Number(rawPitch)) ? 0 : Number(rawPitch);
                         const heading = isNaN(Number(rawHeading)) ? 0 : Number(rawHeading);
-                        let t = 90 + pitch;
-                        if (t < 0) t = 0;
-                        if (t > 89.9) t = 89.9;
-                        const tRad = t * Math.PI / 180;
-                        // 入力 height は Cesium 楕円体高。MSL 基準の地上高に変換してから距離を求める。
-                        const camAltEllipsoid = Number(height);
-                        const [nNadir, terrainAltNadir] = await Promise.all([
-                            getGeoidUndulation(Number(lat), Number(lng)),
-                            getTerrainElevation(Number(lat), Number(lng))
-                        ]);
-                        const hAboveNadir = Math.max(1, camAltEllipsoid - nNadir - terrainAltNadir);
-                        const ground0 = hAboveNadir * Math.tan(tRad);
-                        const target0 = destinationPoint(Number(lat), Number(lng), ground0, heading);
-                        const [nTarget, terrainAltTarget] = await Promise.all([
-                            getGeoidUndulation(target0.lat, target0.lng),
-                            getTerrainElevation(target0.lat, target0.lng)
-                        ]);
-                        const hAboveTarget = Math.max(1, camAltEllipsoid - nTarget - terrainAltTarget);
-                        const ground = hAboveTarget * Math.tan(tRad);
-                        const target = destinationPoint(Number(lat), Number(lng), ground, heading);
-                        const distanceNum = hAboveTarget / Math.cos(tRad);
+                        const { target, hAboveTarget, t, terrainAltTarget } = await calculateLookAtTarget(lat, lng, height, pitch, heading);
+                        const distanceNum = hAboveTarget / Math.cos(t * Math.PI / 180);
                         const tStr = t.toFixed(2);
                         const h = normalizeBearing(heading).toFixed(2);
                         targetUrl = `https://earth.google.com/web/@${Number(target.lat).toFixed(8)},${Number(target.lng).toFixed(8)},${Number(terrainAltTarget).toFixed(2)}a,${distanceNum.toFixed(2)}d,35y,${h}h,${tStr}t,0r`;
@@ -704,38 +715,16 @@
                         const zY = Math.max(8, Math.round(Number(zoom) + 0.2));
                         targetUrl = `https://map.yahoo.co.jp/?lat=${Number(targetLat).toFixed(8)}&lon=${Number(targetLng).toFixed(8)}&zoom=${zY}`;
                     } else if (activeTab === 'google') {
+                        // Google Maps 連携は 2D 俯瞰を基本とするが、
+                        // 表示位置は Google Earth 同様、Cesium カメラの LookAt ターゲット点（地表）を使用
                         let rawPitch = document.getElementById('input-pitch').value.trim() || '0.00';
                         let rawHeading = document.getElementById('input-heading').value.trim() || '0.00';
-                        const pitch = isNaN(Number(rawPitch)) ? 0 : Number(rawPitch);
+                        const pitch = isNaN(Number(rawPitch)) ? -90 : Number(rawPitch);
                         const heading = isNaN(Number(rawHeading)) ? 0 : Number(rawHeading);
-                        let targetLat = Number(lat);
-                        let targetLng = Number(lng);
-                        const H_canvas = Math.pow(2, 25.2 - Number(zoom)) * 0.83;
-                        let ground = 0;
-                        let terrainAlt = 0;
-                        if (pitch < -0.01 && pitch > -89.99) {
-                            const ground0 = H_canvas / Math.tan((-pitch) * Math.PI / 180);
-                            if (ground0 > 0) {
-                                const target0 = destinationPoint(Number(lat), Number(lng), ground0, heading);
-                                terrainAlt = await getTerrainElevation(target0.lat, target0.lng);
-                            }
-                            const H_effective = Math.max(0, H_canvas - terrainAlt);
-                            ground = H_effective / Math.tan((-pitch) * Math.PI / 180);
-                        } else if (pitch <= -89.99) {
-                            terrainAlt = await getTerrainElevation(Number(lat), Number(lng));
-                        }
-                        if (ground > 0) {
-                            const target = destinationPoint(Number(lat), Number(lng), ground, heading);
-                            targetLat = target.lat;
-                            targetLng = target.lng;
-                        }
-                        const H_eff_for_m = Math.max(1, Number(height) - terrainAlt);
-                        const zoom_for_m = 24.965015935602526 - Math.log2(H_eff_for_m);
+                        const { target, hAboveTarget } = await calculateLookAtTarget(lat, lng, height, pitch, heading);
+                        const zoom_for_m = 24.965015935602526 - Math.log2(Math.max(1, hAboveTarget));
                         const mGm = Math.max(1, Math.pow(2, (GM_M_TO_ZOOM_A - zoom_for_m) / GM_M_TO_ZOOM_B));
-                        const pitchRad = Math.max(0.01, Math.min(89.99, -pitch)) * Math.PI / 180;
-                        const spread = Math.min(20, Math.max(1, 1 / Math.sin(pitchRad)));
-                        const mGmSpread = mGm * spread;
-                        targetUrl = `https://www.google.com/maps/@${Number(targetLat).toFixed(8)},${Number(targetLng).toFixed(8)},${Math.round(mGmSpread)}m?entry=ttu`;
+                        targetUrl = `https://www.google.com/maps/@${Number(target.lat).toFixed(8)},${Number(target.lng).toFixed(8)},${Math.round(mGm)}m?entry=ttu`;
                     }
 
                     if (!targetUrl) {

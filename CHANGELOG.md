@@ -6,6 +6,20 @@
 
 ## [Unreleased]
 
+### 概要
+Google Earth / Google Maps 間の位置同期精度を向上し、両者の LookAt ターゲット点計算を共通化しました。Google Maps は 2D 俯瞰を基本とし、表示中心はカメラが見ている地表点に統一します。
+
+### 変更 (Changed)
+- `index1.html` に `calculateLookAtTarget()` を追加し、Cesium カメラから地表 LookAt ターゲット点を計算する処理を Google Earth / Google Maps で共有。
+- `moveMap()` の Google Earth 移動を `calculateLookAtTarget()` を使うよう簡潔化。
+- `moveMap()` の Google Maps 移動で、Cesium カメラ位置の水平投影ではなく、Google Earth 同様の地表 LookAt ターゲット点を表示中心に使用。`m` 値はターゲット点に対するカメラ地上高 `hAboveTarget` から算出。
+- `parseLocation()` の Google Maps 解析を 2D 俯瞰前提に整理。3D tilt/heading 解析を削除。
+- `getTerrainElevation()` にキャッシュを追加し、同一地点への重複標高 API 呼び出しを削減。
+- `GM_M_TO_ZOOM_*` 定数のコメントに理論式と前提条件を明記。
+
+### 修正 (Fixed)
+- `main.rs` の `get_geoid_undulation` に `#[allow(dead_code)]` を付与し、コンパイル時の未使用警告を抑制。
+
 ## [2.6.8] - 2026-08-12
 
 ### 概要
