@@ -13,6 +13,8 @@ Yahoo Map との Cesium 双方向同期を見直し、緯度を考慮した高�
 
 ### 追加 (Added)
 - Rust 側に `get_terrain_elevation(lat, lng)` コマンドを追加。OpenTopodata / Open-Elevation を代理取得し、WebView の CORS 制限を回避。
+- `index1.html` に `🚨 リセット` ボタンを追加。本番アプリから最新インストーラ（`download/kasugai.exe`）をダウンロードし、インストーラーを直接起動できる `reinstall_kasugai` Rust コマンドを実装。緊急時の再インストールを支援します。
+- `run.py` に Windows SDK `rc.exe` 自動検出を追加し、`npx tauri build` を実行して配布用 NSIS インストーラー、`kasugai.exe.zip`、`latest.json` を自動生成。
 - `index1.html` に `YAHOO_ZOOM_BASE` および `YAHOO_ZOOM_REF_LAT` 定数を追加。Yahoo Map の zoom ↔ `hAboveTarget` 換算に緯度補正を可能に。
 - Cesium `get_pane2_url` 出力に `canvasZoom` / `viewportW` / `viewportH` / `computeViewRectangle` の可視範囲を追加（取得補助情報として保持）。
 
