@@ -2008,19 +2008,6 @@ async fn get_terrain_elevation(lat: f64, lng: f64) -> Result<f64, String> {
 }
 
 #[tauri::command]
-async fn reinstall_kasugai() -> Result<String, String> {
-    let url = "https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai/main/download/kasugai.exe";
-    let temp = std::env::temp_dir().join("kasugai_setup.exe");
-    let resp = reqwest::get(url).await.map_err(|e| e.to_string())?;
-    let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
-    std::fs::write(&temp, &bytes).map_err(|e| e.to_string())?;
-    let _ = std::process::Command::new(&temp)
-        .spawn()
-        .map_err(|e| e.to_string())?;
-    Ok("最新インストーラーを起動しました。画面の指示に従ってインストールしてください。".to_string())
-}
-
-#[tauri::command]
 fn preload_webview(app_handle: tauri::AppHandle, target: String, url: String) {
     if target == "pane2_reearth" || target == "pane2_box" {
         // Re:EarthとBOXは起動時の自動ログイン（タイピング/DOM操作）を確実にするためプレロード（裏読み）をスキップします。
@@ -2427,7 +2414,6 @@ fn main() {
             get_active_pane2,
             get_geoid_undulation,
             get_terrain_elevation,
-            reinstall_kasugai,
             reload_pane2_google,
             reload_pane2,
             call_gemini,

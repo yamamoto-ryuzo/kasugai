@@ -115,11 +115,6 @@
                     ⚙️ 設定
                 </button>
 
-                <!-- 非常時用リセットボタン -->
-                <button class="portal-btn" onclick="emergencyReinstall(event)" style="width: 95%; margin-top: 6px; background-color: #b91c1c; color: white; border-color: #991b1b; cursor: pointer;" title="最新版をダウンロードしてインストーラーを起動します">
-                    🚨 リセット
-                </button>
-
                 <div id="location-status" style="margin-top: 3px; font-size: 10px; color: #dc2626; display: none; text-align: center; word-break: break-all;"></div>
 
                 <!-- 画面2で×により非表示にされたタブの一覧（クリックで画面2へ戻す） -->
@@ -1014,21 +1009,6 @@
                 window.__TAURI__.event.emit('pane2_open_settings', {});
             } else {
                 openSystemSettings(event);
-            }
-        }
-
-        // 非常時用：最新版をダウンロードしてインストーラーを起動する
-        async function emergencyReinstall(event) {
-            if (event) event.preventDefault();
-            if (window.__TAURI__ && window.__TAURI__.core) {
-                try {
-                    const msg = await window.__TAURI__.core.invoke('reinstall_kasugai');
-                    alert(msg);
-                } catch (e) {
-                    alert('リセットに失敗しました: ' + e);
-                }
-            } else {
-                alert('Tauri 外ではリセットできません。');
             }
         }
 
