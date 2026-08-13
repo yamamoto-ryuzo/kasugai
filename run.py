@@ -166,8 +166,9 @@ def main():
                     "pub_date": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
                     "platforms": {
                         "windows-x86_64": {
+                            # ?v={version} で CDN キャッシュをバスト（固定名のまま常に最新を取得）
                             "signature": signature,
-                            "url": f"https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai/main/download/{os.path.basename(dest_installer)}"
+                            "url": f"https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai/main/download/{os.path.basename(dest_installer)}?v={version}"
                         }
                     }
                 }
