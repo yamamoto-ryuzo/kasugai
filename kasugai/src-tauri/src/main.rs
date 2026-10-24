@@ -125,9 +125,9 @@ fn get_system_info() -> String {
     "ステータス: 正常稼働中\nエンジン: Tauri v2 (Rust)\nWebview: Microsoft WebView2\n応答時間: リアルタイム".to_string()
 }
 
-// QGIS Launcher (kasugai_qgis) のデフォルトインストール先パスを返す
+// QGIS Launcher (qgis_launcher) のデフォルトインストール先パスを返す
 fn qgis_launcher_default_dir() -> Result<PathBuf, String> {
-    Ok(PathBuf::from(r"C:\kasugai\kasugai_qgis"))
+    Ok(PathBuf::from(r"C:\kasugai\qgis_launcher"))
 }
 
 // 指定またはデフォルトのインストール先パスを解決する
@@ -164,7 +164,7 @@ fn get_qgis_launcher_status(path: Option<String>) -> Result<String, String> {
 #[tauri::command]
 async fn install_qgis_launcher(path: Option<String>) -> Result<String, String> {
     const QGIS_LAUNCHER_URL: &str =
-        "https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai_qgis/main/public/kasugai_qgis-setup.exe";
+        "https://raw.githubusercontent.com/yamamoto-ryuzo/qgis_live_harness/refs/heads/master/launcher/qgis_launcher/public/qgis_launcher-setup.exe";
 
     let install_dir = resolve_qgis_install_dir(path)?;
     if install_dir.join("qgis_launcher.exe").exists() {
@@ -190,7 +190,7 @@ async fn install_qgis_launcher(path: Option<String>) -> Result<String, String> {
     }
 
     let bytes = response.bytes().await.map_err(|e| e.to_string())?;
-    let installer_path = std::env::temp_dir().join("kasugai_qgis-setup.exe");
+    let installer_path = std::env::temp_dir().join("qgis_launcher-setup.exe");
 
     tauri::async_runtime::spawn_blocking(move || {
         std::fs::create_dir_all(&install_dir).map_err(|e| e.to_string())?;
@@ -893,7 +893,7 @@ fn open_box_app_in_pane(
 }
 
 // ------------------------------------------
-// QGIS（kasugai_qgis）専用：開くコマンド
+// QGIS（qgis_launcher）専用：開くコマンド
 // ------------------------------------------
 #[tauri::command]
 fn open_qgis_in_pane(
@@ -2718,7 +2718,7 @@ fn main() {
             // KASUGAI 起動時に KASUGAI_BOX サイドカーを自動起動（未起動の場合のみ）
             auto_start_kasugai_box();
 
-            // KASUGAI 起動時に KASUGAI_QGIS ランチャーを自動起動（未起動の場合のみ）
+            // KASUGAI 起動時に QGIS_LAUNCHER ランチャーを自動起動（未起動の場合のみ）
             auto_start_qgis_launcher();
 
             // KASUGAI 起動時に KASUGAI_CANVAS を自動インストール・起動（未起動の場合のみ）

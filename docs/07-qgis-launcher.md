@@ -1,14 +1,14 @@
 ---
-title: 7. KASUGAI_QGIS サイドカー
+title: 7. QGIS_LAUNCHER サイドカー
 nav_order: 7
 ---
 
-## 7. KASUGAI_QGIS サイドカー紹介
+## 7. QGIS_LAUNCHER サイドカー紹介
 
-**KASUGAI_QGIS**（`kasugai_qgis` / `qgis_launcher`）は、QGIS / QField の起動を制御する KASUGAI 用サイドカーです。
+**QGIS_LAUNCHER**（`qgis_launcher`）は、QGIS / QField の起動を制御する KASUGAI 用サイドカーです。
 GPL-3.0-only の QGIS 周辺処理を KASUGAI 本体から独立したプロセスとして分離することで、ライセンス影響を防ぎながら、Web UI / HTTP API / CLI から QGIS 操作を提供します。
 
-![KASUGAI_QGIS](./images/kasugai_qgis.png)
+![QGIS_LAUNCHER](./images/qgis_launcher.png)
 
 ### 主な機能
 
@@ -70,6 +70,6 @@ KASUGAI からはペインまたはタブでこの URL を読み込み、QGIS �
 
 QGIS サイドカーを単独で利用したい場合、または既存の QGIS 環境に追加する場合は以下を参照してください。
 
-- QGIS サイドカー導入ドキュメント: <https://yamamoto-ryuzo.github.io/kasugai_qgis/>
-- QGIS サイドカー単体インストーラー: <https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai_qgis/main/public/kasugai_qgis-setup.exe>
-- QGIS サイドカーリポジトリ: <https://github.com/yamamoto-ryuzo/kasugai_qgis>
+- QGIS サイドカー導入ドキュメント: <https://github.com/yamamoto-ryuzo/qgis_live_harness/blob/master/launcher/qgis_launcher/index.md>
+- QGIS サイドカー単体インストーラー: <https://raw.githubusercontent.com/yamamoto-ryuzo/qgis_live_harness/refs/heads/master/launcher/qgis_launcher/public/qgis_launcher-setup.exe>
+- QGIS サイドカーリポジトリ: <https://github.com/yamamoto-ryuzo/qgis_live_harness/tree/master/launcher/qgis_launcher>

@@ -212,7 +212,7 @@ API サイドカーは、以下を少なくとも提供してください。
 | サイドカー名 | 既定ポート | 状態 | 備考 |
 | :--- | :--- | :--- | :--- |
 | `kasugai_box` | `8410` | 実装済み | Box 写真 EXIF 抽出・GeoJSON/CSV 出力・Box API チャット・MCP サーバー提供 |
-| `kasugai_qgis` | `8500` | 実装済み | QGIS / QField 起動ランチャー（Web UI / HTTP API / CLI 提供） |
+| `qgis_launcher` | `8500` | 実装済み | QGIS / QField 起動ランチャー（Web UI / HTTP API / CLI 提供） |
 
 新しいサイドカーを追加する場合は、この表に名前・既定ポート・状態を追記してください。
 
