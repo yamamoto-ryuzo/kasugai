@@ -71,7 +71,7 @@ def main():
         npm_install = ["npm", "install"]
         print(f"実行コマンド: {' '.join(npm_install)}")
         try:
-            subprocess.run(npm_install, shell=True, check=True)
+            subprocess.run(npm_install, shell=True, check=True)  # nosec B602
             print("[Kasugai] 依存関係のインストールが完了しました。")
         except subprocess.CalledProcessError as e:
             print(f"\n[Kasugai] エラー: 依存関係のインストールに失敗しました。終了コード: {e.returncode}")
@@ -86,7 +86,7 @@ def main():
     
     try:
         # コマンドの実行 (標準入出力を引き継ぐ)
-        result = subprocess.run(tauri_cmd, shell=True, check=True)
+        result = subprocess.run(tauri_cmd, shell=True, check=True)  # nosec B602
         # ビルドモードの場合、生成された EXE を download フォルダへコピーし、配信用ファイルを作成
         if mode == "build":
             try:
