@@ -6,6 +6,17 @@
 
 ## [Unreleased]
 
+## [2.7.3] - 2026-11-04
+
+### 概要
+WebView2 内で公開サイト（visualizer.reearth.io 等）からループバックの bridge-hub（127.0.0.1:8511）への fetch が Chromium の Local Network Access チェックでブロックされ、geo_suite プラグインがハブを「未検出」と表示し続ける問題を修正しました。
+
+### 修正 (Fixed)
+- `main()` 冒頭で `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--disable-features=LocalNetworkAccessChecks` を設定。WebView2 には Chrome のような LNA 許可プロンプト UI がなく、未ハンドルの `PermissionRequested` は拒否扱いになるため、アプリ内全 WebView で LNA チェックを無効化。bridge-hub 側は PNA preflight 対応済みのためこれで疎通する。
+
+### 変更 (Changed)
+- プロジェクトバージョンを `2.7.2` から `2.7.3` に更新。
+
 ## [2.7.2] - 2026-08-13
 
 ### 概要

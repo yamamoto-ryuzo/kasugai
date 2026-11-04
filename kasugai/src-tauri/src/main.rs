@@ -2349,6 +2349,16 @@ fn auto_start_qgis_launcher() {
 }
 
 fn main() {
+    // WebView2(Chromium)は公開サイト→ループバック fetch を Local Network Access
+    // 権限でブロックするが、WebView2 には Chrome のような許可プロンプト UI がなく
+    // (未ハンドルの PermissionRequested は拒否扱い)、bridge-hub(127.0.0.1:8511)
+    // への iframe/host 双方のプローブが恒久的に失敗する。WebView2 生成前に
+    // 環境変数でブラウザ引数を注入し、本アプリ内の LNA チェックを無効化する。
+    // ハブ側は PNA preflight (Access-Control-Allow-Private-Network) 対応済み。
+    std::env::set_var(
+        "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+        "--disable-features=LocalNetworkAccessChecks",
+    );
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
