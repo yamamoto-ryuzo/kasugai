@@ -1633,6 +1633,35 @@ fn close_pane3_tab(
     update_splitter_internal(&app_handle, &state);
 }
 
+// 画面3のアクティブなタブWebviewに対して 戻る/進む/更新 を実行する。
+// default タブ（Gemini画面自体）は履歴操作の対象外
+#[tauri::command]
+fn pane3_nav(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, SplitterState>,
+    action: String,
+) {
+    let tab = state.pane3_active_tab.lock().unwrap().clone();
+    if tab == "default" {
+        return;
+    }
+    let js = match action.as_str() {
+        "back" => "history.back()",
+        "forward" => "history.forward()",
+        "reload" => "location.reload()",
+        _ => return,
+    };
+    let app_clone = app_handle.clone();
+    let tab_id = tab.clone();
+    let _ = app_handle.run_on_main_thread(move || {
+        if let Some(window) = app_clone.get_window("main") {
+            if let Some(wv) = window.get_webview(&tab_id) {
+                let _ = wv.eval(js);
+            }
+        }
+    });
+}
+
 #[tauri::command]
 fn switch_pane2_tab(
     app_handle: tauri::AppHandle,
@@ -2420,6 +2449,7 @@ fn main() {
             switch_pane2_tab,
             switch_pane3_tab,
             close_pane3_tab,
+            pane3_nav,
             get_pane2_url,
             get_active_pane2,
             get_geoid_undulation,
