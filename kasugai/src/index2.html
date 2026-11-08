@@ -151,6 +151,21 @@
             color: #ffffff;
             cursor: pointer;
         }
+        /* タブの×（閉じる）ボタン */
+        .tab-close {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 4px;
+            border-radius: 4px;
+            font-size: 11px;
+            line-height: 1.4;
+            opacity: 0.55;
+            cursor: pointer;
+        }
+        .tab-close:hover {
+            opacity: 1;
+            background-color: rgba(0, 0, 0, 0.15);
+        }
 
         /* 水平スプリッター（pane2 / pane4 間） — 垂直スプリッターと同じ見た目に整える */
         #hsplit {
@@ -163,6 +178,7 @@
             transition: background-color 0.15s;
             box-sizing: border-box;
             display: block;
+            flex-shrink: 0;
         }
         #hsplit:hover,
         #hsplit.dragging {
@@ -196,14 +212,16 @@
 <body>
     <div class="header-tabs">
         <div class="tabs">
-            <button class="tab-btn active" id="tab-settings" onclick="switchTab('settings')" oncontextmenu="handleTabRightClick(event, 'settings', '⚙️ システム設定')">⚙️ システム設定</button>
-            <button class="tab-btn" id="tab-box" onclick="switchTab('box')" oncontextmenu="handleTabRightClick(event, 'box', '📦 BOX')">📦 BOX</button>
-            <button class="tab-btn" onclick="reloadGoogleMap()" style="padding: 6px 8px; font-size: 13px;" title="Google Mapを再読み込み">🔄</button>
-            <button class="tab-btn" id="tab-google" onclick="switchTab('google')" oncontextmenu="handleTabRightClick(event, 'google', '🗺️ Google Map')">🗺️ Google Map</button>
-            <button class="tab-btn" id="tab-googleearth" onclick="switchTab('googleearth')" oncontextmenu="handleTabRightClick(event, 'googleearth', '🌍 Google Earth')">🌍 Google Earth</button>
-            <button class="tab-btn" id="tab-yahoo" onclick="switchTab('yahoo')" oncontextmenu="handleTabRightClick(event, 'yahoo', '🗾 Yahoo Map')">🗾 Yahoo Map</button>
-            <button class="tab-btn" id="tab-cesium" onclick="switchTab('cesium')" oncontextmenu="handleTabRightClick(event, 'cesium', '🌌 CesiumJS')">🌌 CesiumJS</button>
-            <button class="tab-btn" id="tab-reearth" onclick="switchTab('reearth')" oncontextmenu="handleTabRightClick(event, 'reearth', '🌐 Re:Earth')">🌐 Re:Earth</button>
+            <!-- システム設定タブは画面1のGIS URL欄の下に固定ボタンとして移動（pane2_open_settings イベントで開く） -->
+            <button class="tab-btn" id="tab-reload" onclick="reloadActivePane2()" style="padding: 6px 8px; font-size: 13px;" title="現在のタブを更新">🔄</button>
+            <button class="tab-btn" id="tab-box" onclick="switchTab('box')" oncontextmenu="handleTabRightClick(event, 'box', '📦 BOX')">📦 BOX<span class="tab-close" onclick="closeTab(event, 'box')" title="タブを閉じる（画面1へ移動）">×</span></button>
+            <button class="tab-btn" id="tab-boxapp" onclick="switchTab('boxapp')" oncontextmenu="handleTabRightClick(event, 'boxapp', '📦 BOX_APP')">📦 BOX_APP<span class="tab-close" onclick="closeTab(event, 'boxapp')" title="タブを閉じる（画面1へ移動）">×</span></button>
+            <button class="tab-btn" id="tab-qgis" onclick="switchTab('qgis')" oncontextmenu="handleTabRightClick(event, 'qgis', '🌐 QGIS')">🌐 QGIS<span class="tab-close" onclick="closeTab(event, 'qgis')" title="タブを閉じる（画面1へ移動）">×</span></button>
+            <button class="tab-btn" id="tab-cesium" onclick="switchTab('cesium')" oncontextmenu="handleTabRightClick(event, 'cesium', '🎨 CANVAS')">🎨 CANVAS<span class="tab-close" onclick="closeTab(event, 'cesium')" title="タブを閉じる（画面1へ移動）">×</span></button>
+            <button class="tab-btn" id="tab-google" onclick="switchTab('google')" oncontextmenu="handleTabRightClick(event, 'google', '🗺️ Google Map')">🗺️ Google Map<span class="tab-close" onclick="closeTab(event, 'google')" title="タブを閉じる（画面1へ移動）">×</span></button>
+            <button class="tab-btn" id="tab-googleearth" onclick="switchTab('googleearth')" oncontextmenu="handleTabRightClick(event, 'googleearth', '🌍 Google Earth')">🌍 Google Earth<span class="tab-close" onclick="closeTab(event, 'googleearth')" title="タブを閉じる（画面1へ移動）">×</span></button>
+            <button class="tab-btn" id="tab-yahoo" onclick="switchTab('yahoo')" oncontextmenu="handleTabRightClick(event, 'yahoo', '🗾 Yahoo Map')">🗾 Yahoo Map<span class="tab-close" onclick="closeTab(event, 'yahoo')" title="タブを閉じる（画面1へ移動）">×</span></button>
+            <button class="tab-btn" id="tab-reearth" onclick="switchTab('reearth')" oncontextmenu="handleTabRightClick(event, 'reearth', '🌐 Re:Earth')">🌐 Re:Earth<span class="tab-close" onclick="closeTab(event, 'reearth')" title="タブを閉じる（画面1へ移動）">×</span></button>
             <div id="reearth-url-display" style="display:flex; align-items:center; align-self:center; height:100%; max-width:520px; margin-left:8px; padding:0 8px; line-height:1; font-size:12px; color:#475569;">
                 <div id="reearth-url-inner" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"> </div>
                 <button id="reearth-copy-btn" class="url-btn" title="クリップボードにコピー">📋</button>
@@ -213,7 +231,10 @@
     </div>
 
     <div class="container">
-        <h1 id="view-title">システム設定</h1>
+        <h1 id="view-title" style="display: flex; justify-content: space-between; align-items: center; white-space: nowrap;">
+            <span id="view-title-text" style="white-space: nowrap; flex: 0 0 auto;">システム設定</span>
+            <span style="display: flex; align-items: center; gap: 16px; margin-left: 12px; white-space: nowrap; flex: 0 0 auto;"><span id="settings-version" style="font-size: 14px; color: #64748b; font-weight: normal;">v-</span><a href="#" style="font-size: 12px; color: #15803d; text-decoration: underline; font-weight: bold;" onclick="event.preventDefault(); openInDefaultBrowser('https://yamamoto-ryuzo.github.io/kasugai/')">HELP</a></span>
+        </h1>
 
         <div id="content-settings" class="tab-content">
             <p>システムの動作に関する設定を行います。変更は即座に反映されます。</p>
@@ -230,17 +251,54 @@
 
             <!-- 内部タブ（設定カテゴリ） -->
             <div class="settings-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
-                <button class="tab-btn active" id="settings-tab-platform" onclick="switchSettingsTab('platform')">🔧 プラットフォーム設定</button>
                 <button class="tab-btn" id="settings-tab-box" onclick="switchSettingsTab('box')">📦 BOX</button>
+                <button class="tab-btn" id="settings-tab-qgis" onclick="switchSettingsTab('qgis')">QGISランチャー</button>
                 <button class="tab-btn" id="settings-tab-cesium" onclick="switchSettingsTab('cesium')">🌌 CesiumJS</button>
                 <button class="tab-btn" id="settings-tab-reearth-url" onclick="switchSettingsTab('reearth-url')">🌐 Re:Earth</button>
                 <button class="tab-btn" id="settings-tab-gemini" onclick="switchSettingsTab('gemini')">✨ Gemini</button>
+                <button class="tab-btn active" id="settings-tab-platform" onclick="switchSettingsTab('platform')">🔧 プラットフォーム設定</button>
+                <button class="tab-btn" id="settings-tab-updater" onclick="switchSettingsTab('updater')">🔄 アップデート</button>
                     </div>
 
             <div class="interactive-section" style="gap: 15px;">
                 <!-- プラットフォーム設定 -->
                 <div id="settings-panel-platform" class="settings-panel" style="display:none;">
                     <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🔧 プラットフォーム設定</h3>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <button type="button" id="platform-group-tab-cloud" onclick="switchPlatformGroup('cloud')" style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #15803d; color: #ffffff; cursor: pointer; font-size: 14px;">クラウドストレージ</button>
+                        <button type="button" id="platform-group-tab-gis" onclick="switchPlatformGroup('gis')" style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #15803d; cursor: pointer; font-size: 14px;">GIS グループ</button>
+                    </div>
+                    <div id="platform-group-cloud" style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 15px;">
+                        <div style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 8px;">クラウドストレージ</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #15803d; cursor: pointer;">
+                                <input type="checkbox" id="tab-enabled-box" onchange="onTabEnabledChanged('box')"> BOX
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #15803d; cursor: pointer;">
+                                <input type="checkbox" id="tab-enabled-boxapp" onchange="onTabEnabledChanged('boxapp')"> BOX_APP
+                            </label>
+                        </div>
+                    </div>
+                    <div id="platform-group-gis" style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 15px; display: none;">
+                        <div style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 8px;">GIS グループ</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #15803d; cursor: pointer;">
+                                <input type="checkbox" id="tab-enabled-qgis" onchange="onTabEnabledChanged('qgis')"> QGIS
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #15803d; cursor: pointer;">
+                                <input type="checkbox" id="tab-enabled-google" onchange="onTabEnabledChanged('google')"> Google Map
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #15803d; cursor: pointer;">
+                                <input type="checkbox" id="tab-enabled-googleearth" onchange="onTabEnabledChanged('googleearth')"> Google Earth
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #15803d; cursor: pointer;">
+                                <input type="checkbox" id="tab-enabled-yahoo" onchange="onTabEnabledChanged('yahoo')"> Yahoo Map
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #15803d; cursor: pointer;">
+                                <input type="checkbox" id="tab-enabled-reearth" onchange="onTabEnabledChanged('reearth')"> Re:Earth
+                            </label>
+                        </div>
+                    </div>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div>
                             <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">プラットフォーム固有の設定</label>
@@ -260,6 +318,19 @@
                         <div>
                             <label for="box-password-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">パスワード</label>
                             <input type="password" id="box-password-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="パスワードを入力">
+                        </div>
+                    </div>
+
+                    <h3 style="color: #15803d; font-size: 16px; margin-top: 24px; margin-bottom: 10px;">📦 KASUGAI_BOX サイドカー</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div>
+                            <label for="kasugaibox-install-path-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">インストール先</label>
+                            <input type="text" id="kasugaibox-install-path-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="C:\\kasugai\\kasugai_box">
+                            <div class="status-msg">空欄の場合は C:\\kasugai\\kasugai_box を使用します。</div>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button class="btn" id="kasugaibox-install-btn" onclick="handleKasugaiBox(event)">インストール</button>
+                            <div id="kasugaibox-status" class="status-msg"></div>
                         </div>
                     </div>
                 </div>
@@ -315,6 +386,52 @@
                     </div>
                 </div>
 
+                <!-- アップデート設定 -->
+                <div id="settings-panel-updater" class="settings-panel" style="display:none;">
+                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🔄 アップデート設定</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div>
+                            <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">現在のバージョン</label>
+                            <div id="current-version" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px;">2.6.6</div>
+                        </div>
+                        <div>
+                            <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">起動中のインストール先</label>
+                            <div id="current-install-location" style="padding: 10px; background-color: #f1f5f9; border-radius: 6px; font-size: 14px; word-break: break-all;">-</div>
+                        </div>
+                        <div>
+                            <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">更新の自動チェック</label>
+                            <select id="auto-update-check" onchange="localStorage.setItem('kasugai_auto_update_check', this.value)" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+                                <option value="enabled">有効（起動時にチェック）</option>
+                                <option value="disabled">無効</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button class="btn" onclick="manualUpdateCheck()">今すぐ更新を確認</button>
+                            <div id="update-status" class="status-msg"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- QGISランチャー設定 -->
+                <div id="settings-panel-qgis" class="settings-panel" style="display:none;">
+                    <h3 style="color: #15803d; font-size: 16px; margin-top: 0; margin-bottom: 10px;">🌐QGISランチャー</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div class="status-msg" style="font-size: 13px; line-height: 1.5; padding: 10px 12px; background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; color: #1e40af; font-weight: bold;">
+                            QGIS 4.0以降に対応しています。QGIS本体をお持ちでない場合は、<a href="#" style="color: #1d4ed8; text-decoration: underline; font-weight: bold;" onclick="event.preventDefault(); openQgisInstallGuide();">QGIS公式サイト（qgis.org）</a> からインストールしてください。
+                        </div>
+                        <div>
+                            <label for="qgis-install-path-input" style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">インストール先</label>
+                            <input type="text" id="qgis-install-path-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;" placeholder="C:\\kasugai\\qgis_launcher">
+                            <div class="status-msg">空欄の場合は C:\\kasugai\\qgis_launcher を使用します。</div>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button class="btn" id="qgis-install-btn" onclick="handleQgisLauncher(event)">インストール</button>
+                            <div id="qgis-status" class="status-msg"></div>
+                        </div>
+                        <div id="qgis-running-status" class="status-msg" style="margin-top: 8px; font-weight: bold;">起動状態を確認中...</div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -325,6 +442,7 @@
         let detachedTabs = new Set();
         let lastRightClickTime = 0;
         let lastRightClickTabId = null;
+        let rightClickTimeout = null;
 
         function handleTabRightClick(e, tabId, title) {
             e.preventDefault();
@@ -332,13 +450,30 @@
             
             // 連続右ダブルクリック（Macなどの2タップ）の検知ロジック
             const now = Date.now();
+            
+            // 既存のタイムアウトをクリア
+            if (rightClickTimeout) {
+                clearTimeout(rightClickTimeout);
+                rightClickTimeout = null;
+            }
+            
             if (tabId === lastRightClickTabId && (now - lastRightClickTime) < 500) {
-                // 右ダブルクリックが成立した場合、デタッチを起動
-                detachTab(tabId, title);
+                // 右ダブルクリックが成立した場合、デフォルトブラウザで開く
+                openTabInBrowser(tabId);
                 lastRightClickTime = 0;
+                lastRightClickTabId = null;
             } else {
                 lastRightClickTabId = tabId;
                 lastRightClickTime = now;
+                
+                // 右クリック：少し待ってダブルクリックかどうか判定
+                rightClickTimeout = setTimeout(() => {
+                    // タイムアウトした場合はシングルクリックとして処理（単独ウインドウで開く）
+                    detachTab(tabId, title);
+                    rightClickTimeout = null;
+                    lastRightClickTime = 0;
+                    lastRightClickTabId = null;
+                }, 300); // 300ms待機
             }
         }
 
@@ -364,6 +499,123 @@
                 const btn = document.getElementById('tab-' + tabId);
                 if (btn) btn.classList.add('detached');
             }
+        }
+
+        // --- タブの非表示（×で閉じて画面1へ移動）管理 ---
+        const HIDEABLE_TAB_TITLES = {
+            'box': '📦 BOX',
+            'boxapp': '📦 BOX_APP',
+            'qgis': '🌐 QGIS',
+            'google': '🗺️ Google Map',
+            'googleearth': '🌍 Google Earth',
+            'yahoo': '🗾 Yahoo Map',
+            'cesium': '🎨 CANVAS',
+            'reearth': '🌐 Re:Earth'
+        };
+        const TAB_ENABLED_IDS = ['box','boxapp','qgis','google','googleearth','yahoo','reearth'];
+        let hiddenTabs = new Set();
+        try {
+            hiddenTabs = new Set(JSON.parse(localStorage.getItem('pane2_hidden_tabs') || '[]'));
+        } catch (e) { hiddenTabs = new Set(); }
+
+        // 画面1の自動同期モード状態
+        let isAutoSyncEnabled = true;
+
+        function applyHiddenTabs() {
+            Object.keys(HIDEABLE_TAB_TITLES).forEach(id => {
+                const btn = document.getElementById('tab-' + id);
+                if (!btn) return;
+                const hidden = hiddenTabs.has(id) || !isTabEnabled(id);
+                btn.style.display = hidden ? 'none' : '';
+            });
+            // Google Map再読み込みボタンはGoogle Mapタブと連動して表示・非表示
+            const reloadBtn = document.getElementById('tab-google-reload');
+            if (reloadBtn) reloadBtn.style.display = (hiddenTabs.has('google') || !isTabEnabled('google')) ? 'none' : '';
+        }
+
+        function persistHiddenTabs() {
+            try { localStorage.setItem('pane2_hidden_tabs', JSON.stringify([...hiddenTabs])); } catch (e) {}
+        }
+
+        function isTabEnabled(tabId) {
+            const v = localStorage.getItem('tab_enabled_' + tabId);
+            return v !== '0';
+        }
+
+        function initTabVisibility() {
+            const ids = TAB_ENABLED_IDS;
+            ids.forEach(id => {
+                const chk = document.getElementById('tab-enabled-' + id);
+                if (chk) chk.checked = isTabEnabled(id);
+            });
+            applyAllTabVisibility();
+        }
+
+        function onTabEnabledChanged(tabId) {
+            const chk = document.getElementById('tab-enabled-' + tabId);
+            if (chk) localStorage.setItem('tab_enabled_' + tabId, chk.checked ? '1' : '0');
+            const enabled = isTabEnabled(tabId);
+            const btn = document.getElementById('tab-' + tabId);
+            if (btn) {
+                btn.style.display = enabled ? '' : 'none';
+                if (!enabled && btn.classList.contains('active')) {
+                    switchTab('settings');
+                }
+            }
+            applyAllTabVisibility();
+        }
+
+        function applyAllTabVisibility() {
+            applyHiddenTabs();
+            broadcastHiddenTabs();
+        }
+
+        // プラットフォーム設定内のGIS/クラウドグループ切り替え
+        function switchPlatformGroup(group) {
+            ['gis','cloud'].forEach(g => {
+                const panel = document.getElementById('platform-group-' + g);
+                const btn = document.getElementById('platform-group-tab-' + g);
+                if (panel) panel.style.display = (g === group) ? 'block' : 'none';
+                if (btn) {
+                    btn.classList.toggle('active', g === group);
+                    btn.style.background = (g === group) ? '#15803d' : '#f1f5f9';
+                    btn.style.color = (g === group) ? '#ffffff' : '#15803d';
+                }
+            });
+        }
+
+        // 画面1へ非表示タブの一覧を通知（画面2のタブの並び順で送る）
+        function broadcastHiddenTabs() {
+            if (window.__TAURI__ && window.__TAURI__.event) {
+                const tabs = Object.keys(HIDEABLE_TAB_TITLES)
+                    .filter(id => hiddenTabs.has(id) && isTabEnabled(id))
+                    .map(id => ({ id: id, title: HIDEABLE_TAB_TITLES[id] }));
+                window.__TAURI__.event.emit('pane2_hidden_tabs_state', { tabs: tabs });
+            }
+        }
+
+        // タブの×クリック：非表示にして画面1へ移動
+        function closeTab(e, tabId) {
+            if (e) { e.stopPropagation(); e.preventDefault(); }
+            if (!(tabId in HIDEABLE_TAB_TITLES)) return;
+            const btn = document.getElementById('tab-' + tabId);
+            const wasActive = btn ? btn.classList.contains('active') : false;
+            hiddenTabs.add(tabId);
+            persistHiddenTabs();
+            applyHiddenTabs();
+            broadcastHiddenTabs();
+            // アクティブなタブを閉じた場合はシステム設定へ切り替え
+            if (wasActive) switchTab('settings');
+        }
+
+        // 画面1からの復元：元のタブ位置に再表示し、そのタブをアクティブにする
+        function restoreTab(tabId) {
+            if (!hiddenTabs.has(tabId)) return;
+            hiddenTabs.delete(tabId);
+            persistHiddenTabs();
+            applyHiddenTabs();
+            broadcastHiddenTabs();
+            switchTab(tabId);
         }
 
         // --- スプリッターのドラッグ・リサイズ用中継処理 ---
@@ -403,13 +655,35 @@
             }
         })();
 
+        async function openTabInBrowser(tabId) {
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                const url = await getTabUrl(tabId);
+                await window.__TAURI__.core.invoke('open_in_default_browser', { url: url });
+            }
+        }
+
+        async function openInDefaultBrowser(url) {
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                try {
+                    await window.__TAURI__.core.invoke('open_in_default_browser', { url: url });
+                } catch (err) {
+                    console.error('ブラウザを開けませんでした:', err);
+                    window.open(url, '_blank');
+                }
+            } else {
+                window.open(url, '_blank');
+            }
+        }
+
         async function getTabUrl(tabId) {
             if (tabId === 'settings') return window.location.origin + '/index2.html?settings=true';
-            if (tabId === 'cesium') return window.location.origin + '/cesium.html';
+            if (tabId === 'cesium') return 'http://127.0.0.1:8510/';
             
             // Rust側の状態に合わせてタブ名を解決（box -> pane2_box 等）
             const tabNameToWebviewId = {
                 'box': 'pane2_box',
+                'boxapp': 'pane2_boxapp',
+                'qgis': 'pane2_qgis',
                 'reearth': 'pane2_reearth',
                 'google': 'pane2_google',
                 'googleearth': 'pane2_googleearth',
@@ -429,6 +703,8 @@
 
             // フォールバック：設定値またはデフォルトURL
             if (tabId === 'box') return 'https://app.box.com/';
+            if (tabId === 'boxapp') return 'http://127.0.0.1:8410/ui';
+            if (tabId === 'qgis') return 'http://127.0.0.1:8500/';
             if (tabId === 'reearth') {
                 const url = document.getElementById("reearth-url-input").value;
                 return url.includes('://') ? url : 'https://' + url;
@@ -443,8 +719,47 @@
 
         // タブ切り替え処理
         async function switchTab(tabName) {
+            if (tabName in HIDEABLE_TAB_TITLES && !isTabEnabled(tabName)) {
+                tabName = 'settings';
+            }
+            let fromUrl = null;
+            let canAutoSync = false;
+            // 自動同期モード中は、切り替え前のURLを取得して画面1へ通知
+            if (isAutoSyncEnabled && window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.event) {
+                try {
+                    const active = await Promise.race([
+                        window.__TAURI__.core.invoke('get_active_pane2'),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('get_active_pane2 timeout')), 500))
+                    ]);
+                    // settings など WebView を持たないタブでは URL 取得をスキップ
+                    if (active && !['settings', 'default', ''].includes(active)) {
+                        fromUrl = await Promise.race([
+                            window.__TAURI__.core.invoke('get_pane2_url'),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('get_pane2_url timeout')), 2000))
+                        ]);
+                        // Google Earthの場合、URLに座標(@...)が含まれるまで最大15秒待機
+                        if (fromUrl && fromUrl.includes('earth.google.com') && !fromUrl.includes('@')) {
+                            for (let i = 0; i < 50; i++) {
+                                await new Promise(r => setTimeout(r, 300));
+                                fromUrl = await Promise.race([
+                                    window.__TAURI__.core.invoke('get_pane2_url'),
+                                    new Promise((_, reject) => setTimeout(() => reject(new Error('get_pane2_url timeout')), 2000))
+                                ]);
+                                if (fromUrl && fromUrl.includes('@')) break;
+                            }
+                        }
+                        canAutoSync = !!fromUrl && fromUrl !== 'about:blank' && !fromUrl.startsWith('tauri://') && !fromUrl.includes('tauri.localhost');
+                    }
+                } catch (e) {
+                    console.warn('自動同期: 切り替え前URL取得失敗', e);
+                }
+            }
+            if (canAutoSync && fromUrl) {
+                window.__TAURI__.event.emit('pane2_before_tab_change', { fromUrl, to: tabName });
+            }
+
             // UIのアクティブ状態の更新
-            const tabs = ['settings', 'box', 'reearth', 'google', 'googleearth', 'yahoo', 'cesium'];
+            const tabs = ['settings', 'box', 'boxapp', 'qgis', 'reearth', 'google', 'googleearth', 'yahoo', 'cesium'];
             tabs.forEach(t => {
                 const el = document.getElementById('tab-' + t);
                 if (el) el.classList.toggle('active', tabName === t);
@@ -457,9 +772,10 @@
             const isLocal = (tabName === 'settings');
             document.getElementById('content-settings').style.display = tabName === 'settings' ? 'block' : 'none';
 
+            const titleText = document.getElementById('view-title-text');
             if (tabName === 'settings') {
-                title.textContent = 'システム設定';
-                title.style.display = 'block';
+                if (titleText) titleText.textContent = 'システム設定';
+                title.style.display = 'flex';
                 
                 container.style.margin = '10px';
                 container.style.padding = '20px';
@@ -467,7 +783,7 @@
                 container.style.backgroundColor = '#ffffff';
                 container.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
             } else {
-                title.textContent = '';
+                if (titleText) titleText.textContent = '';
                 title.style.display = 'none';
                 container.style.backgroundColor = 'transparent';
                 container.style.boxShadow = 'none';
@@ -475,7 +791,10 @@
 
             // Rustバックエンドにタブ切り替え・ロードを指示
             if (window.__TAURI__ && window.__TAURI__.core) {
-                if (isLocal) {
+                const autoSyncTargets = ['google', 'googleearth', 'yahoo', 'cesium'];
+                if (canAutoSync && autoSyncTargets.includes(tabName)) {
+                    // 自動同期対象タブは index1 側の open_in_pane2 で URL を開く
+                } else if (isLocal) {
                     window.__TAURI__.core.invoke('switch_pane2_tab', { tab: 'default' });
                 } else if (tabName === 'box') {
                     const email = document.getElementById("box-email-input")?.value || "";
@@ -484,6 +803,16 @@
                         target: 'pane2',
                         url: 'https://app.box.com/',
                         creds: { email, password }
+                    });
+                } else if (tabName === 'boxapp') {
+                    window.__TAURI__.core.invoke('open_box_app_in_pane', {
+                        target: 'pane2',
+                        url: 'http://127.0.0.1:8410/ui'
+                    });
+                } else if (tabName === 'qgis') {
+                    window.__TAURI__.core.invoke('open_qgis_in_pane', {
+                        target: 'pane2',
+                        url: 'http://127.0.0.1:8500/'
                     });
                 } else if (tabName === 'reearth') {
                     const url = document.getElementById("reearth-url-input")?.value || "https://c-01kcwqbkykrk15apgxeqrvr6rv.visualizer.reearth.io/";
@@ -510,13 +839,18 @@
 
         // 設定画面内の内部タブ切替
         function switchSettingsTab(tabName) {
-            const tabs = ['platform','box','reearth-url','gemini','cesium'];
+            const tabs = ['platform','box','reearth-url','gemini','cesium','updater','qgis'];
             tabs.forEach(t => {
                 const panel = document.getElementById('settings-panel-' + t);
                 const btn = document.getElementById('settings-tab-' + t);
                 if (panel) panel.style.display = (t === tabName) ? 'block' : 'none';
                 if (btn) btn.classList.toggle('active', t === tabName);
             });
+            if (tabName === 'qgis') {
+                if (qgisInitialStatusChecked) {
+                    updateQgisRunningStatus();
+                }
+            }
         }
 
         // ロード時の初期化処理
@@ -588,8 +922,16 @@
             const platformEl = document.getElementById('platform-setting-input');
             if (platformEl) platformEl.value = savedPlatform;
 
-            // デフォルトでシステム設定タブをアクティブにする
-            switchTab('settings');
+            // 各GISタブ表示設定の復元（非表示タブ状態にも反映）
+            initTabVisibility();
+
+            // デフォルトで CANVAS タブをアクティブにする前に、KASUGAI_CANVAS のインストール・起動を確認
+            try {
+                if (window.__TAURI__ && window.__TAURI__.core) {
+                    await window.__TAURI__.core.invoke('ensure_kasugai_canvas');
+                }
+            } catch (e) { console.warn('KASUGAI_CANVAS 起動確認失敗:', e); }
+            switchTab('cesium');
             // 内部の設定タブをデフォルトで プラットフォーム にする
             if (typeof switchSettingsTab === 'function') switchSettingsTab('platform');
 
@@ -597,20 +939,21 @@
             try { updateReearthUrlDisplay(); } catch(e){}
             // URL 操作ボタンの初期化
             try { setupReearthUrlControls(); } catch(e){}
+            // KASUGAI_BOX 設定の初期化
+            try { await initKasugaiBoxSettings(); } catch(e){ console.warn('KASUGAI_BOX 設定初期化失敗:', e); }
+            // QGISランチャー設定の初期化
+            try { await initQgisSettings(); } catch(e){ console.warn('QGIS設定初期化失敗:', e); }
         };
 
-        // Google Map 再読み込み関数
-        async function reloadGoogleMap() {
-                if (window.__TAURI__ && window.__TAURI__.core) {
+        // 現在アクティブな画面2タブを再読み込みする
+        async function reloadActivePane2() {
+            if (window.__TAURI__ && window.__TAURI__.core) {
                 try {
-                    console.log('[Kasugai JS] invoking reload_pane2_google');
-                    const res = await window.__TAURI__.core.invoke('reload_pane2_google');
-                    console.log('[Kasugai JS] reload_pane2_google result:', res);
+                    await window.__TAURI__.core.invoke('reload_pane2');
                 } catch (e) {
-                    console.error('[Kasugai JS] reload_pane2_google failed:', e);
-                    try { alert('Google Map reload failed: ' + e); } catch (_) {}
+                    console.error('[Kasugai JS] reload_pane2 failed:', e);
                 }
-                }
+            }
         }
 
         // Re:Earth タブ横に表示する URL を取得して反映する
@@ -741,6 +1084,13 @@
                 kv.push(['cesium_token', '']);
                 const platform = document.getElementById('platform-setting-input')?.value ?? '';
                 kv.push(['platform_setting', platform.replace(/\r?\n/g,'\\n')]);
+                const qgisPath = document.getElementById('qgis-install-path-input')?.value ?? localStorage.getItem('qgis_launcher_install_path') ?? '';
+                kv.push(['qgis_launcher_install_path', qgisPath.trim()]);
+                TAB_ENABLED_IDS.forEach(id => {
+                    const chk = document.getElementById('tab-enabled-' + id);
+                    const enabled = chk ? (chk.checked ? '1' : '0') : (localStorage.getItem('tab_enabled_' + id) ?? '1');
+                    kv.push(['tab_enabled_' + id, enabled]);
+                });
             } catch (e) { console.warn('collect settings error', e); }
 
             // build INI content with explanatory comments
@@ -863,6 +1213,25 @@
                     localStorage.setItem('platform_setting', parsed.platform_setting || '');
                     document.getElementById('platform-setting-input').value = parsed.platform_setting || '';
                 }
+
+                if (Object.prototype.hasOwnProperty.call(parsed, 'qgis_launcher_install_path')) {
+                    const qgisPath = parsed.qgis_launcher_install_path || '';
+                    localStorage.setItem('qgis_launcher_install_path', qgisPath);
+                    const qgisInput = document.getElementById('qgis-install-path-input');
+                    if (qgisInput) qgisInput.value = qgisPath;
+                    updateQgisStatus(qgisPath);
+                }
+
+                TAB_ENABLED_IDS.forEach(id => {
+                    const key = 'tab_enabled_' + id;
+                    if (Object.prototype.hasOwnProperty.call(parsed, key)) {
+                        const enabled = parsed[key] !== '0' && parsed[key] !== 'false';
+                        localStorage.setItem(key, enabled ? '1' : '0');
+                        const chk = document.getElementById('tab-enabled-' + id);
+                        if (chk) chk.checked = enabled;
+                    }
+                });
+                applyAllTabVisibility();
             } catch (e) {
                 console.warn('INI適用中にエラー:', e);
             }
@@ -998,6 +1367,19 @@
                     const platformVal = document.getElementById('platform-setting-input').value || '';
                     localStorage.setItem('platform_setting', platformVal);
                 } catch (e) { console.warn('platform_setting 保存に失敗:', e); }
+                try {
+                    TAB_ENABLED_IDS.forEach(id => {
+                        const chk = document.getElementById('tab-enabled-' + id);
+                        if (chk) localStorage.setItem('tab_enabled_' + id, chk.checked ? '1' : '0');
+                    });
+                    applyAllTabVisibility();
+                } catch (e) { console.warn('tab_enabled 保存に失敗:', e); }
+
+                // 7. QGISランチャー インストール先の保存
+                try {
+                    const qgisPath = document.getElementById('qgis-install-path-input').value || '';
+                    localStorage.setItem('qgis_launcher_install_path', qgisPath.trim());
+                } catch (e) { console.warn('qgis_launcher_install_path 保存に失敗:', e); }
 
             if (window.__TAURI__ && window.__TAURI__.event) {
                 window.__TAURI__.event.emit('reearth_url_changed', { url: url });
@@ -1091,6 +1473,8 @@
             localStorage.removeItem("box_email");
             localStorage.removeItem("reearth_email");
             localStorage.removeItem("platform_setting");
+            TAB_ENABLED_IDS.forEach(id => localStorage.removeItem('tab_enabled_' + id));
+            localStorage.removeItem("qgis_launcher_install_path");
 
             // 3. 入力項目の初期化
             document.getElementById("reearth-url-input").value = defaultReearthUrl;
@@ -1102,6 +1486,16 @@
             try { const sel = document.getElementById('gemini-provider-select'); if (sel) sel.value = 'google'; } catch(_) {}
             document.getElementById("cesium-ion-token-input").value = "";
             document.getElementById("platform-setting-input").value = "";
+            try {
+                const defaultQgis = await window.__TAURI__.core.invoke('get_qgis_launcher_default_dir');
+                document.getElementById("qgis-install-path-input").value = defaultQgis;
+            } catch(_) { document.getElementById("qgis-install-path-input").value = ""; }
+            updateQgisStatus();
+            TAB_ENABLED_IDS.forEach(id => {
+                const chk = document.getElementById('tab-enabled-' + id);
+                if (chk) chk.checked = true;
+            });
+            applyAllTabVisibility();
 
             // 4. 他のウィンドウ/コンポーネントへの変更イベント通知
             if (window.__TAURI__ && window.__TAURI__.event) {
@@ -1122,6 +1516,10 @@
 
         // --- イベントリスナー ---
         if (window.__TAURI__ && window.__TAURI__.event) {
+            // 画面1の自動同期モード状態の受信
+            window.__TAURI__.event.listen('pane1_auto_sync_state', (event) => {
+                isAutoSyncEnabled = event.payload && event.payload.enabled;
+            });
             // ウィンドウが閉じられた際の復元通知
             window.__TAURI__.event.listen('window_restored', (event) => {
                 const label = event.payload.label;
@@ -1136,24 +1534,57 @@
             window.__TAURI__.event.listen('reearth_url_changed', (ev) => {
                 try { updateReearthUrlDisplay(); } catch(e){}
             });
+            // 画面1のクリックによるタブ復元通知
+            window.__TAURI__.event.listen('pane2_tab_restore', (event) => {
+                const tabId = event.payload && event.payload.tabId;
+                if (tabId) restoreTab(tabId);
+            });
+            // 画面1の固定ボタンによるシステム設定タブの表示通知
+            window.__TAURI__.event.listen('pane2_open_settings', () => {
+                switchTab('settings');
+            });
         }
 
         // pane4 用の水平スプリッター処理
         (function() {
-            const header = document.querySelector('.header-tabs');
-            const container = document.querySelector('.container');
             const hsplit = document.getElementById('hsplit');
-            const headerH = header ? header.offsetHeight : 50;
+
+            let currentRatio = 0.2;
+            let fullWindowHeight = 0;
+            let isDragging = false;
+            let overlay = null;
+            let rafId = null;
+            let lastY = 0;
+            let containerRafId = null;
+            // ダブルクリック時の誤ドラッグ防止用（一定距離動くまでドラッグ扱いにしない）
+            let dragMoved = false;
+            let dragStartY = 0;
+            const DRAG_THRESHOLD = 4;
+
+            function clampRatio(r) {
+                return Math.min(Math.max(r, 0.0), 1.0);
+            }
+
+            function clampDragRatio(r) {
+                return Math.min(Math.max(r, 0.05), 0.6);
+            }
+
+            function recomputeFullWindowHeight() {
+                const denom = 1 - currentRatio;
+                fullWindowHeight = (denom > 0) ? (window.innerHeight / denom) : window.innerHeight;
+            }
 
             function applyPane4Ratio(ratio, notify=true) {
-                const clamped = Math.min(Math.max(ratio, 0.05), 0.6);
-                localStorage.setItem('pane4_ratio', String(clamped));
-                const pane4_h = Math.round(window.innerHeight * clamped);
-                // container の高さを調整（マージンとヘッダ領域を差し引く）
-                const containerHeight = Math.max(window.innerHeight - pane4_h - headerH - 20, 120);
-                if (container) container.style.height = containerHeight + 'px';
+                currentRatio = clampRatio(ratio);
+                localStorage.setItem('pane4_ratio', String(clampDragRatio(currentRatio)));
+                if (containerRafId) cancelAnimationFrame(containerRafId);
+                containerRafId = requestAnimationFrame(() => {
+                    containerRafId = null;
+                    recomputeFullWindowHeight();
+                });
                 if (notify && window.__TAURI__ && window.__TAURI__.core) {
-                    try { window.__TAURI__.core.invoke('update_pane4_ratio', { ratio: clamped }); } catch(e){}
+                    const r = clampDragRatio(currentRatio);
+                    try { window.__TAURI__.core.invoke('update_pane4_ratio', { ratio: r }); } catch(e){}
                 }
             }
 
@@ -1169,8 +1600,12 @@
                     try {
                         if (event.payload && typeof event.payload.pane4_ratio !== 'undefined') {
                             const p4 = Number(event.payload.pane4_ratio) || 0.0;
-                            // フロント側の表示を更新（notify=false で Rust への再通知を防ぐ）
-                            applyPane4Ratio(Math.min(Math.max(p4, 0.0), 1.0), false);
+                            if (isDragging) {
+                                // ドラッグ中は自前で container を更新するため比率のみ保持
+                                currentRatio = clampRatio(p4);
+                            } else {
+                                applyPane4Ratio(p4, false);
+                            }
                         }
                     } catch (e) { /* ignore malformed payloads */ }
                 });
@@ -1178,76 +1613,566 @@
 
             // リサイズ時の再計算
             window.addEventListener('resize', () => {
+                if (isDragging) return;
                 const stored = parseFloat(localStorage.getItem('pane4_ratio') || '0.2');
                 applyPane4Ratio(isNaN(stored) ? 0.2 : stored, false);
             });
 
-            // ドラッグ処理（pointer API + オーバーレイ + ゴースト線）：移動中は見た目だけ追従し、最終で高さを確定
-            let dragging = false;
-            let dragOverlay = null;
-            let dragGhost = null;
+            function updateFromY(y) {
+                if (!fullWindowHeight) return;
+                let r = 1 - y / fullWindowHeight;
+                r = clampDragRatio(r);
+                currentRatio = r;
+                if (window.__TAURI__ && window.__TAURI__.core) {
+                    try { window.__TAURI__.core.invoke('update_pane4_ratio', { ratio: r }); } catch(e){}
+                }
+            }
 
-            hsplit.addEventListener('pointerdown', (e) => {
+            function flushUpdate() {
+                if (rafId) {
+                    cancelAnimationFrame(rafId);
+                    rafId = null;
+                }
+                updateFromY(lastY);
+            }
+
+            // 水平スプリッターのダブルクリックで画面4の表示・非表示をトグル
+            hsplit.addEventListener('dblclick', (e) => {
                 e.preventDefault();
-                dragging = true;
-                document.body.style.userSelect = 'none';
-                document.body.style.cursor = 'row-resize';
-                if (hsplit) hsplit.classList.add('dragging');
-                // 全画面オーバーレイを置いて iframe 等からイベントを奪う
-                dragOverlay = document.createElement('div');
-                Object.assign(dragOverlay.style, {
-                    position: 'fixed', top: '0', left: '0', right: '0', bottom: '0',
-                    cursor: 'row-resize', zIndex: '9998', background: 'transparent'
-                });
-                document.body.appendChild(dragOverlay);
-
-                // ゴースト線（視覚フィードバック）
-                dragGhost = document.createElement('div');
-                Object.assign(dragGhost.style, {
-                    position: 'fixed', left: '0', right: '0', height: '4px',
-                    background: 'rgba(59,130,246,0.9)', zIndex: '9999', pointerEvents: 'none',
-                    transform: 'translateY(0px)'
-                });
-                document.body.appendChild(dragGhost);
-
-                try { hsplit.setPointerCapture(e.pointerId); } catch(_) {}
-                if (window.__TAURI__ && window.__TAURI__.event) {
-                    window.__TAURI__.event.emit('splitter_drag_start', { activeSplitter: 'hsplit', ratio1: 0.0, ratio2: 0.0 });
+                e.stopPropagation();
+                if (window.__TAURI__ && window.__TAURI__.core) {
+                    try { window.__TAURI__.core.invoke('toggle_pane4'); } catch(err){}
                 }
             });
 
-            let lastEmit = 0;
-            const emitInterval = 30; // ms
+            hsplit.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                isDragging = true;
+                dragMoved = false;
+                dragStartY = e.clientY;
+                document.body.style.userSelect = 'none';
+                document.body.style.cursor = 'row-resize';
+                if (hsplit) hsplit.classList.add('dragging');
+
+                // 全画面オーバーレイを置いて iframe 等からイベントを奪う
+                overlay = document.createElement('div');
+                Object.assign(overlay.style, {
+                    position: 'fixed', top: '0', left: '0', right: '0', bottom: '0',
+                    cursor: 'row-resize', zIndex: '9998', background: 'transparent'
+                });
+                document.body.appendChild(overlay);
+
+                // 現在の pane2 高さと pane4 比率から実ウィンドウ高さを逆算
+                const pane2H = window.innerHeight;
+                const denom = 1 - currentRatio;
+                fullWindowHeight = (denom > 0) ? (pane2H / denom) : pane2H;
+                lastY = e.clientY;
+
+                try { hsplit.setPointerCapture(e.pointerId); } catch(_) {}
+            });
+
             document.addEventListener('pointermove', (e) => {
-                if (!dragging) return;
-                const y = e.clientY;
-                // ゴースト線を移動させるだけ（頻繁なレイアウト変更を避ける）
-                if (dragGhost) dragGhost.style.transform = `translateY(${y - 2}px)`;
-                const now = performance.now();
-                if (window.__TAURI__ && window.__TAURI__.event && (now - lastEmit) > emitInterval) {
-                    lastEmit = now;
-                    window.__TAURI__.event.emit('global_mousemove', { screenX: e.screenX, screenY: e.screenY });
+                if (!isDragging) return;
+                if (!dragMoved) {
+                    if (Math.abs(e.clientY - dragStartY) < DRAG_THRESHOLD) return;
+                    dragMoved = true;
+                }
+                lastY = e.clientY;
+                if (!rafId) {
+                    rafId = requestAnimationFrame(() => {
+                        rafId = null;
+                        if (!isDragging) return;
+                        updateFromY(lastY);
+                    });
                 }
             }, { passive: true });
 
             document.addEventListener('pointerup', (e) => {
-                if (!dragging) return;
-                dragging = false;
+                if (!isDragging) return;
+                isDragging = false;
                 document.body.style.userSelect = '';
                 document.body.style.cursor = '';
                 if (hsplit) hsplit.classList.remove('dragging');
                 try { hsplit.releasePointerCapture && hsplit.releasePointerCapture(e.pointerId); } catch(_) {}
-                if (dragOverlay && dragOverlay.parentNode) dragOverlay.parentNode.removeChild(dragOverlay);
-                if (dragGhost && dragGhost.parentNode) dragGhost.parentNode.removeChild(dragGhost);
-                const y = e.clientY;
-                const ratio = (window.innerHeight - y) / window.innerHeight;
-                applyPane4Ratio(ratio, true);
-                if (window.__TAURI__ && window.__TAURI__.event) {
-                    window.__TAURI__.event.emit('splitter_drag_end');
-                    window.__TAURI__.event.emit('global_mouseup');
+                if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                overlay = null;
+
+                // 実際にドラッグした場合のみ比率を確定する（クリック・ダブルクリックでは変更しない）
+                if (dragMoved) {
+                    lastY = e.clientY;
+                    flushUpdate();
+                    // 最終値を永続化
+                    localStorage.setItem('pane4_ratio', String(clampDragRatio(currentRatio)));
+                }
+            });
+
+            document.addEventListener('pointercancel', (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+                document.body.style.userSelect = '';
+                document.body.style.cursor = '';
+                if (hsplit) hsplit.classList.remove('dragging');
+                try { hsplit.releasePointerCapture && hsplit.releasePointerCapture(e.pointerId); } catch(_) {}
+                if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                overlay = null;
+                if (rafId) {
+                    cancelAnimationFrame(rafId);
+                    rafId = null;
                 }
             });
         })();
+
+        // アップデーター機能（Tauri v2）
+        // Tauri 実行環境かを厳密に判定するヘルパー
+        // withGlobalTauri: true のとき window.__TAURI__.core.invoke が存在する
+        function isTauriEnvironment() {
+            try {
+                return typeof window !== 'undefined'
+                    && typeof window.__TAURI__ !== 'undefined'
+                    && window.__TAURI__ !== null
+                    && window.__TAURI__.core
+                    && typeof window.__TAURI__.core.invoke === 'function';
+            } catch (e) {
+                return false;
+            }
+        }
+
+        async function checkForUpdates(showNotification = true) {
+            try {
+                if (!isTauriEnvironment()) {
+                    if (showNotification) {
+                        const statusEl = document.getElementById('update-status');
+                        if (statusEl) {
+                            statusEl.textContent = '更新機能はデスクトップ版でのみ利用可能です';
+                            statusEl.style.color = '#ef4444';
+                        }
+                    }
+                    return { available: false, error: 'not_tauri' };
+                }
+
+                // npm パッケージを import せず直接 IPC で呼び出す（バンドラー不要）
+                const update = await window.__TAURI__.core.invoke('plugin:updater|check', { headers: [] });
+
+                if (update) {
+                    const notes = update.body || update.notes || '';
+                    const message = `新しいバージョン ${update.version} が利用可能です\n\n${notes}`;
+                    if (showNotification) {
+                        if (confirm(message + '\n\n今すぐ更新しますか？')) {
+                            await performUpdate(update);
+                        }
+                    }
+                    return { available: true, version: update.version, notes };
+                } else {
+                    if (showNotification) {
+                        console.log('更新は利用可能ではありません');
+                    }
+                    return { available: false };
+                }
+            } catch (error) {
+                console.error('更新チェックエラー:', error);
+                if (showNotification) {
+                    const statusEl = document.getElementById('update-status');
+                    if (statusEl) {
+                        statusEl.textContent = '更新チェック中にエラーが発生しました';
+                        statusEl.style.color = '#ef4444';
+                    }
+                }
+                return { available: false, error: error.message };
+            }
+        }
+
+        async function performUpdate(update) {
+            try {
+                // 起動中の自身のインストール先をレジストリに書き込み、更新が同じ場所に入るようにする
+                await window.__TAURI__.core.invoke('set_update_install_location');
+                let downloaded = 0;
+                let contentLength = 0;
+                // Channel は withGlobalTauri: true で window.__TAURI__.core.Channel として利用可能
+                const onEvent = new window.__TAURI__.core.Channel();
+                onEvent.onmessage = (event) => {
+                    switch (event.event) {
+                        case 'Started':
+                            contentLength = event.data.contentLength;
+                            console.log(`ダウンロード開始: ${contentLength} bytes`);
+                            break;
+                        case 'Progress':
+                            downloaded += event.data.chunkLength;
+                            console.log(`ダウンロード中: ${downloaded} / ${contentLength}`);
+                            break;
+                        case 'Finished':
+                            console.log('ダウンロード完了');
+                            break;
+                    }
+                };
+                await window.__TAURI__.core.invoke('plugin:updater|download_and_install', {
+                    rid: update.rid,
+                    onEvent,
+                    headers: []
+                });
+                console.log('更新インストール完了');
+                await window.__TAURI__.core.invoke('plugin:process|restart');
+            } catch (error) {
+                console.error('更新インストールエラー:', error);
+                alert('更新のインストールに失敗しました: ' + error.message);
+            }
+        }
+
+        // 手動更新チェック
+        async function manualUpdateCheck() {
+            const statusEl = document.getElementById('update-status');
+            if (statusEl) {
+                statusEl.textContent = '更新を確認中...';
+                statusEl.style.color = '#64748b';
+            }
+
+            const result = await checkForUpdates(false);
+
+            if (statusEl) {
+                if (result.available) {
+                    statusEl.textContent = `バージョン ${result.version} が利用可能です`;
+                    statusEl.style.color = '#22c55e';
+                    if (confirm(`新しいバージョン ${result.version} が利用可能です\n\n${result.notes}\n\n今すぐ更新しますか？`)) {
+                        if (isTauriEnvironment()) {
+                            const update = await window.__TAURI__.core.invoke('plugin:updater|check', { headers: [] });
+                            if (update) {
+                                await performUpdate(update);
+                            }
+                        } else {
+                            alert('更新はデスクトップ版でのみ実行できます。');
+                        }
+                    }
+                } else if (result.error && result.error !== 'not_tauri') {
+                    statusEl.textContent = 'エラー: ' + result.error;
+                    statusEl.style.color = '#ef4444';
+                } else if (!result.available) {
+                    statusEl.textContent = isTauriEnvironment() ? '最新バージョンを使用しています' : '更新機能はデスクトップ版でのみ利用可能です';
+                    statusEl.style.color = isTauriEnvironment() ? '#22c55e' : '#64748b';
+                }
+            }
+        }
+
+        // ページ読み込み時に更新チェックを実行（少し遅延させてパフォーマンスに影響しないように）
+        setTimeout(async () => {
+            // 現在のバージョンを表示
+            // window.__TAURI__.app は withGlobalTauri: true で @tauri-apps/api から注入される
+            try {
+                const versionEl = document.getElementById('current-version');
+                const settingsVersionEl = document.getElementById('settings-version');
+                if (isTauriEnvironment() && window.__TAURI__.app && typeof window.__TAURI__.app.getVersion === 'function') {
+                    const currentVersion = await window.__TAURI__.app.getVersion();
+                    if (versionEl) versionEl.textContent = currentVersion;
+                    if (settingsVersionEl) settingsVersionEl.textContent = 'v' + currentVersion;
+                } else {
+                    if (versionEl) versionEl.textContent = 'web';
+                    if (settingsVersionEl) settingsVersionEl.textContent = 'web';
+                }
+            } catch (error) {
+                console.error('バージョン取得エラー:', error);
+            }
+
+            // 起動中のインストール先を表示
+            try {
+                const installLocEl = document.getElementById('current-install-location');
+                if (isTauriEnvironment() && window.__TAURI__.core) {
+                    const installLoc = await window.__TAURI__.core.invoke('get_update_install_location');
+                    if (installLocEl) installLocEl.textContent = installLoc;
+                } else {
+                    if (installLocEl) installLocEl.textContent = 'web';
+                }
+            } catch (error) {
+                console.error('インストール先取得エラー:', error);
+            }
+
+            const autoUpdateCheck = document.getElementById('auto-update-check');
+            if (autoUpdateCheck) {
+                const savedAuto = localStorage.getItem('kasugai_auto_update_check');
+                if (savedAuto) {
+                    autoUpdateCheck.value = savedAuto;
+                }
+            }
+            if (autoUpdateCheck && autoUpdateCheck.value === 'enabled') {
+                await checkForUpdates(true);
+            }
+        }, 5000); // 5秒後にチェック
+
+        // --- KASUGAI_BOX 設定 ---
+        let kasugaiBoxPath = null;
+
+        async function initKasugaiBoxSettings() {
+            const input = document.getElementById('kasugaibox-install-path-input');
+            const status = document.getElementById('kasugaibox-status');
+            if (!input || !window.__TAURI__ || !window.__TAURI__.core) {
+                if (status) status.textContent = 'Tauri環境で実行してください';
+                return;
+            }
+
+            const savedPath = localStorage.getItem('kasugai_box_install_path') || '';
+            if (savedPath) {
+                input.value = savedPath;
+                await updateKasugaiBoxStatus(savedPath);
+            } else {
+                try {
+                    const defaultDir = await window.__TAURI__.core.invoke('get_kasugai_box_default_dir');
+                    input.value = defaultDir;
+                    await updateKasugaiBoxStatus(defaultDir);
+                } catch (e) {
+                    console.warn('KASUGAI_BOX デフォルトパス取得失敗:', e);
+                }
+            }
+
+            // インストール済みだがまだ起動していない場合、最大30秒間ポーリングして状態を反映
+            if (kasugaiBoxPath) {
+                pollKasugaiBoxStatus(30);
+            }
+        }
+
+        async function pollKasugaiBoxStatus(remaining) {
+            if (remaining <= 0 || !window.__TAURI__ || !window.__TAURI__.core) return;
+            if (!kasugaiBoxPath) return;
+
+            await new Promise(r => setTimeout(r, 1000));
+            try {
+                const running = await window.__TAURI__.core.invoke('is_kasugai_box_running');
+                if (running) {
+                    await updateKasugaiBoxStatus();
+                } else {
+                    await pollKasugaiBoxStatus(remaining - 1);
+                }
+            } catch (e) {
+                console.warn('KASUGAI_BOX ポーリング失敗:', e);
+            }
+        }
+
+        function getKasugaiBoxInstallPath() {
+            const input = document.getElementById('kasugaibox-install-path-input');
+            return input ? input.value.trim() : '';
+        }
+
+        async function updateKasugaiBoxStatus(path) {
+            const btn = document.getElementById('kasugaibox-install-btn');
+            const status = document.getElementById('kasugaibox-status');
+            if (!btn || !window.__TAURI__ || !window.__TAURI__.core) return;
+
+            try {
+                const exePath = await window.__TAURI__.core.invoke('get_kasugai_box_status', { path: path || getKasugaiBoxInstallPath() });
+                if (exePath) {
+                    kasugaiBoxPath = exePath;
+                    const running = await window.__TAURI__.core.invoke('is_kasugai_box_running');
+                    if (running) {
+                        btn.textContent = '再起動';
+                        btn.title = 'KASUGAI_BOX を再起動';
+                        if (status) { status.textContent = '起動中: ' + exePath; status.style.color = '#15803d'; }
+                    } else {
+                        btn.textContent = '起動';
+                        btn.title = 'KASUGAI_BOX を起動';
+                        if (status) { status.textContent = '停止中: ' + exePath; status.style.color = '#b45309'; }
+                    }
+                } else {
+                    kasugaiBoxPath = null;
+                    btn.textContent = 'インストール';
+                    btn.title = 'KASUGAI_BOX をインストール';
+                    if (status) { status.textContent = '未インストール'; status.style.color = '#64748b'; }
+                }
+            } catch (e) {
+                kasugaiBoxPath = null;
+                btn.textContent = 'インストール';
+                if (status) { status.textContent = 'エラー: ' + e; status.style.color = '#dc2626'; }
+            }
+        }
+
+        async function handleKasugaiBox(event) {
+            if (event) event.preventDefault();
+            const btn = document.getElementById('kasugaibox-install-btn');
+            const status = document.getElementById('kasugaibox-status');
+            if (!window.__TAURI__ || !window.__TAURI__.core) return;
+
+            const path = getKasugaiBoxInstallPath();
+            localStorage.setItem('kasugai_box_install_path', path);
+
+            if (kasugaiBoxPath) {
+                try {
+                    btn.disabled = true;
+                    if (status) { status.textContent = '起動中...'; status.style.color = '#2563eb'; }
+                    await window.__TAURI__.core.invoke('launch_kasugai_box', { path });
+
+                    // 実際に /health が応答するまで待機（最大15秒）
+                    let running = false;
+                    for (let i = 0; i < 15; i++) {
+                        await new Promise(r => setTimeout(r, 1000));
+                        if (await window.__TAURI__.core.invoke('is_kasugai_box_running')) {
+                            running = true;
+                            break;
+                        }
+                    }
+                    if (!running && status) {
+                        status.textContent = '起動しましたが、応答確認まで時間がかかっています';
+                        status.style.color = '#b45309';
+                    }
+                    await updateKasugaiBoxStatus(path);
+                } catch (e) {
+                    if (status) { status.textContent = '起動失敗: ' + e; status.style.color = '#dc2626'; }
+                } finally {
+                    btn.disabled = false;
+                }
+                return;
+            }
+
+            try {
+                btn.disabled = true;
+                if (status) { status.textContent = 'ダウンロード中...'; status.style.color = '#2563eb'; }
+                const result = await window.__TAURI__.core.invoke('install_kasugai_box', { path });
+                if (status) { status.textContent = 'インストール完了: ' + result; status.style.color = '#15803d'; }
+                await updateKasugaiBoxStatus(path);
+            } catch (e) {
+                if (status) { status.textContent = '失敗: ' + e; status.style.color = '#dc2626'; }
+                btn.textContent = '再試行';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        document.getElementById('kasugaibox-install-path-input')?.addEventListener('change', async (e) => {
+            localStorage.setItem('kasugai_box_install_path', e.target.value.trim());
+            await updateKasugaiBoxStatus(e.target.value.trim());
+        });
+
+        // --- QGISランチャー設定 ---
+        let qgisLauncherPath = null;
+        let qgisInitialStatusChecked = false;
+
+        async function initQgisSettings() {
+            const input = document.getElementById('qgis-install-path-input');
+            const status = document.getElementById('qgis-status');
+            if (!input || !window.__TAURI__ || !window.__TAURI__.core) {
+                if (status) status.textContent = 'Tauri環境で実行してください';
+                return;
+            }
+
+            const savedPath = localStorage.getItem('qgis_launcher_install_path') || '';
+            if (savedPath) {
+                input.value = savedPath;
+                await updateQgisStatus(savedPath);
+            } else {
+                try {
+                    const defaultDir = await window.__TAURI__.core.invoke('get_qgis_launcher_default_dir');
+                    input.value = defaultDir;
+                    await updateQgisStatus(defaultDir);
+                } catch (e) {
+                    console.warn('QGISデフォルトパス取得失敗:', e);
+                }
+            }
+            // 初期起動から10秒後にQGISランチャーの状態を確認
+            setTimeout(async () => {
+                await updateQgisRunningStatus();
+                qgisInitialStatusChecked = true;
+            }, 10000);
+        }
+
+        function getQgisInstallPath() {
+            const input = document.getElementById('qgis-install-path-input');
+            return input ? input.value.trim() : '';
+        }
+
+        async function updateQgisStatus(path) {
+            const btn = document.getElementById('qgis-install-btn');
+            const status = document.getElementById('qgis-status');
+            if (!btn || !window.__TAURI__ || !window.__TAURI__.core) return;
+
+            try {
+                const exePath = await window.__TAURI__.core.invoke('get_qgis_launcher_status', { path: path || getQgisInstallPath() });
+                if (exePath) {
+                    qgisLauncherPath = exePath;
+                    btn.textContent = '起動';
+                    btn.style.backgroundColor = '#2563eb';
+                    btn.title = 'QGIS Launcher を起動';
+                    if (status) { status.textContent = 'インストール済: ' + exePath; status.style.color = '#15803d'; }
+                } else {
+                    qgisLauncherPath = null;
+                    btn.textContent = 'インストール';
+                    btn.style.backgroundColor = '';
+                    btn.title = 'QGIS Launcher をインストール';
+                    if (status) { status.textContent = '未インストール'; status.style.color = '#64748b'; }
+                }
+            } catch (e) {
+                qgisLauncherPath = null;
+                btn.textContent = 'インストール';
+                btn.style.backgroundColor = '';
+                if (status) { status.textContent = 'エラー: ' + e; status.style.color = '#dc2626'; }
+            }
+        }
+
+        async function updateQgisRunningStatus() {
+            const el = document.getElementById('qgis-running-status');
+            if (!el || !window.__TAURI__ || !window.__TAURI__.core) return;
+            try {
+                const running = await window.__TAURI__.core.invoke('is_qgis_launcher_running');
+                if (running) {
+                    el.textContent = '状態: 起動中（127.0.0.1:8500）';
+                    el.style.color = '#15803d';
+                } else {
+                    el.textContent = '状態: 停止中（127.0.0.1:8500 未応答）';
+                    el.style.color = '#64748b';
+                }
+            } catch (e) {
+                el.textContent = '状態: 確認失敗';
+                el.style.color = '#dc2626';
+            }
+        }
+
+        async function handleQgisLauncher(event) {
+            if (event) event.preventDefault();
+            const btn = document.getElementById('qgis-install-btn');
+            const status = document.getElementById('qgis-status');
+            if (!window.__TAURI__ || !window.__TAURI__.core) return;
+
+            const path = getQgisInstallPath();
+            localStorage.setItem('qgis_launcher_install_path', path);
+
+            if (qgisLauncherPath) {
+                try {
+                    if (status) { status.textContent = '起動中...'; status.style.color = '#2563eb'; }
+                    const lastSep = qgisLauncherPath.lastIndexOf('\\');
+                    const launchDir = lastSep > 0 ? qgisLauncherPath.substring(0, lastSep) : getQgisInstallPath();
+                    await window.__TAURI__.core.invoke('launch_qgis_launcher', { path: launchDir });
+                    if (status) { status.textContent = '起動しました（10秒後に状態確認）'; status.style.color = '#15803d'; }
+                    setTimeout(updateQgisRunningStatus, 10000);
+                } catch (e) {
+                    if (status) { status.textContent = '起動失敗: ' + e; status.style.color = '#dc2626'; }
+                    await updateQgisRunningStatus();
+                }
+                return;
+            }
+
+            try {
+                btn.disabled = true;
+                if (status) { status.textContent = 'ダウンロード中...'; status.style.color = '#2563eb'; }
+                const result = await window.__TAURI__.core.invoke('install_qgis_launcher', { path });
+                qgisLauncherPath = result;
+                btn.textContent = '起動';
+                btn.style.backgroundColor = '#2563eb';
+                btn.title = 'QGIS Launcher を起動';
+                if (status) { status.textContent = '完了: ' + result; status.style.color = '#15803d'; }
+            } catch (e) {
+                btn.textContent = '再試行';
+                btn.style.backgroundColor = '';
+                if (status) { status.textContent = '失敗: ' + e; status.style.color = '#dc2626'; }
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function openQgisInstallGuide() {
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                window.__TAURI__.core.invoke('open_in_default_browser', { url: 'https://qgis.org/' });
+            } else {
+                window.open('https://qgis.org/', '_blank');
+            }
+        }
+
+        document.getElementById('qgis-install-path-input')?.addEventListener('change', async (e) => {
+            localStorage.setItem('qgis_launcher_install_path', e.target.value.trim());
+            await updateQgisStatus(e.target.value.trim());
+        });
 
     </script>
 </body>

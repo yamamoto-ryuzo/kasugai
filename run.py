@@ -2,6 +2,23 @@ import os
 import sys
 import subprocess
 import shutil
+import json
+import glob
+from datetime import datetime
+
+def find_rc_exe():
+    """tauri-winres 用に Windows SDK の rc.exe を探す"""
+    patterns = [
+        r'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\rc.exe',
+        r'C:\Program Files\Windows Kits\10\bin\*\x64\rc.exe',
+        r'C:\Program Files (x86)\Windows Kits\11\bin\*\x64\rc.exe',
+        r'C:\Program Files\Windows Kits\11\bin\*\x64\rc.exe',
+    ]
+    for pattern in patterns:
+        matches = sorted(glob.glob(pattern), reverse=True)
+        if matches:
+            return matches[0]
+    return None
 
 def main():
     # スクリプトの格納ディレクトリを取得 (c:\github\kasugai - プロジェクトルート)
@@ -17,6 +34,16 @@ def main():
     # ターゲットディレクトリへ移動
     print(f"[Kasugai] カレントディレクトリを移動中: {target_dir}")
     os.chdir(target_dir)
+    
+    # tauri-winres 用に Windows SDK の rc.exe を環境変数へ設定
+    rc = find_rc_exe()
+    if rc:
+        print(f"[Kasugai] Windows SDK rc.exe を検出: {rc}")
+        os.environ['RC'] = rc
+        rc_dir = os.path.dirname(rc)
+        os.environ['PATH'] = rc_dir + os.pathsep + os.environ.get('PATH', '')
+    else:
+        print("[Kasugai] 警告: Windows SDK rc.exe が見つかりません。ビルドが失敗する可能性があります。")
     
     # コマンド引数の解析
     # 引数がない、または "dev" の場合は開発起動
@@ -38,6 +65,18 @@ def main():
         print("エラー: 'npx' コマンドが見つかりません。Node.js がインストールされているか確認してください。")
         sys.exit(1)
 
+    # node_modules が存在しない場合は依存関係をインストール
+    if not os.path.isdir("node_modules"):
+        print("[Kasugai] 依存関係をインストールしています...")
+        npm_install = ["npm", "install"]
+        print(f"実行コマンド: {' '.join(npm_install)}")
+        try:
+            subprocess.run(npm_install, shell=True, check=True)  # nosec B602
+            print("[Kasugai] 依存関係のインストールが完了しました。")
+        except subprocess.CalledProcessError as e:
+            print(f"\n[Kasugai] エラー: 依存関係のインストールに失敗しました。終了コード: {e.returncode}")
+            sys.exit(e.returncode)
+
     # Tauri コマンドの組み立て
     # Windowsシステムを考慮し shell=True を指定します
     tauri_cmd = ["npx", "tauri", mode]
@@ -47,22 +86,105 @@ def main():
     
     try:
         # コマンドの実行 (標準入出力を引き継ぐ)
-        result = subprocess.run(tauri_cmd, shell=True, check=True)
-        # ビルドモードの場合、生成された EXE を download フォルダへコピーする
+        result = subprocess.run(tauri_cmd, shell=True, check=True)  # nosec B602
+        # ビルドモードの場合、生成された EXE を download フォルダへコピーし、配信用ファイルを作成
         if mode == "build":
             try:
-                # ここでは単純に固定パスをコピーするのみ
-                src_exe = os.path.join(target_dir, 'src-tauri', 'target', 'release', 'kasugai.exe')
+                bundle_dir = os.path.join(target_dir, 'src-tauri', 'target', 'release', 'bundle')
                 download_dir = os.path.join(script_dir, 'download')
                 os.makedirs(download_dir, exist_ok=True)
-                dest = os.path.join(download_dir, 'kasugai.exe')
-                if os.path.exists(src_exe):
-                    shutil.copy2(src_exe, dest)
-                    print(f"[Kasugai] ビルド生成物をコピーしました: {dest}")
+                dest_json = os.path.join(download_dir, 'latest.json')
+
+                # Tauri v2 updater 用インストーラーを検索（NSIS を優先、次に MSI）
+                installer_src = None
+                sig_path = None
+                dest_installer = None
+                bundle_candidates = [
+                    ('nsis', '.exe', 'kasugai.exe'),
+                    ('msi', '.msi', 'kasugai.msi'),
+                ]
+                for kind, installer_ext, dest_name in bundle_candidates:
+                    subdir = os.path.join(bundle_dir, kind)
+                    if not os.path.isdir(subdir):
+                        continue
+                    installer_files = [
+                        f for f in os.listdir(subdir)
+                        if f.endswith(installer_ext) and not f.endswith('.sig')
+                    ]
+                    if installer_files:
+                        # 同名の古いビルドが残っていても、最も新しいファイルを選択する
+                        installer_files.sort(
+                            key=lambda f: os.path.getmtime(os.path.join(subdir, f)),
+                            reverse=True,
+                        )
+                        installer_src = os.path.join(subdir, installer_files[0])
+                        sig_path = installer_src + '.sig'
+                        dest_installer = os.path.join(download_dir, dest_name)
+                        print(f"[Kasugai] {kind.upper()} インストーラーを見つけました: {installer_src}")
+                        break
+
+                if not installer_src:
+                    print("[Kasugai] エラー: インストーラー（.exe または .msi）が見つかりません")
+                    sys.exit(1)
+
+                # インストーラーを download フォルダへコピー
+                shutil.copy2(installer_src, dest_installer)
+                print(f"[Kasugai] インストーラーをコピーしました: {dest_installer}")
+
+                # インストーラーを ZIP 化して download フォルダへも提供
+                try:
+                    import zipfile
+                    dest_zip = os.path.join(download_dir, 'kasugai.exe.zip')
+                    with zipfile.ZipFile(dest_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+                        zf.write(dest_installer, os.path.basename(dest_installer))
+                    print(f"[Kasugai] インストーラー ZIP を生成しました: {dest_zip}")
+                except Exception as e:
+                    print(f"[Kasugai] ZIP 生成中に警告: {e}")
+
+                # 署名ファイルを読み込み
+                signature = ""
+                if sig_path and os.path.exists(sig_path):
+                    with open(sig_path, 'r', encoding='utf-8') as f:
+                        signature = f.read().strip()
+                    print(f"[Kasugai] 署名ファイルを読み込みました: {sig_path}")
                 else:
-                    print(f"[Kasugai] 警告: 期待される EXE が見つかりません: {src_exe}")
+                    print("[Kasugai] 警告: 署名ファイルが見つかりません。latest.json の signature が空になります。")
+
+                # バージョン情報を取得
+                tauri_conf_path = os.path.join(target_dir, 'src-tauri', 'tauri.conf.json')
+                version = "2.2.0"  # デフォルトバージョン
+                if os.path.exists(tauri_conf_path):
+                    with open(tauri_conf_path, 'r', encoding='utf-8') as f:
+                        conf = json.load(f)
+                        version = conf.get('version', '2.2.0')
+
+                # 更新JSONを生成
+                print(f"[Kasugai] 更新JSONを生成中: {dest_json}")
+                update_data = {
+                    "version": version,
+                    "notes": f"Kasugai バージョン {version}\n\n- 最新の更新内容",
+                    "pub_date": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "platforms": {
+                        "windows-x86_64": {
+                            # ?v={version} で CDN キャッシュをバスト（固定名のまま常に最新を取得）
+                            "signature": signature,
+                            "url": f"https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai/main/download/{os.path.basename(dest_installer)}?v={version}"
+                        }
+                    }
+                }
+
+                with open(dest_json, 'w', encoding='utf-8') as f:
+                    json.dump(update_data, f, indent=2, ensure_ascii=False)
+                print(f"[Kasugai] 更新JSONを生成しました: {dest_json}")
+
+                print(f"[Kasugai] 配信用ファイルの準備が完了しました")
+                print(f"[Kasugai] - INSTALLER: {dest_installer}")
+                print(f"[Kasugai] - JSON: {dest_json}")
+
             except Exception as e:
-                print(f"[Kasugai] EXE コピー中にエラー: {e}")
+                print(f"[Kasugai] 配信用ファイル作成中にエラー: {e}")
+                import traceback
+                traceback.print_exc()
 
         sys.exit(result.returncode)
     except subprocess.CalledProcessError as e:

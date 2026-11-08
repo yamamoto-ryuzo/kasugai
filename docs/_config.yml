@@ -7,3 +7,7 @@ title: Kasugai（かすがい）
 # 3. Mermaid の有効化設定
 mermaid:
   version: '11.16.0'
+
+# 4. サイトURL設定（GitHub Pages用）
+url: https://yamamoto-ryuzo.github.io
+baseurl: /kasugai

@@ -1,0 +1,11 @@
+{
+  "version": "2.7.3",
+  "notes": "Kasugai バージョン 2.7.3\n\n- 最新の更新内容",
+  "pub_date": "2026-11-04T14:08:52Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVURW9ZMVJ3VHRSZzN4eCtGNk9tZjliV25MSUNHMjV1bWNYbTRKN0JYL3pSVlBNdHVCL0dQcFI5dzZrMHlLWmhrRnNiYmJQVXBFZWt1SG9QR2duUHpPOHRWOXNOSzdwU1E0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzODAxMzMwCWZpbGU6a2FzdWdhaV8yLjcuM194NjQtc2V0dXAuZXhlClFQWkdZb0JhS2lHbjl2NEpKY21kdUNFK0FBNHBrOUJuMlRzMENPWXJRNjVwNjRhZlZhdVZ1eUUxZlNzRTZSOFN6OTBmVEZId3o5bkxWd0lTOSsyVEJnPT0K",
+      "url": "https://raw.githubusercontent.com/yamamoto-ryuzo/kasugai/main/download/kasugai.exe?v=2.7.3"
+    }
+  }
+}

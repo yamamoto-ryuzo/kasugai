@@ -1,7 +1,8 @@
 [package]
 name = "kasugai"
-version = "1.2.0"
+version = "2.7.3"
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 tauri = { version = "2", features = ["unstable"] }
@@ -10,6 +11,12 @@ serde_json = "1"
 keyring = "2"
 enigo = "0.1.2"
 reqwest = { version = "0.12", features = ["json"] }
+tauri-plugin-opener = "2"
+egm2008 = "0.1"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"

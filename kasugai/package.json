@@ -1,6 +1,6 @@
 {
   "name": "kasugai-tests",
-  "version": "1.2.0",
+  "version": "2.7.3",
   "description": "E2E tests for Kasugai platform using Playwright",
   "devDependencies": {
     "@playwright/test": "^1.45.0",
@@ -8,5 +8,10 @@
   },
   "scripts": {
     "test": "playwright test"
+  },
+  "dependencies": {
+    "@tauri-apps/plugin-app": "^2.0.0-alpha.1",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.1"
   }
 }
