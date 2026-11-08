@@ -495,15 +495,15 @@
             }
 
             // Rustバックエンドにタブ切り替えを通知
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                window.__TAURI__.core.invoke('switch_pane3_tab', { tab: tabId });
+            }
+        }
+
         // 画面3のアクティブタブに対して 戻る/進む/更新 を実行する
         function pane3Nav(action) {
             if (window.__TAURI__ && window.__TAURI__.core) {
                 window.__TAURI__.core.invoke('pane3_nav', { action: action });
-            }
-        }
-
-            if (window.__TAURI__ && window.__TAURI__.core) {
-                window.__TAURI__.core.invoke('switch_pane3_tab', { tab: tabId });
             }
         }
 
