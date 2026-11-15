@@ -10,6 +10,10 @@
     "core:event:allow-emit",
     "core:event:allow-listen",
     "core:resources:default",
-    "core:path:default"
+    "core:path:default",
+    "core:window:allow-outer-size",
+    "core:window:allow-is-maximized",
+    "core:window:allow-unmaximize",
+    "core:window:allow-set-size"
   ]
 }

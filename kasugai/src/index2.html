@@ -406,6 +406,13 @@
                             </select>
                         </div>
                         <div>
+                            <label style="font-weight: bold; font-size: 14px; color: #15803d; margin-bottom: 5px; display: block;">起動時の画面状態</label>
+                            <select id="restore-state-select" onchange="localStorage.setItem('kasugai_restore_state', this.value)" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+                                <option value="restore">前回の状態を復元</option>
+                                <option value="default">既定画面（CANVAS）で開始</option>
+                            </select>
+                        </div>
+                        <div>
                             <button class="btn" onclick="manualUpdateCheck()">今すぐ更新を確認</button>
                             <div id="update-status" class="status-msg"></div>
                         </div>
@@ -719,6 +726,7 @@
 
         // タブ切り替え処理
         async function switchTab(tabName) {
+            try { localStorage.setItem('kasugai_pane2_tab', tabName); } catch (e) {}
             if (tabName in HIDEABLE_TAB_TITLES && !isTabEnabled(tabName)) {
                 tabName = 'settings';
             }
@@ -922,12 +930,20 @@
             const platformEl = document.getElementById('platform-setting-input');
             if (platformEl) platformEl.value = savedPlatform;
 
+            // 起動時の画面状態（復元するか既定画面か）設定の復元
+            const restoreStateEl = document.getElementById('restore-state-select');
+            if (restoreStateEl) restoreStateEl.value = localStorage.getItem('kasugai_restore_state') || 'restore';
+
             // 各GISタブ表示設定の復元（非表示タブ状態にも反映）
             initTabVisibility();
 
             // ?settings=true で開かれた場合は CANVAS ではなくシステム設定タブを初期表示する
             // （openSystemSettings / getTabUrl('settings') が生成する index2.html?settings=true URL の消費側）
-            const initialTab = new URLSearchParams(location.search).get('settings') === 'true' ? 'settings' : 'cesium';
+            let initialTab = new URLSearchParams(location.search).get('settings') === 'true' ? 'settings' : 'cesium';
+            if (initialTab === 'cesium' && localStorage.getItem('kasugai_restore_state') !== 'default') {
+                const savedPane2Tab = localStorage.getItem('kasugai_pane2_tab');
+                if (savedPane2Tab && document.getElementById('tab-' + savedPane2Tab)) initialTab = savedPane2Tab;
+            }
             if (initialTab === 'cesium') {
                 // デフォルトで CANVAS タブをアクティブにする前に、KASUGAI_CANVAS のインストール・起動を確認
                 try {

@@ -46,7 +46,29 @@
 
         let ratio1 = 0.1;
         let ratio2 = 0.8;
+        let pane4Ratio = 0.2;
         const splitterWidth = 8;
+
+        // 前回終了時のレイアウト状態（分割比率）を localStorage から復元する。
+        // 設定で「既定画面で開始」が選ばれている場合は復元しない。
+        function layoutRestoreEnabled() {
+            try { return localStorage.getItem('kasugai_restore_state') !== 'default'; }
+            catch (e) { return true; }
+        }
+        function saveLayoutState() {
+            try { localStorage.setItem('kasugai_layout', JSON.stringify({ ratio1, ratio2, pane4Ratio })); }
+            catch (e) {}
+        }
+        try {
+            if (layoutRestoreEnabled()) {
+                const saved = JSON.parse(localStorage.getItem('kasugai_layout') || 'null');
+                if (saved) {
+                    if (typeof saved.ratio1 === 'number') ratio1 = saved.ratio1;
+                    if (typeof saved.ratio2 === 'number') ratio2 = saved.ratio2;
+                    if (typeof saved.pane4Ratio === 'number') pane4Ratio = saved.pane4Ratio;
+                }
+            }
+        } catch (e) {}
         const sh = splitterWidth / 2;
 
         // 初期配置をセット
@@ -75,6 +97,33 @@
 
         updateSplitterElements();
         window.addEventListener('resize', updateSplitterElements, { passive: true });
+
+        // ウィンドウサイズ・最大化状態の保存/復元
+        async function saveWindowState() {
+            if (!window.__TAURI__ || !window.__TAURI__.window) return;
+            try {
+                const w = window.__TAURI__.window.getCurrentWindow();
+                const size = await w.outerSize();
+                const maximized = await w.isMaximized();
+                localStorage.setItem('kasugai_window', JSON.stringify({ w: size.width, h: size.height, maximized }));
+            } catch (e) {}
+        }
+        window.addEventListener('resize', () => { saveWindowState(); }, { passive: true });
+
+        (async function restoreInitialState() {
+            if (!layoutRestoreEnabled()) return;
+            if (!window.__TAURI__ || !window.__TAURI__.core) return;
+            try {
+                await window.__TAURI__.core.invoke('update_splitter', { ratio1, ratio2 });
+                await window.__TAURI__.core.invoke('update_pane4_ratio', { ratio: pane4Ratio });
+                const ws = JSON.parse(localStorage.getItem('kasugai_window') || 'null');
+                if (ws && ws.maximized === false && ws.w > 0 && ws.h > 0 && window.__TAURI__.window) {
+                    const w = window.__TAURI__.window.getCurrentWindow();
+                    await w.unmaximize();
+                    await w.setSize(new window.__TAURI__.window.PhysicalSize(ws.w, ws.h));
+                }
+            } catch (e) {}
+        })();
 
         let activeSplitter = null;
         // ダブルクリック時の誤ドラッグ防止用（一定距離動くまでドラッグ扱いにしない）
@@ -145,6 +194,7 @@
                 let newRatio = (h - clientY) / h;
                 if (newRatio < 0.05) newRatio = 0.05;
                 if (newRatio > 0.6) newRatio = 0.6;
+                pane4Ratio = newRatio;
                 // Rust 側の pane4 比率更新コマンドを呼ぶ
                 if (window.__TAURI__ && window.__TAURI__.core) {
                     window.__TAURI__.core.invoke('update_pane4_ratio', { ratio: newRatio });
@@ -195,6 +245,7 @@
             document.body.style.cursor = 'default';
 
             notifyDragEnd();
+            saveLayoutState();
         }
 
         window.addEventListener('mouseup', endDrag, { passive: true });
@@ -206,7 +257,9 @@
                 if (event.payload) {
                     ratio1 = event.payload.ratio1;
                     ratio2 = event.payload.ratio2;
+                    if (typeof event.payload.pane4_ratio === 'number') pane4Ratio = event.payload.pane4_ratio;
                     updateSplitterElements();
+                    saveLayoutState();
                 }
             });
 

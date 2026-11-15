@@ -482,6 +482,18 @@
         }
 
         function switchPane3Tab(tabId) {
+            try {
+                const btn = document.getElementById('tab-' + tabId);
+                const u = btn ? btn.getAttribute('data-url') : null;
+                if (u && !u.includes('index3.html')) {
+                    const m = JSON.parse(localStorage.getItem('kasugai_pane3_tabs') || '{}');
+                    m[tabId] = u;
+                    localStorage.setItem('kasugai_pane3_tabs', JSON.stringify(m));
+                    localStorage.setItem('kasugai_pane3_active', u);
+                } else if (tabId === 'default') {
+                    localStorage.setItem('kasugai_pane3_active', 'default');
+                }
+            } catch (e) {}
             // UIのアクティブ状態の更新
             currentTabs.forEach(t => {
                 const el = document.getElementById('tab-' + t);
@@ -508,6 +520,10 @@
         }
 
         function closePane3Tab(e, tabId) {
+            try {
+                const m = JSON.parse(localStorage.getItem('kasugai_pane3_tabs') || '{}');
+                if (tabId in m) { delete m[tabId]; localStorage.setItem('kasugai_pane3_tabs', JSON.stringify(m)); }
+            } catch (e) {}
             e.stopPropagation(); // 親のswitchPane3Tabの発火を防ぐ
             
             // 要素を削除
@@ -521,6 +537,43 @@
                 window.__TAURI__.core.invoke('close_pane3_tab', { tab: tabId });
             }
         }
+
+        // 前回開いていた追加タブを復元する（設定で「既定画面で開始」の場合は何もしない）
+        (function restorePane3Tabs() {
+            if (localStorage.getItem('kasugai_restore_state') === 'default') return;
+            const start = () => {
+                try {
+                    if (!window.__TAURI__ || !window.__TAURI__.core) return;
+                    const m = JSON.parse(localStorage.getItem('kasugai_pane3_tabs') || '{}');
+                    const activeUrl = localStorage.getItem('kasugai_pane3_active') || '';
+                    const urls = Object.keys(m).map(k => m[k]).filter(u => u && !u.includes('index3.html'));
+                    // 復元で新しいタブIDが採番されるため、いったんマップをクリアして
+                    // switchPane3Tab 側の永続化で新IDに再記録させる
+                    localStorage.setItem('kasugai_pane3_tabs', '{}');
+                    if (urls.length && window.__TAURI__.event) {
+                        let restored = 0;
+                        window.__TAURI__.event.listen('pane3_new_tab', (ev) => {
+                            try {
+                                restored++;
+                                if (ev.payload && ev.payload.id && ev.payload.url === activeUrl) {
+                                    switchPane3Tab(ev.payload.id);
+                                } else if (restored >= urls.length && activeUrl === 'default') {
+                                    switchPane3Tab('default');
+                                }
+                            } catch (e) {}
+                        });
+                    }
+                    for (const u of urls) {
+                        window.__TAURI__.core.invoke('open_in_pane3', { url: u });
+                    }
+                } catch (e) {}
+            };
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', start);
+            } else {
+                start();
+            }
+        })();
 
         function handleKeyDown(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
