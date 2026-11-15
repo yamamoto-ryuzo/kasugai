@@ -1,0 +1,1014 @@
+{
+ "component": "kasugai",
+ "component_type": "tauri_multiwebview",
+ "version": "2.7.3",
+ "driver": {
+  "type": "manual",
+  "detect": "プロセス kasugai.exe",
+  "launch": "kasugai/kasugai.exe (Tauri) または cargo tauri dev",
+  "ready": "ウィンドウ表示",
+  "control": "Tauri invoke / e2e playwright(静的HTML部のみ)",
+  "detected_from": "kasugai/package.json + src-tauri"
+ },
+ "updated": "2026-11-15T23:28:00+09:00",
+ "features": [
+  {
+   "id": "cmd.update_pane",
+   "kind": "logic_fn",
+   "name": "update_pane",
+   "source": "src-tauri/src/main.rs",
+   "signature": "update_pane()",
+   "summary": "Tauriコマンド update_pane",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.set_update_install_location",
+   "kind": "logic_fn",
+   "name": "set_update_install_location",
+   "source": "src-tauri/src/main.rs",
+   "signature": "set_update_install_location()",
+   "summary": "Tauriコマンド set_update_install_location",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.get_update_install_location",
+   "kind": "logic_fn",
+   "name": "get_update_install_location",
+   "source": "src-tauri/src/main.rs",
+   "signature": "get_update_install_location()",
+   "summary": "Tauriコマンド get_update_install_location",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.toggle_pane",
+   "kind": "logic_fn",
+   "name": "toggle_pane",
+   "source": "src-tauri/src/main.rs",
+   "signature": "toggle_pane()",
+   "summary": "Tauriコマンド toggle_pane",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.get_system_info",
+   "kind": "logic_fn",
+   "name": "get_system_info",
+   "source": "src-tauri/src/main.rs",
+   "signature": "get_system_info()",
+   "summary": "Tauriコマンド get_system_info",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.get_qgis_launcher_default_dir",
+   "kind": "logic_fn",
+   "name": "get_qgis_launcher_default_dir",
+   "source": "src-tauri/src/main.rs",
+   "signature": "get_qgis_launcher_default_dir()",
+   "summary": "Tauriコマンド get_qgis_launcher_default_dir",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.get_qgis_launcher_status",
+   "kind": "logic_fn",
+   "name": "get_qgis_launcher_status",
+   "source": "src-tauri/src/main.rs",
+   "signature": "get_qgis_launcher_status()",
+   "summary": "Tauriコマンド get_qgis_launcher_status",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.install_qgis_launcher",
+   "kind": "logic_fn",
+   "name": "install_qgis_launcher",
+   "source": "src-tauri/src/main.rs",
+   "signature": "install_qgis_launcher()",
+   "summary": "Tauriコマンド install_qgis_launcher",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.launch_qgis_launcher",
+   "kind": "logic_fn",
+   "name": "launch_qgis_launcher",
+   "source": "src-tauri/src/main.rs",
+   "signature": "launch_qgis_launcher()",
+   "summary": "Tauriコマンド launch_qgis_launcher",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.get_kasugai_box_default_dir",
+   "kind": "logic_fn",
+   "name": "get_kasugai_box_default_dir",
+   "source": "src-tauri/src/main.rs",
+   "signature": "get_kasugai_box_default_dir()",
+   "summary": "Tauriコマンド get_kasugai_box_default_dir",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.get_kasugai_box_status",
+   "kind": "logic_fn",
+   "name": "get_kasugai_box_status",
+   "source": "src-tauri/src/main.rs",
+   "signature": "get_kasugai_box_status()",
+   "summary": "Tauriコマンド get_kasugai_box_status",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.install_kasugai_box",
+   "kind": "logic_fn",
+   "name": "install_kasugai_box",
+   "source": "src-tauri/src/main.rs",
+   "signature": "install_kasugai_box()",
+   "summary": "Tauriコマンド install_kasugai_box",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.launch_kasugai_box",
+   "kind": "logic_fn",
+   "name": "launch_kasugai_box",
+   "source": "src-tauri/src/main.rs",
+   "signature": "launch_kasugai_box()",
+   "summary": "Tauriコマンド launch_kasugai_box",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.is_kasugai_box_running",
+   "kind": "logic_fn",
+   "name": "is_kasugai_box_running",
+   "source": "src-tauri/src/main.rs",
+   "signature": "is_kasugai_box_running()",
+   "summary": "Tauriコマンド is_kasugai_box_running",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.is_qgis_launcher_running",
+   "kind": "logic_fn",
+   "name": "is_qgis_launcher_running",
+   "source": "src-tauri/src/main.rs",
+   "signature": "is_qgis_launcher_running()",
+   "summary": "Tauriコマンド is_qgis_launcher_running",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.get_kasugai_canvas_default_dir",
+   "kind": "logic_fn",
+   "name": "get_kasugai_canvas_default_dir",
+   "source": "src-tauri/src/main.rs",
+   "signature": "get_kasugai_canvas_default_dir()",
+   "summary": "Tauriコマンド get_kasugai_canvas_default_dir",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.get_kasugai_canvas_status",
+   "kind": "logic_fn",
+   "name": "get_kasugai_canvas_status",
+   "source": "src-tauri/src/main.rs",
+   "signature": "get_kasugai_canvas_status()",
+   "summary": "Tauriコマンド get_kasugai_canvas_status",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.install_kasugai_canvas",
+   "kind": "logic_fn",
+   "name": "install_kasugai_canvas",
+   "source": "src-tauri/src/main.rs",
+   "signature": "install_kasugai_canvas()",
+   "summary": "Tauriコマンド install_kasugai_canvas",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.launch_kasugai_canvas",
+   "kind": "logic_fn",
+   "name": "launch_kasugai_canvas",
+   "source": "src-tauri/src/main.rs",
+   "signature": "launch_kasugai_canvas()",
+   "summary": "Tauriコマンド launch_kasugai_canvas",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.is_kasugai_canvas_running",
+   "kind": "logic_fn",
+   "name": "is_kasugai_canvas_running",
+   "source": "src-tauri/src/main.rs",
+   "signature": "is_kasugai_canvas_running()",
+   "summary": "Tauriコマンド is_kasugai_canvas_running",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.ensure_kasugai_canvas",
+   "kind": "logic_fn",
+   "name": "ensure_kasugai_canvas",
+   "source": "src-tauri/src/main.rs",
+   "signature": "ensure_kasugai_canvas()",
+   "summary": "Tauriコマンド ensure_kasugai_canvas",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.open_in_default_browser",
+   "kind": "logic_fn",
+   "name": "open_in_default_browser",
+   "source": "src-tauri/src/main.rs",
+   "signature": "open_in_default_browser()",
+   "summary": "Tauriコマンド open_in_default_browser",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.list_ini_files",
+   "kind": "logic_fn",
+   "name": "list_ini_files",
+   "source": "src-tauri/src/main.rs",
+   "signature": "list_ini_files()",
+   "summary": "Tauriコマンド list_ini_files",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.read_ini_file",
+   "kind": "logic_fn",
+   "name": "read_ini_file",
+   "source": "src-tauri/src/main.rs",
+   "signature": "read_ini_file()",
+   "summary": "Tauriコマンド read_ini_file",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.write_ini_file",
+   "kind": "logic_fn",
+   "name": "write_ini_file",
+   "source": "src-tauri/src/main.rs",
+   "signature": "write_ini_file()",
+   "summary": "Tauriコマンド write_ini_file",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.save_credential",
+   "kind": "logic_fn",
+   "name": "save_credential",
+   "source": "src-tauri/src/main.rs",
+   "signature": "save_credential()",
+   "summary": "Tauriコマンド save_credential",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.get_credential",
+   "kind": "logic_fn",
+   "name": "get_credential",
+   "source": "src-tauri/src/main.rs",
+   "signature": "get_credential()",
+   "summary": "Tauriコマンド get_credential",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.delete_credential",
+   "kind": "logic_fn",
+   "name": "delete_credential",
+   "source": "src-tauri/src/main.rs",
+   "signature": "delete_credential()",
+   "summary": "Tauriコマンド delete_credential",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.type_credentials",
+   "kind": "logic_fn",
+   "name": "type_credentials",
+   "source": "src-tauri/src/main.rs",
+   "signature": "type_credentials()",
+   "summary": "Tauriコマンド type_credentials",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.open_box_in_pane",
+   "kind": "logic_fn",
+   "name": "open_box_in_pane",
+   "source": "src-tauri/src/main.rs",
+   "signature": "open_box_in_pane()",
+   "summary": "Tauriコマンド open_box_in_pane",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.open_box_app_in_pane",
+   "kind": "logic_fn",
+   "name": "open_box_app_in_pane",
+   "source": "src-tauri/src/main.rs",
+   "signature": "open_box_app_in_pane()",
+   "summary": "Tauriコマンド open_box_app_in_pane",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.open_qgis_in_pane",
+   "kind": "logic_fn",
+   "name": "open_qgis_in_pane",
+   "source": "src-tauri/src/main.rs",
+   "signature": "open_qgis_in_pane()",
+   "summary": "Tauriコマンド open_qgis_in_pane",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.open_reearth_in_pane",
+   "kind": "logic_fn",
+   "name": "open_reearth_in_pane",
+   "source": "src-tauri/src/main.rs",
+   "signature": "open_reearth_in_pane()",
+   "summary": "Tauriコマンド open_reearth_in_pane",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.open_in_pane",
+   "kind": "logic_fn",
+   "name": "open_in_pane",
+   "source": "src-tauri/src/main.rs",
+   "signature": "open_in_pane()",
+   "summary": "Tauriコマンド open_in_pane",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.update_splitter",
+   "kind": "logic_fn",
+   "name": "update_splitter",
+   "source": "src-tauri/src/main.rs",
+   "signature": "update_splitter()",
+   "summary": "Tauriコマンド update_splitter",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.pane_dblclick",
+   "kind": "logic_fn",
+   "name": "pane_dblclick",
+   "source": "src-tauri/src/main.rs",
+   "signature": "pane_dblclick()",
+   "summary": "Tauriコマンド pane_dblclick",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.switch_pane",
+   "kind": "logic_fn",
+   "name": "switch_pane",
+   "source": "src-tauri/src/main.rs",
+   "signature": "switch_pane()",
+   "summary": "Tauriコマンド switch_pane",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.close_pane",
+   "kind": "logic_fn",
+   "name": "close_pane",
+   "source": "src-tauri/src/main.rs",
+   "signature": "close_pane()",
+   "summary": "Tauriコマンド close_pane",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.prefetch_basic_auth",
+   "kind": "logic_fn",
+   "name": "prefetch_basic_auth",
+   "source": "src-tauri/src/main.rs",
+   "signature": "prefetch_basic_auth()",
+   "summary": "Tauriコマンド prefetch_basic_auth",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.detach_window",
+   "kind": "logic_fn",
+   "name": "detach_window",
+   "source": "src-tauri/src/main.rs",
+   "signature": "detach_window()",
+   "summary": "Tauriコマンド detach_window",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.show_context_menu",
+   "kind": "logic_fn",
+   "name": "show_context_menu",
+   "source": "src-tauri/src/main.rs",
+   "signature": "show_context_menu()",
+   "summary": "Tauriコマンド show_context_menu",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.close_context_menu",
+   "kind": "logic_fn",
+   "name": "close_context_menu",
+   "source": "src-tauri/src/main.rs",
+   "signature": "close_context_menu()",
+   "summary": "Tauriコマンド close_context_menu",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.get_tab_url",
+   "kind": "logic_fn",
+   "name": "get_tab_url",
+   "source": "src-tauri/src/main.rs",
+   "signature": "get_tab_url()",
+   "summary": "Tauriコマンド get_tab_url",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.get_pane",
+   "kind": "logic_fn",
+   "name": "get_pane",
+   "source": "src-tauri/src/main.rs",
+   "signature": "get_pane()",
+   "summary": "Tauriコマンド get_pane",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.get_active_pane",
+   "kind": "logic_fn",
+   "name": "get_active_pane",
+   "source": "src-tauri/src/main.rs",
+   "signature": "get_active_pane()",
+   "summary": "Tauriコマンド get_active_pane",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "cmd.get_geoid_undulation",
+   "kind": "logic_fn",
+   "name": "get_geoid_undulation",
+   "source": "src-tauri/src/main.rs",
+   "signature": "get_geoid_undulation()",
+   "summary": "Tauriコマンド get_geoid_undulation",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ内 invoke(要Tauriランタイム)"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "Tauriランタイム必須のため未起動ではinvoke不可。cargo checkで実在・型整合を確認"
+  },
+  {
+   "id": "static.cargo_check",
+   "kind": "logic_fn",
+   "name": "cargo check(src-tauri)",
+   "source": "src-tauri/Cargo.toml",
+   "signature": "cargo check",
+   "summary": "Rust静的検証",
+   "needs_runtime": false,
+   "standalone_ok": true,
+   "depends": [],
+   "verify": {
+    "standalone": "cargo check → Finished",
+    "integrated": ""
+   },
+   "last_result": "pass",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "v2.7.3 Finished 34s"
+  },
+  {
+   "id": "e2e.login_settings",
+   "kind": "ui_control",
+   "name": "設定画面資格情報保存",
+   "source": "e2e/login.spec.ts:7",
+   "signature": "e2e",
+   "summary": "index2.html?settings=true で設定保存UI",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Playwright"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "npx playwright test"
+   },
+   "last_result": "pass",
+   "last_verified": "2026-11-15T23:28:00+09:00",
+   "note": "修正 73c62a6 コミット済。npx playwright test e2e/login.spec.ts 2/2 pass。Issue #13 closed"
+  },
+  {
+   "id": "e2e.inject_autologin",
+   "kind": "ui_control",
+   "name": "自動ログイン注入モック",
+   "source": "e2e/login.spec.ts:34",
+   "signature": "e2e",
+   "summary": "inject_autologin モック検証",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Playwright"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "npx playwright test"
+   },
+   "last_result": "pass",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "e2e pass"
+  },
+  {
+   "id": "ui.pane3_layout",
+   "kind": "ui_control",
+   "name": "3画面マルチWebView構成",
+   "source": "src-tauri/src/main.rs",
+   "signature": "pane構成",
+   "summary": "3画面分割 WebView2 フレーム",
+   "needs_runtime": true,
+   "standalone_ok": false,
+   "depends": [
+    "Tauriアプリ起動"
+   ],
+   "verify": {
+    "standalone": "",
+    "integrated": "アプリ実起動+目視"
+   },
+   "last_result": "skip",
+   "last_verified": "2026-11-15T22:53:25+09:00",
+   "note": "アプリ起動が必要。cargo check通過"
+  }
+ ]
+}
