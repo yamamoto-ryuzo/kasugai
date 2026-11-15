@@ -10,7 +10,10 @@ test.describe('Kasugai ログインおよびKeyring連携のテスト', () => {
     await page.goto(`file://${indexPath}?settings=true`);
 
     // タイトルがシステム設定になっているか確認
-    await expect(page.locator('#view-title')).toHaveText('システム設定');
+    await expect(page.locator('#view-title-text')).toHaveText('システム設定');
+
+    // BOX 設定タブを開く（既定はプラットフォーム設定タブ）
+    await page.click('#settings-tab-box');
 
     // メールアドレスとパスワードを入力
     const testEmail = 'test-user@example.com';
@@ -20,7 +23,7 @@ test.describe('Kasugai ログインおよびKeyring連携のテスト', () => {
     await page.fill('#box-password-input', testPassword);
 
     // 保存ボタンをクリック
-    await page.click('button:has-text("設定をすべて保存")');
+    await page.click('button:has-text("設定をシステムに保存")');
 
     // ステータスメッセージを確認
     const statusMsg = page.locator('#settings-status');

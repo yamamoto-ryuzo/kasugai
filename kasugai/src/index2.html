@@ -925,13 +925,18 @@
             // 各GISタブ表示設定の復元（非表示タブ状態にも反映）
             initTabVisibility();
 
-            // デフォルトで CANVAS タブをアクティブにする前に、KASUGAI_CANVAS のインストール・起動を確認
-            try {
-                if (window.__TAURI__ && window.__TAURI__.core) {
-                    await window.__TAURI__.core.invoke('ensure_kasugai_canvas');
-                }
-            } catch (e) { console.warn('KASUGAI_CANVAS 起動確認失敗:', e); }
-            switchTab('cesium');
+            // ?settings=true で開かれた場合は CANVAS ではなくシステム設定タブを初期表示する
+            // （openSystemSettings / getTabUrl('settings') が生成する index2.html?settings=true URL の消費側）
+            const initialTab = new URLSearchParams(location.search).get('settings') === 'true' ? 'settings' : 'cesium';
+            if (initialTab === 'cesium') {
+                // デフォルトで CANVAS タブをアクティブにする前に、KASUGAI_CANVAS のインストール・起動を確認
+                try {
+                    if (window.__TAURI__ && window.__TAURI__.core) {
+                        await window.__TAURI__.core.invoke('ensure_kasugai_canvas');
+                    }
+                } catch (e) { console.warn('KASUGAI_CANVAS 起動確認失敗:', e); }
+            }
+            switchTab(initialTab);
             // 内部の設定タブをデフォルトで プラットフォーム にする
             if (typeof switchSettingsTab === 'function') switchSettingsTab('platform');
 
